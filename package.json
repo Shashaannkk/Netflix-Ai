@@ -1,0 +1,16 @@
+{
+  "name": "netflix-ai-watch-spaces-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root workspace runner for Netflix AI Watch Spaces",
+  "scripts": {
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"bgBlue.bold,bgRed.bold\" \"npm run server\" \"npm run client\"",
+    "start": "npm start --prefix server",
+    "build": "npm run build --prefix client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
