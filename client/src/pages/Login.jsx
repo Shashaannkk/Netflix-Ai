@@ -1,16 +1,39 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { AlertCircle } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
-  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
 
-  const handleSubmit = (e) => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const redirectPath = location.state?.from?.pathname || '/';
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Placeholder transition to dashboard
-    navigate('/dashboard');
+    setErrorMsg(null);
+    setIsSubmitting(true);
+
+    try {
+      await login(email, password);
+      navigate(redirectPath, { replace: true });
+    } catch (err) {
+      setErrorMsg(err.message || 'Incorrect email or password.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Helper to prefill test accounts
+  const prefill = (testEmail, testRole) => {
+    setEmail(testEmail);
+    setPassword('password123');
   };
 
   return (
@@ -36,11 +59,28 @@ export const Login = () => {
         <div className="netflix-auth-card">
           <h1 className="auth-card-title">Sign In</h1>
 
+          {errorMsg && (
+            <div style={{
+              background: '#e87c03',
+              color: '#fff',
+              padding: '0.8rem 1rem',
+              borderRadius: '4px',
+              fontSize: '0.875rem',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <AlertCircle size={18} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="netflix-input-group">
               <input
-                type="text"
-                placeholder="Email or phone number"
+                type="email"
+                placeholder="Email address"
                 className="netflix-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -59,22 +99,67 @@ export const Login = () => {
               />
             </div>
 
-            <button type="submit" className="btn-netflix-submit">
-              Sign In
+            <button
+              type="submit"
+              className="btn-netflix-submit"
+              disabled={isSubmitting}
+              style={{ opacity: isSubmitting ? 0.7 : 1 }}
+            >
+              {isSubmitting ? 'Signing In...' : 'Sign In'}
             </button>
 
-            <div className="auth-form-help">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  style={{ accentColor: '#737373' }}
-                />
-                <span>Remember me</span>
-              </label>
-
-              <a href="#help">Need help?</a>
+            {/* Quick Demo Test Accounts */}
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #333' }}>
+              <p style={{ fontSize: '0.75rem', color: '#888', marginBottom: '0.5rem', fontWeight: 600 }}>
+                QUICK-FILL TEST ACCOUNTS:
+              </p>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => prefill('viewer1@netflix.ai', 'viewer')}
+                  style={{
+                    background: '#262626',
+                    color: '#ccc',
+                    border: '1px solid #444',
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '3px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Viewer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => prefill('host1@netflix.ai', 'host')}
+                  style={{
+                    background: '#262626',
+                    color: '#ccc',
+                    border: '1px solid #444',
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '3px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Space Host
+                </button>
+                <button
+                  type="button"
+                  onClick={() => prefill('admin1@netflix.ai', 'admin')}
+                  style={{
+                    background: '#262626',
+                    color: '#ccc',
+                    border: '1px solid #444',
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '3px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Admin
+                </button>
+              </div>
             </div>
           </form>
 

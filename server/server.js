@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 import { connectDB } from './config/db.js';
@@ -22,12 +23,13 @@ const corsOptions = {
   origin: [CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 };
 
 app.use(cors(corsOptions));
 
-// 2. Body Parsing Middleware
+// 2. Cookie & Body Parsing Middleware
+app.use(cookieParser(process.env.COOKIE_SECRET || 'netflix-secret'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

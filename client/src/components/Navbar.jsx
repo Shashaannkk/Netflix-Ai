@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Link } from 'react-router-dom';
-import { Search, Bell, ChevronDown, Users, Film, User, LogOut, Settings } from 'lucide-react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { Search, Bell, ChevronDown, Users, Film, LogOut, Settings, LogIn } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,11 +21,15 @@ export const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <header className={`netflix-navbar ${isScrolled ? 'scrolled' : ''}`}>
       <div className="nav-left">
         <Link to="/" className="netflix-logo-link" title="Netflix AI Watch Spaces">
-          {/* Authentic Netflix Logo SVG */}
           <svg
             className="netflix-brand-svg"
             viewBox="0 0 111 30"
@@ -61,11 +68,6 @@ export const Navbar = () => {
               <span className="netflix-nav-badge">AI</span>
             </NavLink>
           </li>
-          <li>
-            <NavLink to="/dashboard" className="netflix-nav-link">
-              My List
-            </NavLink>
-          </li>
         </ul>
       </div>
 
@@ -78,41 +80,77 @@ export const Navbar = () => {
           <Bell size={20} />
         </button>
 
-        {/* Netflix User Profile Avatar & Dropdown */}
-        <div className="nav-profile-menu">
-          <img
-            src="https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png"
-            alt="Profile Avatar"
-            className="nav-avatar-img"
-          />
-          <ChevronDown size={14} className="profile-dropdown-caret" />
+        {/* Dynamic Auth State: Profile Dropdown or Sign In */}
+        {isAuthenticated ? (
+          <div className="nav-profile-menu">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png"
+              alt="Profile Avatar"
+              className="nav-avatar-img"
+            />
+            <ChevronDown size={14} className="profile-dropdown-caret" />
 
-          <div className="profile-dropdown">
-            <Link to="/space" className="profile-dropdown-item">
-              <Users size={16} />
-              <span>Launch Watch Space</span>
-            </Link>
-            <Link to="/dashboard" className="profile-dropdown-item">
-              <Film size={16} />
-              <span>Browse Catalog</span>
-            </Link>
-            <Link to="/admin" className="profile-dropdown-item">
-              <Settings size={16} />
-              <span>Studio Ingestion CMS</span>
-            </Link>
+            <div className="profile-dropdown">
+              <div style={{ padding: '0.4rem 1.2rem 0.6rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>
+                  {user?.displayName}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                  <span style={{
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    backgroundColor: user?.role === 'admin' ? 'var(--netflix-red)' : user?.role === 'host' ? '#a855f7' : '#333',
+                    color: '#fff'
+                  }}>
+                    {user?.role}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#888' }}>{user?.email}</span>
+                </div>
+              </div>
 
-            <div className="profile-dropdown-divider" />
+              <div className="profile-dropdown-divider" />
 
-            <Link to="/login" className="profile-dropdown-item">
-              <User size={16} />
-              <span>Switch Profile</span>
-            </Link>
-            <Link to="/login" className="profile-dropdown-item">
-              <LogOut size={16} />
-              <span>Sign out of Netflix</span>
-            </Link>
+              <Link to="/space" className="profile-dropdown-item">
+                <Users size={16} />
+                <span>Launch Watch Space</span>
+              </Link>
+              <Link to="/dashboard" className="profile-dropdown-item">
+                <Film size={16} />
+                <span>Browse Catalog</span>
+              </Link>
+
+              {user?.role === 'admin' && (
+                <Link to="/admin" className="profile-dropdown-item">
+                  <Settings size={16} />
+                  <span>Studio Ingestion CMS</span>
+                </Link>
+              )}
+
+              <div className="profile-dropdown-divider" />
+
+              <button
+                onClick={handleLogout}
+                className="profile-dropdown-item"
+                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <LogOut size={16} />
+                <span>Sign out of Netflix</span>
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <Link
+            to="/login"
+            className="btn-netflix-space"
+            style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
+          >
+            <LogIn size={15} />
+            <span>Sign In</span>
+          </Link>
+        )}
       </div>
     </header>
   );

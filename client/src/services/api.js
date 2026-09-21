@@ -4,41 +4,122 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 
 /**
  * Pre-configured Axios instance for REST API communications.
+ * Includes credentials for httpOnly refresh cookies.
  */
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   },
+  withCredentials: true, // Crucial for sending/receiving httpOnly refresh cookies
   timeout: 10000
 });
 
-// Request Interceptor (attaches JWT in future auth phases)
+// In-memory access token storage
+let currentAccessToken = localStorage.getItem('netflix_access_token') || null;
+
+export const setAccessToken = (token) => {
+  currentAccessToken = token;
+  if (token) {
+    localStorage.setItem('netflix_access_token', token);
+  } else {
+    localStorage.removeItem('netflix_access_token');
+  }
+};
+
+export const getAccessToken = () => currentAccessToken;
+
+// Request Interceptor: Attach JWT Bearer Access Token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (currentAccessToken) {
+      config.headers.Authorization = `Bearer ${currentAccessToken}`;
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor (standardizes error handling)
+// Response Interceptor: Auto-Refresh on TOKEN_EXPIRED (401)
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 apiClient.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    const message = error.response?.data?.message || error.message || 'Network error occurred';
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If 401 and token expired, attempt transparent refresh
+    if (
+      error.response?.status === 401 &&
+      error.response?.data?.error === 'TOKEN_EXPIRED' &&
+      !originalRequest._retry
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshResponse = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
+        const newAccessToken = refreshResponse.data?.data?.accessToken;
+        setAccessToken(newAccessToken);
+        processQueue(null, newAccessToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        setAccessToken(null);
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    const message = error.response?.data?.message || error.message || 'An unexpected error occurred';
     return Promise.reject(new Error(message));
   }
 );
 
-/**
- * Health Check API Request
- */
-export const checkApiHealth = async () => {
-  return apiClient.get('/health');
-};
+// Auth REST API Calls
+export const loginUser = (credentials) => apiClient.post('/auth/login', credentials);
+export const registerUser = (userData) => apiClient.post('/auth/register', userData);
+export const refreshTokenRequest = () => apiClient.post('/auth/refresh');
+export const logoutUser = () => apiClient.post('/auth/logout');
+export const fetchCurrentUser = () => apiClient.get('/auth/me');
+
+// RBAC Test Verification Calls
+export const testViewerAccess = () => apiClient.get('/test/viewer');
+export const testHostAccess = () => apiClient.get('/test/host');
+export const testAdminAccess = () => apiClient.get('/test/admin');
+
+// Health Check
+export const checkApiHealth = () => apiClient.get('/health');
 
 export default apiClient;

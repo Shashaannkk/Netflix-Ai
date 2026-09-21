@@ -1,15 +1,37 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { AlertCircle } from 'lucide-react';
 
 export const Register = () => {
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [role, setRole] = useState('viewer'); // 'viewer' | 'host'
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setErrorMsg(null);
+    setIsSubmitting(true);
+
+    try {
+      await register({
+        displayName,
+        email,
+        password,
+        role
+      });
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      setErrorMsg(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -33,15 +55,33 @@ export const Register = () => {
         <div className="netflix-auth-card">
           <h1 className="auth-card-title">Create Account</h1>
 
+          {errorMsg && (
+            <div style={{
+              background: '#e87c03',
+              color: '#fff',
+              padding: '0.8rem 1rem',
+              borderRadius: '4px',
+              fontSize: '0.875rem',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <AlertCircle size={18} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="netflix-input-group">
               <input
                 type="text"
-                placeholder="Choose Username"
+                placeholder="Display Name"
                 className="netflix-input"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 required
+                minLength={2}
               />
             </div>
 
@@ -59,16 +99,63 @@ export const Register = () => {
             <div className="netflix-input-group">
               <input
                 type="password"
-                placeholder="Create a password"
+                placeholder="Create Password (min 6 characters)"
                 className="netflix-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
             </div>
 
-            <button type="submit" className="btn-netflix-submit">
-              Sign Up
+            {/* Role Selector */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', color: '#aaa', marginBottom: '0.4rem' }}>
+                Account Purpose:
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setRole('viewer')}
+                  style={{
+                    padding: '0.6rem',
+                    borderRadius: '4px',
+                    border: role === 'viewer' ? '2px solid var(--netflix-red)' : '1px solid #444',
+                    background: role === 'viewer' ? 'rgba(229, 9, 20, 0.15)' : '#262626',
+                    color: '#fff',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Viewer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('host')}
+                  style={{
+                    padding: '0.6rem',
+                    borderRadius: '4px',
+                    border: role === 'host' ? '2px solid var(--netflix-red)' : '1px solid #444',
+                    background: role === 'host' ? 'rgba(229, 9, 20, 0.15)' : '#262626',
+                    color: '#fff',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Space Host
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="btn-netflix-submit"
+              disabled={isSubmitting}
+              style={{ opacity: isSubmitting ? 0.7 : 1 }}
+            >
+              {isSubmitting ? 'Creating Account...' : 'Sign Up'}
             </button>
           </form>
 
@@ -76,10 +163,6 @@ export const Register = () => {
             <span>Already have an account?</span>
             <Link to="/login">Sign in now.</Link>
           </div>
-
-          <p className="auth-recaptcha-notice">
-            By signing up, you agree to Netflix Terms of Use and Privacy Statement.
-          </p>
         </div>
       </div>
     </div>
