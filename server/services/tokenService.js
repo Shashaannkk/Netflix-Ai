@@ -5,11 +5,24 @@ import jwt from 'jsonwebtoken';
  * Manages creation, verification, and cookie storage of Access & Refresh tokens.
  */
 
-export const generateAccessToken = (user) => {
-  const secret = process.env.JWT_ACCESS_SECRET;
-  if (!secret) {
-    throw new Error('JWT_ACCESS_SECRET environment variable is missing');
+const getAccessSecret = () => {
+  if (process.env.JWT_ACCESS_SECRET) return process.env.JWT_ACCESS_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_ACCESS_SECRET environment variable is missing in production!');
   }
+  return 'netflix_ai_access_token_secret_development_key_12345';
+};
+
+const getRefreshSecret = () => {
+  if (process.env.JWT_REFRESH_SECRET) return process.env.JWT_REFRESH_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_REFRESH_SECRET environment variable is missing in production!');
+  }
+  return 'netflix_ai_refresh_token_secret_development_key_67890';
+};
+
+export const generateAccessToken = (user) => {
+  const secret = getAccessSecret();
 
   const payload = {
     id: user._id || user.id,
@@ -24,10 +37,7 @@ export const generateAccessToken = (user) => {
 };
 
 export const generateRefreshToken = (user) => {
-  const secret = process.env.JWT_REFRESH_SECRET;
-  if (!secret) {
-    throw new Error('JWT_REFRESH_SECRET environment variable is missing');
-  }
+  const secret = getRefreshSecret();
 
   const payload = {
     id: user._id || user.id
@@ -39,12 +49,12 @@ export const generateRefreshToken = (user) => {
 };
 
 export const verifyAccessToken = (token) => {
-  const secret = process.env.JWT_ACCESS_SECRET;
+  const secret = getAccessSecret();
   return jwt.verify(token, secret);
 };
 
 export const verifyRefreshToken = (token) => {
-  const secret = process.env.JWT_REFRESH_SECRET;
+  const secret = getRefreshSecret();
   return jwt.verify(token, secret);
 };
 

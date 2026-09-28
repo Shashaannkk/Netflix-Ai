@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   register,
   login,
+  googleAuth,
   refreshToken,
   logout,
   getMe
@@ -13,6 +14,7 @@ const router = Router();
 // Public routes
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', googleAuth);
 router.post('/refresh', refreshToken);
 router.post('/logout', logout);
 

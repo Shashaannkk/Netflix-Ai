@@ -1,44 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, ChevronDown, Users, Film, LogOut, Settings, LogIn } from 'lucide-react';
+import { Search, Bell, ChevronDown, Users, Film, LogOut, Settings, LogIn, Play } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import NetflixAiLogo from './NetflixAiLogo';
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const profileRef = React.useRef(null);
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 40) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
+      setIsScrolled(window.scrollY > 40);
+    };
+
+    const handleClickOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setIsProfileOpen(false);
       }
     };
 
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const handleLogout = async () => {
+    setIsProfileOpen(false);
     await logout();
     navigate('/login');
   };
+
+  const userInitial = user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'N';
+  const avatarUrl = user?.avatarUrl || 'https://assets.nflxext.com/ffe/siteui/vma/netflix-avatar.png';
 
   return (
     <header className={`netflix-navbar ${isScrolled ? 'scrolled' : ''}`}>
       <div className="nav-left">
         <Link to="/" className="netflix-logo-link" title="Netflix AI Watch Spaces">
-          <svg
-            className="netflix-brand-svg"
-            viewBox="0 0 111 30"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.042-13.75-5.656-14.156h5.062l3.313 8.843 3.375-8.843h4.969l-5.95 14.343h.001zm-22.406 6.25v7.625c-1.625-.094-3.219-.188-4.813-.25V0h4.813v12.281h6.75v4.5h-6.75v3.75h.001zm-10.438-1.5c0 1.25.063 2.5.125 3.75-1.531-.031-3.094-.063-4.625-.063-.094-1.25-.156-2.5-.156-3.75V4.5h-4.375V0h13.563v4.5h-4.531v14.531h-.001zm-15.656-6.75v8.594c-1.531 0-3.094-.031-4.656-.031V0h4.656v7.719h6.75v4.5h-6.75v.063h.001zm-10.438 8.437c-1.562 0-3.125 0-4.656-.031V0h4.656v20.719h.001zm-14.437.031V0h4.719l6.594 14.375V0h4.594v20.781c-1.625 0-3.219-.031-4.844-.062l-6.344-13.906v13.937h-4.719zm-16.594.25c-1.625 0-3.25.031-4.875.063V0h4.875v20.969h.001z"
-            />
-          </svg>
+          <NetflixAiLogo height={32} />
         </Link>
 
         <ul className="netflix-nav-items">
@@ -63,7 +70,7 @@ export const Navbar = () => {
             </NavLink>
           </li>
           <li>
-            <NavLink to="/space" className={({ isActive }) => `netflix-nav-link ${isActive ? 'active' : ''}`}>
+            <NavLink to="/create-space" className={({ isActive }) => `netflix-nav-link ${isActive ? 'active' : ''}`}>
               Watch Spaces
               <span className="netflix-nav-badge">AI</span>
             </NavLink>
@@ -82,15 +89,27 @@ export const Navbar = () => {
 
         {/* Dynamic Auth State: Profile Dropdown or Sign In */}
         {isAuthenticated ? (
-          <div className="nav-profile-menu">
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png"
-              alt="Profile Avatar"
-              className="nav-avatar-img"
-            />
+          <div
+            className="nav-profile-menu"
+            ref={profileRef}
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            style={{ position: 'relative', cursor: 'pointer' }}
+          >
+            {!imgError ? (
+              <img
+                src={avatarUrl}
+                alt="Profile Avatar"
+                className="nav-avatar-img"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="cb-avatar-fallback">
+                {userInitial}
+              </div>
+            )}
             <ChevronDown size={14} className="profile-dropdown-caret" />
 
-            <div className="profile-dropdown">
+            <div className={`profile-dropdown ${isProfileOpen ? 'open' : ''}`} style={{ display: isProfileOpen ? 'block' : undefined }}>
               <div style={{ padding: '0.4rem 1.2rem 0.6rem' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>
                   {user?.displayName}
@@ -113,17 +132,21 @@ export const Navbar = () => {
 
               <div className="profile-dropdown-divider" />
 
-              <Link to="/space" className="profile-dropdown-item">
+              <Link to="/create-space" className="profile-dropdown-item" onClick={() => setIsProfileOpen(false)}>
                 <Users size={16} />
-                <span>Launch Watch Space</span>
+                <span>Create Watch Space</span>
               </Link>
-              <Link to="/dashboard" className="profile-dropdown-item">
+              <Link to="/join" className="profile-dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                <Play size={16} />
+                <span>Join a Space</span>
+              </Link>
+              <Link to="/dashboard" className="profile-dropdown-item" onClick={() => setIsProfileOpen(false)}>
                 <Film size={16} />
                 <span>Browse Catalog</span>
               </Link>
 
               {user?.role === 'admin' && (
-                <Link to="/admin" className="profile-dropdown-item">
+                <Link to="/admin" className="profile-dropdown-item" onClick={() => setIsProfileOpen(false)}>
                   <Settings size={16} />
                   <span>Studio Ingestion CMS</span>
                 </Link>

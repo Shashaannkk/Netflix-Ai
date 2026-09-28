@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   loginUser,
   registerUser,
+  googleAuthUser,
   logoutUser,
   fetchCurrentUser,
   refreshTokenRequest,
@@ -32,14 +33,14 @@ export const AuthProvider = ({ children }) => {
             if (refreshRes?.data?.accessToken) {
               setAccessToken(refreshRes.data.accessToken);
               setUser(refreshRes.data.user);
+            } else {
+              setUser(null);
             }
-          } catch (e) {
-            // No active session cookie - expected for guest visitors
+          } catch {
             setUser(null);
           }
         }
       } catch (err) {
-        console.warn('[AuthContext] Session hydration error:', err.message);
         setAccessToken(null);
         setUser(null);
       } finally {
@@ -80,6 +81,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (googleData) => {
+    setAuthError(null);
+    try {
+      const response = await googleAuthUser(googleData);
+      const { user: userData, accessToken } = response.data;
+
+      setAccessToken(accessToken);
+      setUser(userData);
+      return userData;
+    } catch (err) {
+      setAuthError(err.message);
+      throw err;
+    }
+  };
+
   const logout = async () => {
     try {
       await logoutUser();
@@ -100,6 +116,7 @@ export const AuthProvider = ({ children }) => {
     setAuthError,
     login,
     register,
+    googleLogin,
     logout
   };
 

@@ -11,7 +11,7 @@ export const requireAuth = (req, res, next) => {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return sendError(res, {
       statusCode: 401,
-      message: 'Authentication required. No Bearer token provided.'
+      message: 'Authentication required. No access token provided.'
     });
   }
 
@@ -25,16 +25,38 @@ export const requireAuth = (req, res, next) => {
     if (error.name === 'TokenExpiredError') {
       return sendError(res, {
         statusCode: 401,
-        message: 'Access token expired. Please refresh your token.',
+        message: 'Access token has expired. Please refresh your session.',
         error: 'TOKEN_EXPIRED'
       });
     }
 
     return sendError(res, {
       statusCode: 401,
-      message: 'Invalid or malformed access token.'
+      message: 'Invalid access token. Authentication failed.',
+      error: error.message
     });
   }
+};
+
+/**
+ * Optional Authentication Middleware
+ * Attaches req.user if a valid token is present, but permits anonymous guests.
+ */
+export const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    req.user = null;
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = verifyAccessToken(token);
+    req.user = decoded;
+  } catch {
+    req.user = null;
+  }
+  return next();
 };
 
 /**
@@ -77,3 +99,8 @@ export const verifySocketToken = (token) => {
   const cleanedToken = token.startsWith('Bearer ') ? token.slice(7) : token;
   return verifyAccessToken(cleanedToken);
 };
+
+// Aliases for compatibility
+export const authenticate = requireAuth;
+export const requireRole = (...roles) => authorizeRoles(...roles);
+

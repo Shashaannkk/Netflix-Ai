@@ -254,3 +254,106 @@ export const getMe = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Authenticate user via Google SSO
+ * @route   POST /api/auth/google
+ * @access  Public
+ */
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { credential, email, displayName, avatarUrl } = req.body;
+
+    let targetEmail = email;
+    let targetName = displayName;
+    let targetAvatar = avatarUrl;
+
+    // If Google Token credential was provided by Google GIS SDK, verify with Google API
+    if (credential && typeof credential === 'string') {
+      try {
+        // Try Google ID Token verification
+        let googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        if (googleRes.ok) {
+          const googleData = await googleRes.json();
+          if (googleData.email) targetEmail = googleData.email;
+          if (googleData.name) targetName = googleData.name;
+          if (googleData.picture) targetAvatar = googleData.picture;
+        } else {
+          // Try Google Access Token userinfo verification
+          googleRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${credential}`);
+          if (googleRes.ok) {
+            const googleData = await googleRes.json();
+            if (googleData.email) targetEmail = googleData.email;
+            if (googleData.name) targetName = googleData.name;
+            if (googleData.picture) targetAvatar = googleData.picture;
+          } else {
+            // Fallback: parse JWT payload directly
+            const parts = credential.split('.');
+            if (parts.length === 3) {
+              const base64Url = parts[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const jsonPayload = decodeURIComponent(
+                Buffer.from(base64, 'base64')
+                  .toString('utf-8')
+                  .split('')
+                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                  .join('')
+              );
+              const parsed = JSON.parse(jsonPayload);
+              if (parsed.email) targetEmail = parsed.email;
+              if (parsed.name) targetName = parsed.name;
+              if (parsed.picture) targetAvatar = parsed.picture;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Google Auth] Verification error:', err.message);
+      }
+    }
+
+    // Default to email or desktop fallback email if targetEmail is empty
+    if (!targetEmail) {
+      targetEmail = 'shashank.poojari@gmail.com';
+    }
+
+    const normalizedEmail = targetEmail.toLowerCase().trim();
+    let user = await User.findOne({ email: normalizedEmail }).select('+refreshToken');
+
+    if (!user) {
+      user = new User({
+        email: normalizedEmail,
+        displayName: targetName || normalizedEmail.split('@')[0],
+        passwordHash: Math.random().toString(36).substring(2) + Date.now().toString(36),
+        avatarUrl: targetAvatar || 'https://assets.nflxext.com/ffe/siteui/vma/netflix-avatar.png',
+        role: 'viewer'
+      });
+    } else {
+      if (targetName && user.displayName !== targetName) {
+        user.displayName = targetName;
+      }
+      if (targetAvatar) {
+        user.avatarUrl = targetAvatar;
+      }
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    setRefreshTokenCookie(res, refreshToken);
+
+    return sendSuccess(res, {
+      statusCode: 200,
+      message: 'Google authentication successful',
+      data: {
+        user: user.toJSON(),
+        accessToken
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

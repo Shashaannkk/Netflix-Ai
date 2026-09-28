@@ -10,6 +10,8 @@ import apiRouter from './routes/index.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initSocketHandler } from './sockets/socketHandler.js';
+import { seedUserInteractionsData } from './data/seedInteractions.js';
+import { seedTitlesData } from './data/seedTitles.js';
 
 // Load environment variables
 dotenv.config();
@@ -20,10 +22,21 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 // 1. CORS Configuration
 const corsOptions = {
-  origin: [CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: (origin, callback) => {
+    // Allow server-to-server or requests without origin header (e.g. Postman, curl, mobile)
+    if (!origin) return callback(null, true);
+    if (
+      origin === CLIENT_URL ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Dev-friendly permissive CORS
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
 };
 
 app.use(cors(corsOptions));
@@ -65,19 +78,37 @@ initSocketHandler(io);
 
 // 6. Connect Database and Start Server
 const startServer = async () => {
+  // Validate mandatory environment variables
+  const requiredEnvVars = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
+  if (process.env.NODE_ENV === 'production') {
+    requiredEnvVars.push('MONGO_URI', 'COOKIE_SECRET');
+  }
+  const missingVars = requiredEnvVars.filter((key) => !process.env[key]);
+  if (missingVars.length > 0) {
+    console.error(`❌ [Server Startup Failed] Missing required environment variables: ${missingVars.join(', ')}`);
+    process.exit(1);
+  }
+
   // Connect to MongoDB
   await connectDB();
 
-  server.listen(PORT, () => {
-    console.log(`====================================================`);
-    console.log(`🚀 Netflix AI Watch Spaces Server is running!`);
-    console.log(`📡 HTTP API:        http://localhost:${PORT}/api/health`);
-    console.log(`⚡ WebSocket URL:   ws://localhost:${PORT}`);
-    console.log(`🌐 Allowed Client:  ${CLIENT_URL}`);
-    console.log(`====================================================`);
-  });
+  // Seed sample titles catalog & interaction data for recommendations
+  await seedTitlesData();
+  await seedUserInteractionsData();
+
+  if (!process.env.VERCEL) {
+    server.listen(PORT, () => {
+      console.log(`====================================================`);
+      console.log(`🚀 Netflix AI Watch Spaces Server is running!`);
+      console.log(`📡 HTTP API:        http://localhost:${PORT}/api/health`);
+      console.log(`⚡ WebSocket URL:   ws://localhost:${PORT}`);
+      console.log(`🌐 Allowed Client:  ${CLIENT_URL}`);
+      console.log(`====================================================`);
+    });
+  }
 };
 
 startServer();
 
+export default app;
 export { app, server, io };

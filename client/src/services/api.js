@@ -102,6 +102,12 @@ apiClient.interceptors.response.use(
       }
     }
 
+    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK' || !error.response) {
+      return Promise.reject(
+        new Error('Network Error: Cannot connect to the Netflix AI backend server. Please ensure the backend server is running on http://localhost:5000.')
+      );
+    }
+
     const message = error.response?.data?.message || error.message || 'An unexpected error occurred';
     return Promise.reject(new Error(message));
   }
@@ -110,6 +116,7 @@ apiClient.interceptors.response.use(
 // Auth REST API Calls
 export const loginUser = (credentials) => apiClient.post('/auth/login', credentials);
 export const registerUser = (userData) => apiClient.post('/auth/register', userData);
+export const googleAuthUser = (data) => apiClient.post('/auth/google', data);
 export const refreshTokenRequest = () => apiClient.post('/auth/refresh');
 export const logoutUser = () => apiClient.post('/auth/logout');
 export const fetchCurrentUser = () => apiClient.get('/auth/me');
@@ -119,7 +126,20 @@ export const testViewerAccess = () => apiClient.get('/test/viewer');
 export const testHostAccess = () => apiClient.get('/test/host');
 export const testAdminAccess = () => apiClient.get('/test/admin');
 
+// Part 9 Dashboard, Analytics & Recommendations API Calls
+export const getDashboardApi = () => apiClient.get('/dashboard/user');
+export const recordInteractionApi = (data) => apiClient.post('/dashboard/interaction', data);
+export const getSpaceAnalyticsApi = (spaceId) => apiClient.get(`/dashboard/analytics/${spaceId}`);
+
+// Part 9 Admin Timeline & Metadata Management API Calls
+export const validateTimelineApi = (titleId, timeline) =>
+  apiClient.post(`/admin/titles/${titleId}/timeline/validate`, { timeline });
+
+export const updateTimelineApi = (titleId, timeline) =>
+  apiClient.put(`/admin/titles/${titleId}/timeline`, { timeline });
+
 // Health Check
 export const checkApiHealth = () => apiClient.get('/health');
 
 export default apiClient;
+
