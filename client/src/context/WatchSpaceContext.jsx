@@ -5,7 +5,10 @@ import { getSpace, updateSpaceStatus, leaveSpace, getSpaceMessages } from '../se
 import { getAccessToken } from '../services/api';
 import { useAuth } from './AuthContext';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') 
+    ? window.location.origin 
+    : 'http://localhost:5000');
 
 const WatchSpaceContext = createContext(null);
 
