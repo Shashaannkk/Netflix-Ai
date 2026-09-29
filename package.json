@@ -9,7 +9,7 @@
     "client": "npm run dev --prefix client",
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"bgBlue.bold,bgRed.bold\" \"npm run server\" \"npm run client\"",
     "start": "npm start --prefix server",
-    "postinstall": "npm install --prefix client && npm install --prefix server",
+    "postinstall": "npm install --prefix client --include=dev && npm install --prefix server --include=dev",
     "build": "npm run postinstall && npm run build --prefix client"
   },
   "devDependencies": {
