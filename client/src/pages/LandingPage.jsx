@@ -161,7 +161,7 @@ export const LandingPage = ({ initialTab }) => {
 
   // 2. Load Google Identity Services SDK for Google OAuth Popup
   useEffect(() => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '712345678901-exampleclientid.apps.googleusercontent.com';
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '665300703349-lc4b8s1teve03m6isg262cveanispb8g.apps.googleusercontent.com';
 
     const initializeGis = () => {
       if (window.google?.accounts?.id) {
@@ -244,7 +244,7 @@ export const LandingPage = ({ initialTab }) => {
 
     // 1. Try Native Google OAuth Token Client Popup
     if (window.google?.accounts?.oauth2) {
-      const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '712345678901-exampleclientid.apps.googleusercontent.com';
+      const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '665300703349-lc4b8s1teve03m6isg262cveanispb8g.apps.googleusercontent.com';
       try {
         const client = window.google.accounts.oauth2.initTokenClient({
           client_id: googleClientId,
