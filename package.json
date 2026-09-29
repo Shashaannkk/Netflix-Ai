@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Root workspace runner for Netflix AI Watch Spaces",
+  "type": "module",
   "scripts": {
     "server": "npm run dev --prefix server",
     "client": "npm run dev --prefix client",

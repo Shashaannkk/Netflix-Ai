@@ -1,8 +1,9 @@
 const TMDB_API_KEYS = [
+  import.meta.env.VITE_TMDB_API_KEY,
   '484366b7235bc8db84aba0f9e3b1bec6',
   '3fd2be6f0c70a2a598f084dd27548773',
   '8414042854378f4b0d015c92c8137359'
-];
+].filter(Boolean);
 const BASE_URL = 'https://api.themoviedb.org/3';
 export const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 export const TMDB_BACKDROP_BASE = 'https://image.tmdb.org/t/p/w1280';

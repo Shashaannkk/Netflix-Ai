@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
 :root {
   --netflix-black: #141414;
   --netflix-dark: #000000;
@@ -2608,7 +2610,6 @@ body {
 /* ============================================================
    CINEBY DESIGN SYSTEM & FRONTEND REPLICATION (NETFLIX RED THEME)
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
   --cb-bg: #141414;
@@ -3787,35 +3788,149 @@ body {
   object-fit: cover;
 }
 
-/* ── RESPONSIVE MOBILE ADJUSTMENTS ── */
-@media (max-width: 768px) {
-  .cb-nav-menu {
-    display: none;
+/* ============================================================
+   RESPONSIVE BREAKPOINTS (PHONE, TABLET, DESKTOP)
+   ============================================================ */
+
+/* ── TABLET STYLES (768px to 1024px) ── */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .cb-nav-container, .netflix-navbar {
+    padding: 0 3%;
   }
-  .cb-hamburger {
-    display: block;
-  }
+
   .cb-search-wrapper {
-    width: 180px;
+    width: 220px;
   }
+
   .cb-hero-banner {
-    height: 70vh;
-    padding-bottom: 3rem;
+    height: 75vh;
   }
+
   .cb-hero-title {
-    font-size: 2.2rem;
+    font-size: 3rem;
   }
+
   .cb-landscape-card {
-    flex: 0 0 240px;
+    flex: 0 0 260px;
   }
+
   .cb-portrait-card {
-    flex: 0 0 140px;
+    flex: 0 0 160px;
   }
+
+  .cb-modal-container {
+    width: 92%;
+    max-width: 860px;
+    max-height: 90vh;
+  }
+
   .cb-modal-details-grid {
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .watch-space-grid {
     grid-template-columns: 1fr;
   }
-  .cb-modal-right {
+}
+
+/* ── PHONE / MOBILE STYLES (< 768px) ── */
+@media (max-width: 767px) {
+  .cb-nav-menu, .netflix-nav-items {
     display: none;
+  }
+
+  .cb-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cb-search-wrapper {
+    width: 140px;
+  }
+
+  .cb-hero-banner {
+    height: 65vh;
+    padding-bottom: 2rem;
+  }
+
+  .cb-hero-title {
+    font-size: 2rem;
+    line-height: 1.15;
+  }
+
+  .cb-hero-desc {
+    font-size: 0.88rem;
+    line-clamp: 3;
+    -webkit-line-clamp: 3;
+  }
+
+  .cb-hero-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .cb-btn-primary, .cb-btn-secondary {
+    padding: 0.55rem 1.1rem;
+    font-size: 0.85rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cb-landscape-card {
+    flex: 0 0 200px;
+  }
+
+  .cb-portrait-card {
+    flex: 0 0 130px;
+  }
+
+  .cb-modal-container {
+    width: 96%;
+    max-height: 94vh;
+    border-radius: 12px;
+  }
+
+  .cb-modal-details-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .cb-modal-right {
+    display: block;
+    margin-top: 1rem;
+  }
+
+  .cb-modal-iframe-wrapper {
+    aspect-ratio: 16 / 9;
+    height: auto;
+  }
+
+  .watch-space-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .watch-space-chat-sidebar {
+    width: 100% !important;
+    height: 400px;
+    border-left: none;
+    border-top: 1px solid var(--netflix-border);
+  }
+}
+
+/* ── DESKTOP LARGE SCREEN OPTIMIZATION (> 1024px) ── */
+@media (min-width: 1025px) {
+  .cb-modal-container {
+    width: 88%;
+    max-width: 1050px;
+  }
+
+  .cb-modal-details-grid {
+    grid-template-columns: 2.2fr 1fr;
+    gap: 2rem;
   }
 }
 

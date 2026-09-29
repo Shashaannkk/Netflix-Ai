@@ -357,6 +357,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+          referrerPolicy="no-referrer"
           onError={() => {
             console.warn('[NetflixVideoPlayer] Embed trailer unavailable. Falling back to HD stream.');
             setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
