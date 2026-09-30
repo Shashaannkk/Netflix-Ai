@@ -3,7 +3,13 @@ import { io } from 'socket.io-client';
 const getSocketUrl = () => {
   const envUrl = import.meta.env.VITE_SOCKET_URL;
   if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
-    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    if (
+      envUrl &&
+      !envUrl.includes('localhost') &&
+      !envUrl.includes('127.0.0.1') &&
+      !envUrl.includes('your-vercel-domain') &&
+      !envUrl.includes('example.com')
+    ) {
       return envUrl;
     }
     return window.location.origin;

@@ -3,7 +3,14 @@ import axios from 'axios';
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
   if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
-    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    // If envUrl is set and is NOT localhost and NOT a placeholder domain (e.g. your-vercel-domain), use it. Otherwise fallback to origin-relative /api
+    if (
+      envUrl &&
+      !envUrl.includes('localhost') &&
+      !envUrl.includes('127.0.0.1') &&
+      !envUrl.includes('your-vercel-domain') &&
+      !envUrl.includes('example.com')
+    ) {
       return envUrl;
     }
     return `${window.location.origin}/api`;
