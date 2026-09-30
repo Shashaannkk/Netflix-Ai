@@ -89,11 +89,14 @@ export const WatchSpaceProvider = ({ children }) => {
   // ── Socket.IO ref & state ───────────────────────────────────────────────────
   const socketRef = useRef(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [socketId, setSocketId]               = useState(null);
+  const [socketTransport, setSocketTransport] = useState(null);
   const pingTimerRef = useRef(null);
 
   // ── Initialize socket connection ───────────────────────────────────────────
   useEffect(() => {
     const token = getAccessToken();
+    console.log('[WATCH_SOCKET] connecting to:', SOCKET_URL);
     const socket = io(SOCKET_URL, {
       auth: { token: token || undefined },
       transports: ['websocket', 'polling'],
@@ -104,21 +107,34 @@ export const WatchSpaceProvider = ({ children }) => {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[WatchSpaceContext] Socket connected:', socket.id);
+      const transportName = socket.io?.engine?.transport?.name || 'unknown';
+      console.log('[WATCH_SOCKET] connected');
+      console.log('[WATCH_SOCKET] socket id:', socket.id);
+      console.log('[WATCH_SOCKET] transport:', transportName);
       setSocketConnected(true);
+      setSocketId(socket.id);
+      setSocketTransport(transportName);
 
       if (currentSpace?._id) {
+        console.log('[WATCH_SOCKET] room join requested:', currentSpace._id);
         socket.emit('space:join', { spaceId: currentSpace._id });
       }
     });
 
-    socket.on('disconnect', (reason) => {
-      console.log('[WatchSpaceContext] Socket disconnected:', reason);
+    socket.on('connect_error', (err) => {
+      console.error('[WATCH_SOCKET] connection error:', err?.message || err);
       setSocketConnected(false);
     });
 
+    socket.on('disconnect', (reason) => {
+      console.log('[WATCH_SOCKET] disconnected:', reason);
+      setSocketConnected(false);
+      setSocketId(null);
+      setSocketTransport(null);
+    });
+
     socket.on('connection:ack', (data) => {
-      console.log('[WatchSpaceContext] Server ACK:', data.message);
+      console.log('[WATCH_SOCKET] Server ACK:', data.message);
     });
 
     // ── PRD Event: room.playback.update ─────────────────────────────────────
@@ -633,6 +649,8 @@ export const WatchSpaceProvider = ({ children }) => {
     isHost,
     participants,
     socketConnected,
+    socketId,
+    socketTransport,
     socket: socketRef,
 
     // Playback & Drift State

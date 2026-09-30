@@ -45,7 +45,7 @@ export const setAccessToken = (token) => {
   }
 };
 
-export const getAccessToken = () => currentAccessToken;
+export const getAccessToken = () => currentAccessToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('netflix_access_token') : null);
 
 // Request Interceptor: Attach JWT Bearer Access Token
 apiClient.interceptors.request.use(

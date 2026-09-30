@@ -127,6 +127,8 @@ const WatchSpace = () => {
     isHost,
     participants,
     socketConnected,
+    socketId,
+    socketTransport,
     loadSpace,
     setSpace,
     goLive,
@@ -1195,16 +1197,18 @@ const WatchSpace = () => {
                     </div>
                   ) : (
                     chatMessages.map((msg, idx) => {
-                      const isMe = msg.senderId === user?._id || msg.senderId?._id === user?._id;
+                      const senderIdStr = msg.senderUserId?._id || msg.senderUserId || msg.senderId?._id || msg.senderId;
+                      const isMe = senderIdStr === user?._id || senderIdStr === user?.id;
+                      const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
                       const timeStr = new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                       return (
                         <div key={msg._id || idx} className={`room-chat-msg-row ${isMe ? 'mine' : ''} ${msg.isSystem ? 'system' : ''}`}>
                           {!isMe && !msg.isSystem && (
-                            <div className="chat-avatar">{msg.senderName?.[0]?.toUpperCase() || 'U'}</div>
+                            <div className="chat-avatar">{senderDisplayName?.[0]?.toUpperCase() || 'U'}</div>
                           )}
                           <div className="chat-msg-bubble">
                             {!isMe && !msg.isSystem && (
-                              <span className="chat-sender-name">{msg.senderName}</span>
+                              <span className="chat-sender-name">{senderDisplayName}</span>
                             )}
                             <p className="chat-msg-text">{msg.text}</p>
                             <span className="chat-msg-time">{timeStr}</span>
@@ -1486,6 +1490,39 @@ const WatchSpace = () => {
 
           </div>
         </aside>
+      )}
+      {/* ══ REALTIME SOCKET DIAGNOSTIC DEBUG PANEL ══════════════════════════ */}
+      {import.meta.env.DEV && (
+        <div
+          className="watch-socket-debug-panel"
+          style={{
+            position: 'fixed',
+            bottom: '16px',
+            left: '16px',
+            backgroundColor: 'rgba(15, 15, 15, 0.92)',
+            border: '1px solid rgba(229, 9, 20, 0.4)',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            color: '#fff',
+            zIndex: 9999,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.7)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '3px',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', color: '#e50914', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '3px', marginBottom: '2px' }}>
+            [WATCH_SOCKET DEBUG]
+          </div>
+          <div>Socket: <span style={{ color: socketConnected ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>{socketConnected ? 'CONNECTED' : 'DISCONNECTED'}</span></div>
+          <div>Socket ID: <span style={{ color: '#38bdf8' }}>{socketId || 'N/A'}</span></div>
+          <div>Transport: <span style={{ color: '#f59e0b' }}>{socketTransport || 'N/A'}</span></div>
+          <div>Room: <span style={{ color: '#a855f7' }}>{currentSpace?._id || roomId || 'N/A'}</span></div>
+          <div>User: <span style={{ color: '#eab308' }}>{user?.displayName || user?._id || 'Guest'}</span></div>
+        </div>
       )}
     </div>
   );

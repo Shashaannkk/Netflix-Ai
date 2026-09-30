@@ -134,10 +134,10 @@ export const initSocketHandler = (io) => {
 
   io.on('connection', (socket) => {
     const user = socket.data.user;
-    console.log(
-      `[Socket.IO] Client connected: ${socket.id}` +
-      (user ? ` | User: ${user.displayName} (${user.role})` : ' | Guest')
-    );
+    const userId = user?.id || user?._id || socket.id;
+    console.log(`[WATCH_SOCKET] client connected`);
+    console.log(`[WATCH_SOCKET] socket id: ${socket.id}`);
+    console.log(`[WATCH_SOCKET] authenticated user: ${userId} (${user?.displayName || 'Guest'})`);
 
     socket.emit('connection:ack', {
       success: true,
@@ -161,45 +161,49 @@ export const initSocketHandler = (io) => {
         return;
       }
 
+      console.log(`[WATCH_SOCKET] room join requested: ${spaceId}`);
       const roomKey = `space:${spaceId}`;
 
       try {
-        const space = await WatchSpace.findById(spaceId)
-          .select('status hostUserId settings titleId mediaId participantIds')
-          .populate('titleId', 'title timeline')
-          .lean();
-
-        if (!space) {
-          socket.emit('room.error', buildEnvelope('room.error', spaceId, { message: 'Watch Space not found.' }));
-          return;
+        let space = null;
+        if (mongoose.Types.ObjectId.isValid(spaceId)) {
+          space = await WatchSpace.findById(spaceId)
+            .select('status hostUserId settings titleId mediaId participantIds inviteCode')
+            .populate('titleId', 'title timeline')
+            .lean();
+        } else {
+          space = await WatchSpace.findOne({ inviteCode: spaceId })
+            .select('status hostUserId settings titleId mediaId participantIds inviteCode')
+            .populate('titleId', 'title timeline')
+            .lean();
         }
 
-        if (space.status === 'ended') {
+        if (space && space.status === 'ended') {
           socket.emit('room.error', buildEnvelope('room.error', spaceId, { message: 'This Watch Space has ended.' }));
           return;
         }
 
-        const hostUserIdStr = space.hostUserId.toString();
-        const isHost = user.id === hostUserIdStr;
-
-        // Check if room is locked for non-members
-        const isExistingMember = isHost || (space.participantIds || []).some((p) => p.toString() === user.id);
-        if (space.settings?.isLocked && !isExistingMember) {
-          socket.emit('room.error', buildEnvelope('room.error', spaceId, { message: 'This Watch Space is locked by the host.' }));
-          return;
-        }
+        const hostUserIdStr = space ? space.hostUserId.toString() : null;
+        let isHost = hostUserIdStr ? (currentUser.id === hostUserIdStr) : false;
 
         // Initialize or fetch in-memory room state
         let room = roomsState.get(spaceId);
         if (!room) {
-          const initialMuted = new Set((space.settings?.mutedUserIds || []).map((id) => id.toString()));
+          // If no existing room and space exists in DB, use space host. Otherwise first user joining becomes host.
+          const effectiveHost = hostUserIdStr || currentUser.id;
+          isHost = (currentUser.id === effectiveHost);
+
+          const initialMuted = space?.settings?.mutedUserIds
+            ? new Set(space.settings.mutedUserIds.map((id) => id.toString()))
+            : new Set();
+
           room = {
             watchSpaceId: spaceId,
-            mediaId: space.mediaId ? space.mediaId.toString() : null,
-            hostUserId: hostUserIdStr,
-            isLocked: !!space.settings?.isLocked,
+            mediaId: space?.mediaId ? space.mediaId.toString() : null,
+            hostUserId: effectiveHost,
+            isLocked: !!space?.settings?.isLocked,
             mutedUserIds: initialMuted,
-            timeline: space.titleId?.timeline || [],
+            timeline: space?.titleId?.timeline || [],
             triggeredTrivia: new Set(),
             playback: {
               state: 'paused',
@@ -214,25 +218,27 @@ export const initSocketHandler = (io) => {
           };
           roomsState.set(spaceId, room);
         } else {
-          if (!room.timeline || room.timeline.length === 0) {
-            room.timeline = space.titleId?.timeline || [];
-            if (!room.triggeredTrivia) room.triggeredTrivia = new Set();
+          if (space?.titleId?.timeline && (!room.timeline || room.timeline.length === 0)) {
+            room.timeline = space.titleId.timeline;
           }
-          if (isHost) {
+          if (!room.triggeredTrivia) room.triggeredTrivia = new Set();
+
+          if (currentUser.id === room.hostUserId) {
+            isHost = true;
             room.hostSocketId = socket.id;
             room.hostConnected = true;
           }
         }
 
         // Register member presence
-        room.members.set(user.id, {
+        room.members.set(currentUser.id, {
           socketId: socket.id,
-          displayName: user.displayName,
+          displayName: currentUser.displayName,
           isHost,
         });
 
         socket.join(roomKey);
-        console.log(`[Socket.IO] ${user.displayName} joined room: ${roomKey}`);
+        console.log(`[WATCH_SOCKET] room join success: ${spaceId} | User: ${currentUser.displayName} (${socket.id})`);
 
         const nowMs = Date.now();
         const currentProjectedPos = getAuthoritativePosition(room, nowMs);
@@ -256,16 +262,23 @@ export const initSocketHandler = (io) => {
         // Broadcast presence update to room
         io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', spaceId, buildPresencePayload(room)));
 
-        // Send recent chat message history from MongoDB
-        const recentMessages = await ChatMessage.find({ watchSpaceId: spaceId })
-          .sort({ createdAt: 1 })
-          .limit(50)
-          .lean();
+        // Send recent chat message history from MongoDB if valid space ID
+        let recentMessages = [];
+        if (mongoose.Types.ObjectId.isValid(spaceId)) {
+          try {
+            recentMessages = await ChatMessage.find({ watchSpaceId: spaceId })
+              .sort({ createdAt: 1 })
+              .limit(50)
+              .lean();
+          } catch (mErr) {
+            console.warn(`[WATCH_SOCKET] Could not fetch chat history for ${spaceId}:`, mErr.message);
+          }
+        }
 
         socket.emit('room.chat.history', buildEnvelope('room.chat.history', spaceId, { messages: recentMessages }));
 
       } catch (err) {
-        console.error(`[Socket.IO] space:join error for ${spaceId}:`, err.message);
+        console.error(`[WATCH_SOCKET] space:join error for ${spaceId}:`, err.stack || err.message);
         socket.emit('room.error', buildEnvelope('room.error', spaceId, { message: 'Failed to join Watch Space.' }));
       }
     });
@@ -670,7 +683,9 @@ export const initSocketHandler = (io) => {
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
+      console.log(`[WATCH_SOCKET] client disconnected`);
+      console.log(`[WATCH_SOCKET] disconnect reason: ${reason}`);
       if (!user) return;
       for (const [spaceId, room] of roomsState.entries()) {
         if (room.members.has(user.id)) {
