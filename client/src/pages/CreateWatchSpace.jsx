@@ -8,6 +8,7 @@ import {
   Unlock,
   Sparkles,
   Vote,
+  ChevronLeft,
   ChevronRight,
   Check,
   Copy,
@@ -180,6 +181,13 @@ const CreateWatchSpace = () => {
   const [sortBy, setSortBy]                 = useState('Popular');
   const [selectedTitle, setSelectedTitle]   = useState(null);
   const [detailsModalTitle, setDetailsModalTitle] = useState(null);
+  const userSelectedRef = React.useRef(false);
+
+  const selectTitle = useCallback((item) => {
+    if (!item) return;
+    setSelectedTitle(item);
+    userSelectedRef.current = true;
+  }, []);
 
   // ── Room settings state (Step 2) ──────────────────────────────────────────
   const [roomName, setRoomName]               = useState('');
@@ -244,20 +252,25 @@ const CreateWatchSpace = () => {
         const normTV     = (popT || []).map((t) => normalizeItem(t, 'tv'));
         const normUp     = (upM || []).map((m) => normalizeItem(m, 'movie'));
 
-        setPopularMovies(normMovies.length > 0 ? normMovies : FALLBACK_CATALOG.filter(i => i.type === 'movie'));
-        setPopularTV(normTV.length > 0 ? normTV : FALLBACK_CATALOG.filter(i => i.type === 'tv'));
+        const moviesList = normMovies.length > 0 ? normMovies : FALLBACK_CATALOG.filter(i => i.type === 'movie');
+        const tvList     = normTV.length > 0 ? normTV : FALLBACK_CATALOG.filter(i => i.type === 'tv');
+
+        setPopularMovies(moviesList);
+        setPopularTV(tvList);
         setUpcomingMovies(normUp.length > 0 ? normUp : normMovies.slice(0, 6));
 
-        // Auto-select first available item if none selected yet
-        if (!selectedTitle) {
-          const first = normMovies[0] || normTV[0] || FALLBACK_CATALOG[0];
+        // Only auto-select if user hasn't chosen a title yet
+        if (!userSelectedRef.current) {
+          const first = moviesList[0] || tvList[0] || FALLBACK_CATALOG[0];
           setSelectedTitle(first);
         }
       } catch (err) {
         console.error('[CreateWatchSpace] Error loading catalog:', err);
         setPopularMovies(FALLBACK_CATALOG.filter(i => i.type === 'movie'));
         setPopularTV(FALLBACK_CATALOG.filter(i => i.type === 'tv'));
-        setSelectedTitle(FALLBACK_CATALOG[0]);
+        if (!userSelectedRef.current) {
+          setSelectedTitle(FALLBACK_CATALOG[0]);
+        }
       } finally {
         setLoadingCatalog(false);
       }
@@ -301,6 +314,8 @@ const CreateWatchSpace = () => {
 
   // ── Pre-select if URL params exist ──────────────────────────────────────────
   useEffect(() => {
+    if (userSelectedRef.current) return;
+
     const preselectedId = searchParams.get('titleId');
     const paramTitle = searchParams.get('title');
     const paramTrailer = searchParams.get('trailerKey');
@@ -310,6 +325,7 @@ const CreateWatchSpace = () => {
       const found = allLocal.find((t) => String(t._id) === String(preselectedId) || String(t.id) === String(preselectedId));
       if (found) {
         setSelectedTitle(found);
+        userSelectedRef.current = true;
       } else if (paramTitle) {
         setSelectedTitle({
           _id: preselectedId || 'custom-1',
@@ -329,6 +345,7 @@ const CreateWatchSpace = () => {
             ? (paramTrailer.startsWith('http') ? paramTrailer : `https://www.youtube.com/embed/${paramTrailer}?autoplay=1`)
             : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4'
         });
+        userSelectedRef.current = true;
       }
     }
   }, [searchParams, popularMovies, popularTV, upcomingMovies]);
@@ -577,71 +594,38 @@ const CreateWatchSpace = () => {
                 <>
                   {/* Row 1: Popular Movies */}
                   {(selectedCategory === 'All' || selectedCategory === 'Movies' || filterAndSortList(popularMovies).length > 0) && (
-                    <div className="cs-catalog-section">
-                      <div className="cs-row-header">
-                        <h3 className="cs-row-title">
-                          <Film size={18} className="cs-row-title-icon red" />
-                          <span>Popular Movies</span>
-                        </h3>
-                        <span className="cs-see-all">See All &rarr;</span>
-                      </div>
-                      <div className="cs-cards-row">
-                        {filterAndSortList(popularMovies).map((item) => (
-                          <CatalogCard
-                            key={item._id}
-                            item={item}
-                            isSelected={selectedTitle?._id === item._id}
-                            onSelect={() => setSelectedTitle(item)}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    <MediaCarouselRow
+                      title="Popular Movies"
+                      icon={Film}
+                      iconClass="red"
+                      items={filterAndSortList(popularMovies)}
+                      selectedTitleId={selectedTitle?._id || selectedTitle?.id}
+                      onSelectTitle={selectTitle}
+                    />
                   )}
 
                   {/* Row 2: Popular TV Shows */}
                   {(selectedCategory === 'All' || selectedCategory === 'TV Shows' || filterAndSortList(popularTV).length > 0) && (
-                    <div className="cs-catalog-section">
-                      <div className="cs-row-header">
-                        <h3 className="cs-row-title">
-                          <Tv size={18} className="cs-row-title-icon purple" />
-                          <span>Popular TV Shows</span>
-                        </h3>
-                        <span className="cs-see-all">See All &rarr;</span>
-                      </div>
-                      <div className="cs-cards-row">
-                        {filterAndSortList(popularTV).map((item) => (
-                          <CatalogCard
-                            key={item._id}
-                            item={item}
-                            isSelected={selectedTitle?._id === item._id}
-                            onSelect={() => setSelectedTitle(item)}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    <MediaCarouselRow
+                      title="Popular TV Shows"
+                      icon={Tv}
+                      iconClass="purple"
+                      items={filterAndSortList(popularTV)}
+                      selectedTitleId={selectedTitle?._id || selectedTitle?.id}
+                      onSelectTitle={selectTitle}
+                    />
                   )}
 
                   {/* Row 3: Upcoming Releases */}
                   {(selectedCategory === 'All' || filterAndSortList(upcomingMovies).length > 0) && (
-                    <div className="cs-catalog-section">
-                      <div className="cs-row-header">
-                        <h3 className="cs-row-title">
-                          <Sparkles size={18} className="cs-row-title-icon gold" />
-                          <span>Upcoming Releases</span>
-                        </h3>
-                        <span className="cs-see-all">See All &rarr;</span>
-                      </div>
-                      <div className="cs-cards-row">
-                        {filterAndSortList(upcomingMovies).map((item) => (
-                          <CatalogCard
-                            key={item._id}
-                            item={item}
-                            isSelected={selectedTitle?._id === item._id}
-                            onSelect={() => setSelectedTitle(item)}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    <MediaCarouselRow
+                      title="Upcoming Releases"
+                      icon={Sparkles}
+                      iconClass="gold"
+                      items={filterAndSortList(upcomingMovies)}
+                      selectedTitleId={selectedTitle?._id || selectedTitle?.id}
+                      onSelectTitle={selectTitle}
+                    />
                   )}
                 </>
               )}
@@ -1304,7 +1288,27 @@ const CreateWatchSpace = () => {
               <img src={detailsModalTitle.backdropUrl || detailsModalTitle.poster} alt="" className="cs-modal-backdrop" />
               <p>{detailsModalTitle.description}</p>
             </div>
-          </div>
+          {/* Mobile/Tablet Sticky Selected Title Bar */}
+          {selectedTitle && (
+            <div className="cs-mobile-selected-bar">
+              <div className="cs-mobile-selected-info">
+                <img src={selectedTitle.poster} alt={selectedTitle.title} className="cs-mobile-thumb" />
+                <div className="cs-mobile-text">
+                  <span className="cs-mobile-title">{selectedTitle.title}</span>
+                  <span className="cs-mobile-sub">{selectedTitle.year} • {formatDurationOrSeasons(selectedTitle)}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="mobile-continue-btn"
+                className="cs-mobile-continue-btn"
+                onClick={() => setStep(STEP_SETTINGS)}
+              >
+                <span>Make Watch Party</span>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1338,6 +1342,86 @@ const CatalogCard = ({ item, isSelected, onSelect }) => {
         </div>
       </div>
     </button>
+  );
+};
+
+// ── Reusable Media Carousel Row with Left/Right Scroll Controls ──
+const MediaCarouselRow = ({ title, icon: Icon, iconClass, items, selectedTitleId, onSelectTitle }) => {
+  const rowRef = React.useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(true);
+
+  const checkScroll = React.useCallback(() => {
+    if (!rowRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+    setCanScrollLeft(scrollLeft > 10);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+  }, []);
+
+  React.useEffect(() => {
+    checkScroll();
+    const el = rowRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+    }
+    return () => {
+      if (el) el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [checkScroll, items]);
+
+  const scrollByAmount = (direction) => {
+    if (!rowRef.current) return;
+    const amount = rowRef.current.clientWidth * 0.75;
+    rowRef.current.scrollBy({
+      left: direction === 'left' ? -amount : amount,
+      behavior: 'smooth',
+    });
+  };
+
+  if (!items || items.length === 0) return null;
+
+  return (
+    <div className="cs-catalog-section">
+      <div className="cs-row-header">
+        <h3 className="cs-row-title">
+          {Icon && <Icon size={18} className={`cs-row-title-icon ${iconClass || ''}`} />}
+          <span>{title}</span>
+        </h3>
+      </div>
+
+      <div className="cs-carousel-wrapper">
+        <button
+          type="button"
+          className={`cs-carousel-arrow left ${!canScrollLeft ? 'hidden' : ''}`}
+          onClick={() => scrollByAmount('left')}
+          aria-label="Scroll Left"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <div className="cs-cards-row" ref={rowRef}>
+          {items.map((item) => (
+            <CatalogCard
+              key={item._id || item.id}
+              item={item}
+              isSelected={String(selectedTitleId) === String(item._id || item.id)}
+              onSelect={() => onSelectTitle(item)}
+            />
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className={`cs-carousel-arrow right ${!canScrollRight ? 'hidden' : ''}`}
+          onClick={() => scrollByAmount('right')}
+          aria-label="Scroll Right"
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
+    </div>
   );
 };
 

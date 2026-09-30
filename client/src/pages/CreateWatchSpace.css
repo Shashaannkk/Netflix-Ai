@@ -332,20 +332,150 @@
   color: #e50914;
 }
 
-/* Cards Row - Horizontal Scroll */
+/* Cards Row - Horizontal Scroll with Arrows */
+.cs-carousel-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.cs-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(15, 15, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.cs-carousel-arrow.left {
+  left: -12px;
+}
+
+.cs-carousel-arrow.right {
+  right: -12px;
+}
+
+.cs-carousel-arrow:hover:not(.hidden) {
+  background: #e50914;
+  border-color: #e50914;
+  transform: translateY(-50%) scale(1.15);
+  box-shadow: 0 0 15px rgba(229, 9, 20, 0.6);
+}
+
+.cs-carousel-arrow.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .cs-cards-row {
   display: flex;
   gap: 0.8rem;
   overflow-x: auto;
   padding-bottom: 0.5rem;
+  scroll-behavior: smooth;
+  width: 100%;
 }
 
 .cs-cards-row::-webkit-scrollbar {
-  height: 5px;
+  height: 4px;
 }
 .cs-cards-row::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
+}
+
+/* Sticky Mobile/Tablet Selected Title Bottom Bar */
+.cs-mobile-selected-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(18, 18, 24, 0.96);
+  border-top: 1px solid rgba(229, 9, 20, 0.5);
+  padding: 0.75rem 1.25rem;
+  z-index: 99;
+  backdrop-filter: blur(12px);
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.8);
+}
+
+.cs-mobile-selected-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.cs-mobile-thumb {
+  width: 40px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.cs-mobile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.cs-mobile-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-mobile-sub {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.cs-mobile-continue-btn {
+  background: #e50914;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(229, 9, 20, 0.5);
+}
+
+@media (max-width: 900px) {
+  .cs-step1-content-grid {
+    grid-template-columns: 1fr;
+  }
+  .cs-selected-panel-right {
+    display: none;
+  }
+  .cs-mobile-selected-bar {
+    display: flex;
+  }
 }
 
 /* Cards Grid for Search */
@@ -1868,7 +1998,7 @@
   align-items: center;
   padding: 1rem 2rem 2rem;
   overflow-y: auto;
-  max-width: 960px;
+  max-width: 1200px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
@@ -1916,7 +2046,7 @@
   font-size: 0.85rem;
   color: #aaa;
   margin: 0;
-  max-width: 580px;
+  max-width: 680px;
   line-height: 1.4;
 }
 
@@ -1929,7 +2059,7 @@
   border-radius: 14px;
   padding: 1.1rem;
   width: 100%;
-  max-width: 780px;
+  max-width: 1050px;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
   margin-bottom: 1.2rem;
   box-sizing: border-box;
@@ -2013,7 +2143,7 @@
   grid-template-columns: 1.1fr 1.2fr;
   gap: 1rem;
   width: 100%;
-  max-width: 780px;
+  max-width: 1050px;
   margin-bottom: 1.2rem;
 }
 
@@ -2154,7 +2284,7 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 0.8rem;
   width: 100%;
-  max-width: 780px;
+  max-width: 1050px;
   margin-bottom: 1.5rem;
 }
 
@@ -2204,8 +2334,23 @@
   display: flex;
   justify-content: center;
   width: 100%;
-  max-width: 780px;
+  max-width: 1050px;
   margin-bottom: 1rem;
+}
+
+@media (max-width: 850px) {
+  .cs-launch-invite-grid {
+    grid-template-columns: 1fr;
+  }
+  .cs-launch-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .cs-launch-features-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cs-launch-primary-cta {

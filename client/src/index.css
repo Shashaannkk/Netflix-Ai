@@ -3839,6 +3839,20 @@ body {
   .cb-nav-menu, .netflix-nav-items {
     display: none;
   }
+  .cb-nav-menu.open {
+    display: flex !important;
+    position: absolute;
+    top: 68px;
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 13, 0.98);
+    flex-direction: column;
+    padding: 1rem 1.5rem;
+    gap: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+  }
 
   .cb-hamburger {
     display: flex;
@@ -3941,6 +3955,31 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* ── Watch Space Cinema Responsive Layout ── */
+@media (max-width: 900px) {
+  .cinema-view {
+    flex-direction: column !important;
+    height: auto !important;
+    overflow-y: auto !important;
+  }
+
+  .cinema-video-area {
+    width: 100% !important;
+    height: 40vh !important;
+    min-height: 250px !important;
+    flex: none !important;
+  }
+
+  .cinema-sidebar {
+    width: 100% !important;
+    height: 60vh !important;
+    min-height: 400px !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+    flex: none !important;
+  }
 }
 
 
