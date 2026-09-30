@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Play, Users, Star, Clock, Calendar, Sparkles, Film, ExternalLink, Share2, Heart, User, Server, Layers, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchTrailerKey, getImageUrl, fetchMediaCredits, fetchSimilarMedia, fetchSeasonEpisodes, fetchMediaDetails } from '../services/tmdb';
+import { MOVIE_SERVERS, getServerStreamUrl } from '../services/movieServers';
 
 export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const [currentMedia, setCurrentMedia] = useState(media);
@@ -12,7 +13,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const [activeTab, setActiveTab] = useState('trailer'); // 'trailer' | 'overview' | 'movie'
   const [isFavorited, setIsFavorited] = useState(false);
   
-  // Multi-server state
+  // Multi-server state (Default Server 1 = Vidsrc.pro)
   const [selectedServer, setSelectedServer] = useState(1);
   
   // TV Series Seasons & Episodes State
@@ -115,34 +116,6 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
     ? 'TV Series (Multi-Season)'
     : `${Math.floor(runtimeMinutes / 60)}h ${runtimeMinutes % 60}m`;
 
-  // Server Stream URLs (7 Servers)
-  const getServerStreamUrl = (serverNum) => {
-    const tmdbId = media.id;
-    if (isTv) {
-      switch (serverNum) {
-        case 1: return `https://vidsrc.pro/embed/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
-        case 2: return `https://player.autoembed.cc/embed/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
-        case 3: return `https://vidsrc.to/embed/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
-        case 4: return `https://www.2embed.cc/embedtv/${tmdbId}&s=${selectedSeason}&e=${selectedEpisode}`;
-        case 5: return `https://vidbinge.dev/embed/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
-        case 6: return `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${selectedSeason}&episode=${selectedEpisode}`;
-        case 7: return `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${selectedSeason}&episode=${selectedEpisode}`;
-        default: return `https://vidsrc.pro/embed/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
-      }
-    } else {
-      switch (serverNum) {
-        case 1: return `https://vidsrc.pro/embed/movie/${tmdbId}`;
-        case 2: return `https://player.autoembed.cc/embed/movie/${tmdbId}`;
-        case 3: return `https://vidsrc.to/embed/movie/${tmdbId}`;
-        case 4: return `https://www.2embed.cc/embed/${tmdbId}`;
-        case 5: return `https://vidbinge.dev/embed/movie/${tmdbId}`;
-        case 6: return `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`;
-        case 7: return `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}`;
-        default: return `https://vidsrc.pro/embed/movie/${tmdbId}`;
-      }
-    }
-  };
-
   const handleStartWatchSpace = () => {
     if (onWatchTogether) {
       onWatchTogether(media);
@@ -179,7 +152,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
                   />
                 ) : (
                   <iframe
-                    src={getServerStreamUrl(selectedServer)}
+                    src={getServerStreamUrl({ tmdbId: targetMedia.id, isTv, season: selectedSeason, episode: selectedEpisode, serverNum: selectedServer })}
                     title={`${title} Stream - Server ${selectedServer}`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -251,23 +224,14 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
             </button>
           </div>
 
-          {/* 6-7 Server Selector Bar (when activeTab === 'movie') */}
+          {/* 8 Server Selector Bar (when activeTab === 'movie') */}
           {activeTab === 'movie' && (
             <div style={{ marginTop: '1rem', background: '#1a1a1a', border: '1px solid rgba(229,9,20,0.3)', borderRadius: '10px', padding: '0.85rem 1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem', color: '#e50914', fontWeight: 800, fontSize: '0.85rem' }}>
-                <Server size={16} /> SELECT STREAMING SERVER SOURCE (7 HD MIRRORS):
+                <Server size={16} /> SELECT STREAMING SERVER SOURCE (8 HD MIRRORS):
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {[
-                  { id: 1, label: 'Server 1 (Full HD 1080p)' },
-                  { id: 2, label: 'Server 2 (4K Ultra HD)' },
-                  { id: 3, label: 'Server 3 (Fast Mirror)' },
-                  { id: 4, label: 'Server 4 (AI Stream)' },
-                  { id: 5, label: 'Server 5 (2Embed Stream)' },
-                  { id: 6, label: 'Server 6 (Vidsrc Engine)' },
-                  { id: 7, label: 'Server 7 (Smashy Backup)' },
-                  { id: 8, label: 'Server 8 (Demo Video Player)' },
-                ].map((s) => (
+                {MOVIE_SERVERS.map((s) => (
                   <button
                     key={s.id}
                     onClick={() => setSelectedServer(s.id)}

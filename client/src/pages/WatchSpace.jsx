@@ -41,6 +41,7 @@ import { useWatchSpace } from '../context/WatchSpaceContext';
 import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
+import { MOVIE_SERVERS, getServerStreamUrl } from '../services/movieServers';
 
 // ── Part 8: Pre-Authored & Pre-Approved Localization Subtitle Variants ────────
 const PRE_AUTHORED_SUBTITLES = {
@@ -171,6 +172,9 @@ const WatchSpace = () => {
   const [duration, setDuration]         = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [syncStatus, setSyncStatus]     = useState('Syncing…');
+
+  // Multi-server state (Default Server 1 = Vidsrc.pro)
+  const [selectedServer, setSelectedServer] = useState(1);
 
   // ── UI & AI state ───────────────────────────────────────────────────────────
   const [activeTab, setActiveTab]       = useState('ai');
@@ -510,10 +514,18 @@ const WatchSpace = () => {
     }
   };
 
-  const videoSrc =
-    effectiveSpace?.settings?.videoAssetUrl ||
-    effectiveSpace?.titleId?.videoAssetUrl ||
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
+  const targetTmdbId = effectiveSpace?.titleId?.id || effectiveSpace?.titleId?._id || 550;
+  const isTvSeries = effectiveSpace?.titleId?.media_type === 'tv' || effectiveSpace?.titleId?.type === 'tv' || Boolean(effectiveSpace?.titleId?.first_air_date);
+
+  // Compute stream URL using 8-Server Architecture (Server 1 Vidsrc default)
+  const videoSrc = getServerStreamUrl({
+    tmdbId: targetTmdbId,
+    isTv: isTvSeries,
+    season: 1,
+    episode: 1,
+    serverNum: selectedServer,
+  });
+
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;
   const titleName = effectiveSpace?.titleId?.title || 'Netflix AI Watch Space';
@@ -885,6 +897,32 @@ const WatchSpace = () => {
               <span className="room-time-display">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
+
+              {/* Authoritative 8-Server Selector (Server 1 Vidsrc Default) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: 'rgba(229,9,20,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(229,9,20,0.5)' }}>
+                <Radio size={15} color="#e50914" />
+                <select
+                  id="room-server-selector"
+                  value={selectedServer}
+                  onChange={(e) => setSelectedServer(Number(e.target.value))}
+                  style={{
+                    background: 'transparent',
+                    color: '#fff',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                  title="Select Streaming Server Mirror (Server 1 Vidsrc Default)"
+                >
+                  {MOVIE_SERVERS.map((s) => (
+                    <option key={s.id} value={s.id} style={{ background: '#141414', color: '#fff' }}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {/* Part 8: Subtitle & Localization Variant Selector */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>

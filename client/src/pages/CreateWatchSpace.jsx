@@ -80,37 +80,7 @@ const formatDurationOrSeasons = (item) => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-const SERVERS = [
-  {
-    id: 'server_alpha',
-    name: 'Server 1',
-    provider: 'Alpha HD Stream',
-    badge: 'Recommended',
-    icon: '🚀',
-    bullets: ['High quality', 'Stable', 'Works most of the time']
-  },
-  {
-    id: 'server_beta',
-    name: 'Server 2',
-    provider: 'Beta High-Speed',
-    icon: '⚡',
-    bullets: ['Good quality', 'Fast loading', 'Reliable']
-  },
-  {
-    id: 'server_gamma',
-    name: 'Server 3',
-    provider: 'Gamma CDN Mirror',
-    icon: '🌐',
-    bullets: ['Backup source', 'Good quality', 'Region friendly']
-  },
-  {
-    id: 'server_delta',
-    name: 'Server 4',
-    provider: 'Delta Fallback Stream',
-    icon: '🛡️',
-    bullets: ['Fallback option', 'Moderate speed', 'Use if others fail']
-  }
-];
+import { MOVIE_SERVERS, getServerStreamUrl } from '../services/movieServers';
 
 const START_POSITIONS = [
   { id: 'beginning', label: 'From Beginning' },
@@ -198,7 +168,7 @@ const CreateWatchSpace = () => {
   const [aiVerbosity, setAiVerbosity]         = useState('moderate');
   const [votingEnabled, setVotingEnabled]     = useState(true);
   const [mediaChoice, setMediaChoice]         = useState('movie'); // 'movie' | 'trailer'
-  const [selectedServer, setSelectedServer]   = useState('server_alpha');
+  const [selectedServer, setSelectedServer]   = useState(1); // Server 1 (Vidsrc.pro) default
 
   // ── Launch state (Step 3) ──────────────────────────────────────────────────
   const [createdSpace, setCreatedSpace] = useState(null);
@@ -212,6 +182,7 @@ const CreateWatchSpace = () => {
     const yearText = item.release_date
       ? item.release_date.substring(0, 4)
       : (item.first_air_date ? item.first_air_date.substring(0, 4) : item.year || '2023');
+    const tmdbId = item.id || item._id || 550;
     
     return {
       _id: String(item._id || item.id),
@@ -231,9 +202,7 @@ const CreateWatchSpace = () => {
       poster: getImageUrl(item.poster_path || item.poster),
       backdropUrl: getImageUrl(item.backdrop_path || item.backdropUrl || item.poster_path, true),
       trailer_key: item.trailer_key,
-      videoAssetUrl: item.videoAssetUrl || (item.trailer_key
-        ? `https://www.youtube.com/embed/${item.trailer_key}?autoplay=1`
-        : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4')
+      videoAssetUrl: getServerStreamUrl({ tmdbId, isTv, serverNum: 1 })
     };
   }, []);
 
@@ -328,6 +297,7 @@ const CreateWatchSpace = () => {
         setSelectedTitle(found);
         userSelectedRef.current = true;
       } else if (paramTitle) {
+        const tmdbId = preselectedId || 550;
         setSelectedTitle({
           _id: preselectedId || 'custom-1',
           id: preselectedId || 'custom-1',
@@ -342,9 +312,7 @@ const CreateWatchSpace = () => {
           poster: searchParams.get('poster') || FALLBACK_CATALOG[0].poster,
           backdropUrl: searchParams.get('backdrop') || FALLBACK_CATALOG[0].backdropUrl,
           trailer_key: paramTrailer,
-          videoAssetUrl: paramTrailer
-            ? (paramTrailer.startsWith('http') ? paramTrailer : `https://www.youtube.com/embed/${paramTrailer}?autoplay=1`)
-            : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4'
+          videoAssetUrl: getServerStreamUrl({ tmdbId, isTv: false, serverNum: 1 })
         });
         userSelectedRef.current = true;
       }
@@ -389,25 +357,17 @@ const CreateWatchSpace = () => {
     if (!selectedTitle) return;
     setCreating(true);
 
-    let computedVideoUrl = selectedTitle.videoAssetUrl;
+    let computedVideoUrl = '';
     if (mediaChoice === 'trailer') {
       computedVideoUrl = selectedTitle.trailer_key
         ? `https://www.youtube.com/embed/${selectedTitle.trailer_key}?autoplay=1`
-        : (selectedTitle.videoAssetUrl && selectedTitle.videoAssetUrl.includes('youtube')
-            ? selectedTitle.videoAssetUrl
-            : 'https://www.youtube.com/embed/b9EkMc79ZSU?autoplay=1');
+        : 'https://www.youtube.com/embed/b9EkMc79ZSU?autoplay=1';
     } else {
-      if (selectedServer === 'server_beta') {
-        computedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4';
-      } else if (selectedServer === 'server_gamma') {
-        computedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-      } else if (selectedServer === 'server_delta') {
-        computedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
-      } else {
-        computedVideoUrl = (selectedTitle.videoAssetUrl && !selectedTitle.videoAssetUrl.includes('youtube'))
-          ? selectedTitle.videoAssetUrl
-          : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
-      }
+      computedVideoUrl = getServerStreamUrl({
+        tmdbId: selectedTitle.id || selectedTitle._id,
+        isTv: selectedTitle.type === 'tv',
+        serverNum: selectedServer
+      });
     }
 
     try {
@@ -796,11 +756,11 @@ const CreateWatchSpace = () => {
                     <span>Select Streaming Server / Provider</span>
                   </div>
                   <div className="cs-servers-grid">
-                    {SERVERS.map((srv) => (
+                    {MOVIE_SERVERS.map((srv) => (
                       <button
                         key={srv.id}
                         type="button"
-                        id={`${srv.id}-btn`}
+                        id={`server-${srv.id}-btn`}
                         className={`cs-server-card ${selectedServer === srv.id ? 'active' : ''}`}
                         onClick={() => setSelectedServer(srv.id)}
                       >

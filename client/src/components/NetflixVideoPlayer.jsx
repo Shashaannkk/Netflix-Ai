@@ -20,7 +20,7 @@ import {
 import NetflixIntroScreen from './NetflixIntroScreen';
 import HTML5PlayerAdapter from '../services/adapters/HTML5PlayerAdapter';
 import YouTubePlayerAdapter from '../services/adapters/YouTubePlayerAdapter';
-import { SYNC_HARD_CORRECTION_THRESHOLD, SYNC_WARNING_THRESHOLD, logger } from '../utils/syncConstants';
+import { MOVIE_SERVERS, isEmbedProviderUrl } from '../services/movieServers';
 
 /**
  * NetflixVideoPlayer — Custom Netflix AI Video Player
@@ -74,16 +74,10 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const lastTapRef                    = useRef({ time: 0, x: 0 });
   const controlsTimeoutRef            = useRef(null);
 
-  // Active Stream Source
-  const [currentSource, setCurrentSource] = useState(src || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
+  // Active Stream Source (Defaults to Server 1 Vidsrc embed or specified src)
+  const [currentSource, setCurrentSource] = useState(src || 'https://vidsrc.pro/embed/movie/550');
 
-  const isEmbed = Boolean(
-    currentSource &&
-    (currentSource.includes('youtube') ||
-     currentSource.includes('youtu.be') ||
-     currentSource.includes('embed') ||
-     (!currentSource.includes('.mp4') && !currentSource.includes('.webm') && !currentSource.includes('http://') && !currentSource.includes('https://')))
-  );
+  const isEmbed = isEmbedProviderUrl(currentSource);
 
   // Helper: Verify if media element has valid loaded metadata
   const isMediaReady = useCallback(() => {
