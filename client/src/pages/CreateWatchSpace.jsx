@@ -572,24 +572,15 @@ const CreateWatchSpace = () => {
                   <span>Loading real movie and TV catalog…</span>
                 </div>
               ) : searchResults ? (
-                /* Search Results Grid */
-                <div className="cs-catalog-section">
-                  <div className="cs-row-header">
-                    <h3 className="cs-row-title">
-                      <Search size={18} /> Search Results for "{searchQuery}"
-                    </h3>
-                  </div>
-                  <div className="cs-cards-grid">
-                    {filterAndSortList(searchResults).map((item) => (
-                      <CatalogCard
-                        key={item._id}
-                        item={item}
-                        isSelected={selectedTitle?._id === item._id}
-                        onSelect={() => setSelectedTitle(item)}
-                      />
-                    ))}
-                  </div>
-                </div>
+                /* Search Results Horizontal Carousel Row */
+                <MediaCarouselRow
+                  title={`Search Results for "${searchQuery}"`}
+                  icon={Search}
+                  iconClass="red"
+                  items={filterAndSortList(searchResults)}
+                  selectedTitleId={selectedTitle?._id || selectedTitle?.id}
+                  onSelectTitle={selectTitle}
+                />
               ) : (
                 <>
                   {/* Row 1: Popular Movies */}

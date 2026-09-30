@@ -531,33 +531,37 @@ export const WatchSpaceProvider = ({ children }) => {
       return space;
     } catch (err) {
       console.warn('[WatchSpaceContext] Backend offline or space error, using fallback room state:', err.message);
-      const fallbackSpace = {
-        _id: spaceId || `demo-${Date.now()}`,
-        status: 'live',
-        hostUserId: user || { _id: 'guest-user-1', displayName: 'Netflix AI Host' },
-        participantIds: [],
-        settings: {
-          roomName: 'Netflix AI Watch Space',
-          isPrivate: false,
-          maxParticipants: 10,
-          aiVerbosity: 'moderate',
-        },
-        inviteCode: typeof spaceId === 'string' && spaceId.length <= 8 ? spaceId.toUpperCase() : 'NX-8899',
-        inviteLink: `${window.location.origin}/space/${spaceId}`,
-        titleId: {
-          _id: 't-demo',
-          title: 'Tears of Steel (Netflix AI Feature)',
-          description: 'Stream and watch together in real-time with Netflix AI co-pilot.',
-          durationSeconds: 720,
-          genres: ['Sci-Fi', 'Action'],
-          ageRating: '16+',
-          poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
-          backdropUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop',
-          videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        },
-      };
-      setCurrentSpace(fallbackSpace);
-      return fallbackSpace;
+      setCurrentSpace((prev) => {
+        if (prev && (prev._id === spaceId || prev.inviteCode === spaceId)) {
+          return prev;
+        }
+        const fallbackSpace = {
+          _id: spaceId || `demo-${Date.now()}`,
+          status: 'live',
+          hostUserId: user || { _id: 'guest-user-1', displayName: 'Netflix AI Host' },
+          participantIds: [],
+          settings: prev?.settings || {
+            roomName: 'Netflix AI Watch Space',
+            isPrivate: false,
+            maxParticipants: 10,
+            aiVerbosity: 'moderate',
+          },
+          inviteCode: typeof spaceId === 'string' && spaceId.length <= 8 ? spaceId.toUpperCase() : 'NX-8899',
+          inviteLink: `${window.location.origin}/space/${spaceId}`,
+          titleId: prev?.titleId || {
+            _id: 't-demo',
+            title: 'Tears of Steel (Netflix AI Feature)',
+            description: 'Stream and watch together in real-time with Netflix AI co-pilot.',
+            durationSeconds: 720,
+            genres: ['Sci-Fi', 'Action'],
+            ageRating: '16+',
+            poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
+            backdropUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop',
+            videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+          },
+        };
+        return fallbackSpace;
+      });
     } finally {
       setSpaceLoading(false);
     }

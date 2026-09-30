@@ -4,15 +4,13 @@
 
 .create-space-page {
   width: 100%;
-  height: calc(100vh - 68px);
   min-height: calc(100vh - 68px);
-  max-height: calc(100vh - 68px);
   background: #0a0a0d;
   color: #fff;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 /* ── Top Header Sub-bar ── */
