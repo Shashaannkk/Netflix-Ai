@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -44,6 +44,7 @@ import {
   searchMedia,
   getImageUrl
 } from '../services/tmdb';
+import NetflixAiLogo from '../components/NetflixAiLogo';
 import './CreateWatchSpace.css';
 
 // ── Step constants ──────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ const CreateWatchSpace = () => {
   const [sortBy, setSortBy]                 = useState('Popular');
   const [selectedTitle, setSelectedTitle]   = useState(null);
   const [detailsModalTitle, setDetailsModalTitle] = useState(null);
-  const userSelectedRef = React.useRef(false);
+  const userSelectedRef = useRef(false);
 
   const selectTitle = useCallback((item) => {
     if (!item) return;
@@ -479,6 +480,9 @@ const CreateWatchSpace = () => {
             <ArrowLeft size={16} />
             <span>{step === 1 ? 'Cancel' : 'Back'}</span>
           </button>
+          <div className="cs-logo-wrapper" onClick={() => navigate('/')} style={{ cursor: 'pointer', marginLeft: '1rem' }}>
+            <NetflixAiLogo height={28} />
+          </div>
         </div>
 
         {/* Stepper Indicator */}
@@ -500,7 +504,7 @@ const CreateWatchSpace = () => {
         </div>
       </div>
 
-      {/* ── STEP 1: PICK A TITLE REFERENCE UI DESIGN ── */}
+      {/* ── STEP 1: PICK A TITLE ── */}
       {step === STEP_PICK_TITLE && (
         <div className="cs-step1-container">
           {/* Main Title Banner */}
@@ -516,6 +520,82 @@ const CreateWatchSpace = () => {
                 Pick a movie or series from your library to watch together.
               </p>
             </div>
+          </div>
+
+          {/* ── PERSISTENT SELECTED TITLE BANNER PANEL ── */}
+          <div className="cs-selected-persistent-banner" id="cs-selected-persistent-banner">
+            {selectedTitle ? (
+              <div className="cs-selected-banner-content">
+                <div className="cs-selected-banner-poster-box">
+                  <img
+                    src={selectedTitle.poster || selectedTitle.backdropUrl}
+                    alt={selectedTitle.title}
+                    className="cs-selected-banner-poster"
+                  />
+                  <span className="cs-selected-banner-type-badge">
+                    {selectedTitle.type === 'tv' ? '📺 TV Series' : '🎬 Movie'}
+                  </span>
+                </div>
+
+                <div className="cs-selected-banner-details">
+                  <div className="cs-selected-banner-label">
+                    <Sparkles size={14} color="#e50914" />
+                    <span>SELECTED TITLE</span>
+                  </div>
+
+                  <h2 className="cs-selected-banner-title">{selectedTitle.title}</h2>
+
+                  <div className="cs-selected-banner-meta">
+                    <span className="cs-meta-year">{selectedTitle.year}</span>
+                    <span className="cs-meta-dot">•</span>
+                    <span className="cs-meta-duration">{formatDurationOrSeasons(selectedTitle)}</span>
+                    <span className="cs-meta-dot">•</span>
+                    <span className="cs-rating-pill">{selectedTitle.ageRating}</span>
+                    <span className="cs-meta-dot">•</span>
+                    <span className="cs-imdb-rating">
+                      <Star size={13} fill="#eab308" color="#eab308" />
+                      {selectedTitle.vote_average ? selectedTitle.vote_average.toFixed(1) : '8.3'} IMDb
+                    </span>
+                  </div>
+
+                  <div className="cs-selected-banner-genres">
+                    {(selectedTitle.genres || ['Drama', 'Thriller']).slice(0, 4).map((g) => (
+                      <span key={g} className="cs-genre-pill">{g}</span>
+                    ))}
+                  </div>
+
+                  <p className="cs-selected-banner-overview">
+                    {selectedTitle.description}
+                  </p>
+                </div>
+
+                <div className="cs-selected-banner-action-area">
+                  <button
+                    type="button"
+                    id="make-watch-party-btn"
+                    className="cs-make-party-primary-btn"
+                    onClick={() => setStep(STEP_SETTINGS)}
+                  >
+                    <span>MAKE WATCH PARTY</span>
+                    <ChevronRight size={20} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="cs-banner-details-btn"
+                    onClick={() => setDetailsModalTitle(selectedTitle)}
+                  >
+                    <Info size={15} />
+                    <span>Full Details</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="cs-selected-banner-empty">
+                <AlertCircle size={28} color="#e50914" />
+                <span>Select a movie or series to continue.</span>
+              </div>
+            )}
           </div>
 
           {/* Search & Sort Controls Row */}
@@ -562,14 +642,13 @@ const CreateWatchSpace = () => {
             ))}
           </div>
 
-          {/* CATALOG MAIN CONTENT AREA + SELECTED TITLE RIGHT SIDEBAR */}
-          <div className="cs-step1-content-grid">
-            {/* LEFT SIDE: CATALOG ROWS */}
-            <div className="cs-catalog-left">
+          {/* CATALOG MAIN CONTENT AREA */}
+          <div className="cs-step1-content-layout">
+            <div className="cs-catalog-full">
               {loadingCatalog ? (
                 <div className="cs-loader-wrap">
                   <Loader size={32} className="spin-icon" />
-                  <span>Loading real movie and TV catalog…</span>
+                  <span>Loading movie and TV catalog…</span>
                 </div>
               ) : searchResults ? (
                 /* Search Results Horizontal Carousel Row */
@@ -619,90 +698,6 @@ const CreateWatchSpace = () => {
                     />
                   )}
                 </>
-              )}
-            </div>
-
-            {/* RIGHT SIDE: SELECTED TITLE PREVIEW PANEL */}
-            <div className="cs-selected-panel-right">
-              {selectedTitle ? (
-                <div className="cs-selected-title-card">
-                  <div className="cs-panel-header-title">Selected Title</div>
-
-                  {/* Hero Image Box with Play Overlay */}
-                  <div className="cs-selected-hero-box">
-                    <img
-                      src={selectedTitle.backdropUrl || selectedTitle.poster}
-                      alt={selectedTitle.title}
-                      className="cs-selected-hero-img"
-                    />
-                    <div className="cs-selected-hero-gradient" />
-                    <button
-                      type="button"
-                      className="cs-play-circle-overlay"
-                      onClick={() => setStep(STEP_SETTINGS)}
-                      title="Play / Watch"
-                    >
-                      <Play size={24} fill="#fff" color="#fff" style={{ marginLeft: 3 }} />
-                    </button>
-                  </div>
-
-                  {/* Info details */}
-                  <div className="cs-selected-info-body">
-                    <h3 className="cs-selected-heading-title">{selectedTitle.title}</h3>
-
-                    <div className="cs-selected-meta-row">
-                      <span>{selectedTitle.year}</span>
-                      <span className="cs-meta-dot">•</span>
-                      <span>{formatDurationOrSeasons(selectedTitle)}</span>
-                      <span className="cs-meta-dot">•</span>
-                      <span className="cs-rating-pill">{selectedTitle.ageRating}</span>
-                      <span className="cs-meta-dot">•</span>
-                      <span className="cs-imdb-rating">
-                        <Star size={13} fill="#eab308" color="#eab308" />
-                        {selectedTitle.vote_average ? selectedTitle.vote_average.toFixed(1) : '8.3'} (IMDb)
-                      </span>
-                    </div>
-
-                    {/* Genre tags */}
-                    <div className="cs-selected-genre-tags">
-                      {(selectedTitle.genres || ['Drama', 'Thriller']).slice(0, 3).map((g) => (
-                        <span key={g} className="cs-genre-pill">{g}</span>
-                      ))}
-                    </div>
-
-                    {/* Overview */}
-                    <p className="cs-selected-overview-text">
-                      {selectedTitle.description}
-                    </p>
-
-                    {/* CTA Actions */}
-                    <div className="cs-selected-ctas">
-                      <button
-                        type="button"
-                        id="continue-with-title-btn"
-                        className="cs-primary-cta"
-                        onClick={() => setStep(STEP_SETTINGS)}
-                      >
-                        <span>MAKE WATCH PARTY</span>
-                        <ChevronRight size={18} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="cs-secondary-cta"
-                        onClick={() => setDetailsModalTitle(selectedTitle)}
-                      >
-                        <Info size={16} />
-                        <span>View Details</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="cs-selected-title-card empty">
-                  <AlertCircle size={36} color="#666" />
-                  <p>Select a movie or series from the catalog to continue</p>
-                </div>
               )}
             </div>
           </div>
