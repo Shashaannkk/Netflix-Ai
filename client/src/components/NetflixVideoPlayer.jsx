@@ -312,7 +312,6 @@ export const NetflixVideoPlayer = React.forwardRef(({
   };
 
   const progressPct = duration ? (currentTime / duration) * 100 : 0;
-  const isEmbed = currentSource && (currentSource.includes('youtube') || currentSource.includes('vidsrc') || currentSource.includes('embed'));
 
   return (
     <div
