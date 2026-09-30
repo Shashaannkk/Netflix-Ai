@@ -93,7 +93,14 @@ export const initSocketHandler = (io) => {
       socket.handshake.headers?.authorization;
 
     if (!token) {
-      socket.data.user = null;
+      const guestId = new mongoose.Types.ObjectId().toString();
+      socket.data.user = {
+        id: guestId,
+        _id: guestId,
+        displayName: `Guest ${guestId.slice(-4)}`,
+        role: 'viewer',
+        isGuest: true
+      };
       return next();
     }
 
@@ -102,7 +109,14 @@ export const initSocketHandler = (io) => {
       socket.data.user = decoded; // { id, email, displayName, role }
       next();
     } catch (err) {
-      socket.data.user = null;
+      const guestId = new mongoose.Types.ObjectId().toString();
+      socket.data.user = {
+        id: guestId,
+        _id: guestId,
+        displayName: `Guest ${guestId.slice(-4)}`,
+        role: 'viewer',
+        isGuest: true
+      };
       next();
     }
   });
@@ -129,16 +143,18 @@ export const initSocketHandler = (io) => {
       success: true,
       message: 'Connected to Netflix AI Watch Spaces engine',
       socketId: socket.id,
-      authenticated: !!user,
+      authenticated: !!user && !user.isGuest,
       timestamp: new Date().toISOString(),
     });
 
     // ── 2. Room Join & Presence Initialization ──────────────────────────────
     socket.on('space:join', async ({ spaceId } = {}) => {
-      if (!user) {
-        socket.emit('room.error', buildEnvelope('room.error', spaceId, { message: 'Authentication required.' }));
-        return;
-      }
+      const currentUser = socket.data.user || {
+        id: socket.id,
+        _id: socket.id,
+        displayName: 'Guest User',
+        role: 'viewer'
+      };
 
       if (!spaceId) {
         socket.emit('room.error', buildEnvelope('room.error', null, { message: 'spaceId is required.' }));
@@ -341,10 +357,17 @@ export const initSocketHandler = (io) => {
     // ── 5. Chat Messaging (Persisted to MongoDB) ────────────────────────────
     socket.on('room.chat.message', async (data) => {
       const { watchSpaceId, payload } = data || {};
-      if (!user || !watchSpaceId || !payload?.text) return;
+      const currentUser = socket.data.user || user || {
+        id: socket.id,
+        _id: socket.id,
+        displayName: 'Guest User',
+        role: 'viewer'
+      };
+
+      if (!watchSpaceId || !payload?.text) return;
 
       const room = roomsState.get(watchSpaceId);
-      if (room && room.mutedUserIds.has(user.id)) {
+      if (room && room.mutedUserIds && room.mutedUserIds.has(currentUser.id)) {
         socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'You have been muted by the host.' }));
         return;
       }
@@ -356,18 +379,29 @@ export const initSocketHandler = (io) => {
           .trim();
         if (!textClean) return;
 
-        // Persist message to MongoDB for history & ordered retrieval
-        const chatMsg = await ChatMessage.create({
-          watchSpaceId,
-          senderId: user.id,
-          senderName: user.displayName,
-          text: textClean,
-        });
+        let chatMsg;
+        try {
+          chatMsg = await ChatMessage.create({
+            watchSpaceId,
+            senderId: currentUser.id,
+            senderName: currentUser.displayName,
+            text: textClean,
+          });
+        } catch (dbErr) {
+          console.warn('[Socket.IO] Chat message DB persist fallback:', dbErr.message);
+          chatMsg = {
+            _id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            senderId: currentUser.id,
+            senderName: currentUser.displayName,
+            text: textClean,
+            createdAt: new Date().toISOString(),
+          };
+        }
 
         const envelope = buildEnvelope('room.chat.message', watchSpaceId, {
           _id: chatMsg._id,
-          senderId: user.id,
-          senderName: user.displayName,
+          senderId: currentUser.id,
+          senderName: currentUser.displayName,
           text: chatMsg.text,
           createdAt: chatMsg.createdAt,
           isSystem: false,

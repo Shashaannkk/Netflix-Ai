@@ -93,10 +93,9 @@ export const WatchSpaceProvider = ({ children }) => {
 
   // ── Initialize socket connection ───────────────────────────────────────────
   useEffect(() => {
-    if (!user) return;
-
+    const token = getAccessToken();
     const socket = io(SOCKET_URL, {
-      auth: { token: getAccessToken() },
+      auth: { token: token || undefined },
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -341,7 +340,15 @@ export const WatchSpaceProvider = ({ children }) => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [user, currentSpace?._id, navigate]);
+  }, [navigate]);
+
+  // Join room whenever currentSpace or socket connection status changes
+  useEffect(() => {
+    if (socketConnected && socketRef.current?.connected && currentSpace?._id) {
+      console.log('[WatchSpaceContext] Emitting space:join for:', currentSpace._id);
+      socketRef.current.emit('space:join', { spaceId: currentSpace._id });
+    }
+  }, [currentSpace?._id, socketConnected]);
 
   // ── Periodic Drift Ping Loop ─────────────────────────────────────────────
   useEffect(() => {

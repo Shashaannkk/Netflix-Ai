@@ -358,21 +358,27 @@ export const NetflixVideoPlayer = React.forwardRef(({
       {isEmbed ? (
         <iframe
           key={currentSource}
-          src={
-            currentSource.includes('v=') || currentSource.includes('youtu.be') || !currentSource.includes('http')
-              ? `https://www.youtube.com/embed/${
-                  currentSource.includes('v=')
-                    ? currentSource.split('v=')[1]?.split('&')[0]
-                    : currentSource.includes('youtu.be/')
-                    ? currentSource.split('youtu.be/')[1]?.split('?')[0]
-                    : currentSource
-                }?autoplay=1&enablejsapi=1&rel=0`
-              : currentSource
-          }
+          src={(() => {
+            if (currentSource.includes('v=') || currentSource.includes('youtu.be') || currentSource.includes('embed') || !currentSource.includes('http')) {
+              let videoId = currentSource;
+              if (currentSource.includes('v=')) {
+                videoId = currentSource.split('v=')[1]?.split('&')[0];
+              } else if (currentSource.includes('youtu.be/')) {
+                videoId = currentSource.split('youtu.be/')[1]?.split('?')[0];
+              } else if (currentSource.includes('embed/')) {
+                videoId = currentSource.split('embed/')[1]?.split('?')[0];
+              }
+              // Extract clean 11-character videoId
+              const cleanId = (videoId && videoId.length >= 11) ? videoId.substring(0, 11) : 'YoHD9XEInc0';
+              const origin = typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : 'https%3A%2F%2Fnetflix-aipro.vercel.app';
+              return `https://www.youtube.com/embed/${cleanId}?autoplay=1&enablejsapi=1&origin=${origin}&rel=0&modestbranding=1`;
+            }
+            return currentSource;
+          })()}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-          referrerPolicy="no-referrer-when-downgrade"
+          referrerPolicy="origin-when-cross-origin"
           onError={() => {
             console.warn('[NetflixVideoPlayer] Embed trailer unavailable. Falling back to Server Alpha HD stream.');
             setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
