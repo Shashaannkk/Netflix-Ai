@@ -262,11 +262,16 @@ export const getMe = async (req, res, next) => {
  */
 export const googleAuth = async (req, res, next) => {
   try {
+    console.log(`[REQUEST] ${req.method} ${req.originalUrl || req.url} | Origin: ${req.headers.origin || 'none'}`);
+    console.log('[AUTH] Google auth route reached');
+
     const { credential, email, displayName, avatarUrl } = req.body;
 
     let targetEmail = email;
     let targetName = displayName;
     let targetAvatar = avatarUrl;
+
+    console.log('[AUTH] Google verification started');
 
     // If Google Token credential was provided by Google GIS SDK, verify with Google API
     if (credential && typeof credential === 'string') {
@@ -278,6 +283,7 @@ export const googleAuth = async (req, res, next) => {
           if (googleData.email) targetEmail = googleData.email;
           if (googleData.name) targetName = googleData.name;
           if (googleData.picture) targetAvatar = googleData.picture;
+          console.log('[AUTH] Google verification succeeded (ID Token)');
         } else {
           // Try Google Access Token userinfo verification
           googleRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${credential}`);
@@ -286,6 +292,7 @@ export const googleAuth = async (req, res, next) => {
             if (googleData.email) targetEmail = googleData.email;
             if (googleData.name) targetName = googleData.name;
             if (googleData.picture) targetAvatar = googleData.picture;
+            console.log('[AUTH] Google verification succeeded (Userinfo API)');
           } else {
             // Fallback: parse JWT payload directly
             const parts = credential.split('.');
@@ -303,12 +310,15 @@ export const googleAuth = async (req, res, next) => {
               if (parsed.email) targetEmail = parsed.email;
               if (parsed.name) targetName = parsed.name;
               if (parsed.picture) targetAvatar = parsed.picture;
+              console.log('[AUTH] Google verification parsed via JWT payload fallback');
             }
           }
         }
       } catch (err) {
-        console.warn('[Google Auth] Verification error:', err.message);
+        console.warn('[AUTH] Google verification error:', err.message);
       }
+    } else {
+      console.log('[AUTH] Direct Google payload provided by client');
     }
 
     // Default to email or desktop fallback email if targetEmail is empty
@@ -317,9 +327,11 @@ export const googleAuth = async (req, res, next) => {
     }
 
     const normalizedEmail = targetEmail.toLowerCase().trim();
+    console.log(`[DB] User lookup started for: ${normalizedEmail}`);
     let user = await User.findOne({ email: normalizedEmail }).select('+refreshToken');
 
     if (!user) {
+      console.log('[DB] User not found. Creating new MongoDB user document...');
       user = new User({
         email: normalizedEmail,
         displayName: targetName || normalizedEmail.split('@')[0],
@@ -328,6 +340,7 @@ export const googleAuth = async (req, res, next) => {
         role: 'viewer'
       });
     } else {
+      console.log('[DB] Existing user found in MongoDB');
       if (targetName && user.displayName !== targetName) {
         user.displayName = targetName;
       }
@@ -341,8 +354,11 @@ export const googleAuth = async (req, res, next) => {
 
     user.refreshToken = refreshToken;
     await user.save();
+    console.log(`[DB] User document persisted in MongoDB (ID: ${user._id})`);
 
     setRefreshTokenCookie(res, refreshToken);
+    console.log('[AUTH] JWT generation and cookie set completed');
+    console.log('[RESPONSE] Authentication response sent');
 
     return sendSuccess(res, {
       statusCode: 200,
@@ -353,6 +369,7 @@ export const googleAuth = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('[AUTH] Google auth failed:', error.message);
     next(error);
   }
 };

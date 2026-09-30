@@ -10,7 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+import { isDbConnected } from '../config/db.js';
+
 export const seedUserInteractionsData = async () => {
+  if (!isDbConnected()) {
+    console.log('[Seed] Skipping user interactions seed: MongoDB is not connected.');
+    return;
+  }
   try {
     const users = await User.find({}).limit(5);
     const titles = await Title.find({}).limit(5);

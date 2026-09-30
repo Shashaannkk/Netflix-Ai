@@ -5,10 +5,18 @@ import { getSpace, updateSpaceStatus, leaveSpace, getSpaceMessages } from '../se
 import { getAccessToken } from '../services/api';
 import { useAuth } from './AuthContext';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
-  (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') 
-    ? window.location.origin 
-    : 'http://localhost:5000');
+const getWatchSpaceSocketUrl = () => {
+  const envUrl = import.meta.env.VITE_SOCKET_URL;
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl;
+    }
+    return window.location.origin;
+  }
+  return envUrl || 'http://localhost:5000';
+};
+
+const SOCKET_URL = getWatchSpaceSocketUrl();
 
 const WatchSpaceContext = createContext(null);
 

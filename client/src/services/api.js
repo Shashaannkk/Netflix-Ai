@@ -1,11 +1,14 @@
 import axios from 'axios';
 
 const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
-  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl;
+    }
     return `${window.location.origin}/api`;
   }
-  return 'http://localhost:5000/api';
+  return envUrl || 'http://localhost:5000/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -112,7 +115,7 @@ apiClient.interceptors.response.use(
 
     if (error.message === 'Network Error' || error.code === 'ERR_NETWORK' || !error.response) {
       return Promise.reject(
-        new Error('Network Error: Cannot connect to the Netflix AI backend server. Please ensure the backend server is running on http://localhost:5000.')
+        new Error(`Network Error: Cannot connect to the Netflix AI backend server at ${API_BASE_URL}. Please ensure the server is online.`)
       );
     }
 

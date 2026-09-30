@@ -213,7 +213,13 @@ const seedData = [
   },
 ];
 
+import { isDbConnected } from '../config/db.js';
+
 export const seedTitlesData = async () => {
+  if (!isDbConnected()) {
+    console.log('[Seed] Skipping titles seed: MongoDB is not connected.');
+    return;
+  }
   try {
     const existingCount = await Title.countDocuments();
     if (existingCount >= 10) {

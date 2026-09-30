@@ -5,6 +5,11 @@ import mongoose from 'mongoose';
  * Implements resilient error handling and status monitoring.
  */
 export const connectDB = async () => {
+  // Prevent redundant reconnects in warm serverless invocations
+  if (mongoose.connection.readyState >= 1) {
+    return;
+  }
+
   const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/netflix-ai-watch-spaces';
 
   try {
@@ -12,11 +17,12 @@ export const connectDB = async () => {
       serverSelectionTimeoutMS: 5000 // Timeout after 5s if MongoDB server is unavailable
     });
 
-    console.log(`[MongoDB] Connected successfully: ${conn.connection.host}/${conn.connection.name}`);
+    console.log(`[DB] Connected successfully: ${conn.connection.host}/${conn.connection.name}`);
   } catch (error) {
-    console.warn(`[MongoDB] Warning: Could not establish initial connection to MongoDB at ${mongoUri}`);
-    console.warn(`[MongoDB] Details: ${error.message}`);
-    console.warn(`[MongoDB] Server will continue running. Ensure MongoDB daemon is running locally or check MONGO_URI.`);
+    // Sanitize URI for log output to prevent credential leaks
+    const safeUri = mongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
+    console.warn(`[DB] Warning: Could not establish connection to MongoDB at ${safeUri}`);
+    console.warn(`[DB] Details: ${error.message}`);
   }
 };
 
