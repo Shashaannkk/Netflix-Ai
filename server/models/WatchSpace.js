@@ -65,6 +65,21 @@ const watchSpaceSettingsSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Selected media choice: 'movie' | 'trailer'
+    mediaChoice: {
+      type: String,
+      default: 'movie',
+    },
+    // Selected server provider: 'server_alpha' | 'server_beta' | 'server_gamma' | 'server_delta'
+    selectedServer: {
+      type: String,
+      default: 'server_alpha',
+    },
+    // Explicit video stream URL selected by host on room creation
+    videoAssetUrl: {
+      type: String,
+      default: null,
+    },
     // Whether the host has locked the room to prevent new joiners
     isLocked: {
       type: Boolean,

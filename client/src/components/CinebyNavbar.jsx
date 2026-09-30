@@ -210,9 +210,9 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
 
                 <div className="cb-dropdown-divider" />
 
-                <Link to="/dashboard" className="cb-dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                <Link to="/#watch-activity" className="cb-dropdown-item" onClick={() => setIsProfileOpen(false)}>
                   <Film size={16} />
-                  <span>My Dashboard</span>
+                  <span>My Watch Activity</span>
                 </Link>
                 <Link to="/create-space" className="cb-dropdown-item" onClick={() => setIsProfileOpen(false)}>
                   <Users size={16} />

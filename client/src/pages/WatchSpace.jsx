@@ -192,10 +192,16 @@ const WatchSpace = () => {
 
   // ── Load space on mount ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (roomId && (!currentSpace || currentSpace._id !== roomId)) {
+    if (
+      roomId &&
+      (!currentSpace ||
+        currentSpace._id !== roomId ||
+        typeof currentSpace.titleId === 'string' ||
+        !currentSpace.titleId?.title)
+    ) {
       loadSpace(roomId).catch(() => {});
     }
-  }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomId, currentSpace?._id, currentSpace?.titleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Video player state ──────────────────────────────────────────────────────
   const videoRef                        = useRef(null);
@@ -473,7 +479,9 @@ const WatchSpace = () => {
     }
   };
 
-  const videoSrc = effectiveSpace?.titleId?.videoAssetUrl ||
+  const videoSrc =
+    effectiveSpace?.settings?.videoAssetUrl ||
+    effectiveSpace?.titleId?.videoAssetUrl ||
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;

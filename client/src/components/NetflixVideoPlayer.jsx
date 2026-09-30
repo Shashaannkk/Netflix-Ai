@@ -400,15 +400,19 @@ export const NetflixVideoPlayer = React.forwardRef(({
           }}
           onWaiting={() => setIsLoading(true)}
           onCanPlay={() => setIsLoading(false)}
-          onError={() => {
-            console.warn('[NetflixVideoPlayer] Video source failed to load. Trying backup server...');
-            if (currentSource === 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4') {
-              setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
-            } else if (currentSource === 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4') {
-              setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4');
-            } else {
-              setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
-            }
+          onError={(e) => {
+            console.warn('[NetflixVideoPlayer] Video source failed to load:', currentSource);
+            const SERVER_FALLBACKS = [
+              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+            ];
+            const currentIndex = SERVER_FALLBACKS.indexOf(currentSource);
+            const nextIndex = (currentIndex + 1) % SERVER_FALLBACKS.length;
+            const nextServer = SERVER_FALLBACKS[nextIndex];
+            console.log(`[NetflixVideoPlayer] Switching from Server ${currentIndex + 1} to backup Server ${nextIndex + 1}:`, nextServer);
+            setCurrentSource(nextServer);
           }}
           onEnded={onEnded}
           style={{ width: '100%', height: '100%', objectFit: 'contain' }}

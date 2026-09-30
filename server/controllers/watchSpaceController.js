@@ -59,6 +59,9 @@ export const createWatchSpace = async (req, res) => {
         maxParticipants: settings.maxParticipants ?? 10,
         aiVerbosity: settings.aiVerbosity ?? 'moderate',
         votingEnabled: settings.votingEnabled ?? true,
+        mediaChoice: settings.mediaChoice || 'movie',
+        selectedServer: settings.selectedServer || 'server_alpha',
+        videoAssetUrl: videoAssetUrl || targetTitle.videoAssetUrl,
       },
     });
 
@@ -69,7 +72,7 @@ export const createWatchSpace = async (req, res) => {
     // Re-fetch with populated fields for the response
     const populated = await WatchSpace.findById(space._id)
       .populate('hostUserId', 'displayName email role')
-      .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl');
+      .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl backdropUrl');
 
     return sendSuccess(res, {
       statusCode: 201,
@@ -333,7 +336,11 @@ export const joinWatchSpace = async (req, res) => {
     await space.save();
 
     // Re-populate after save for clean response
-    await space.populate('participantIds', 'displayName email role');
+    await space.populate([
+      { path: 'hostUserId', select: 'displayName email role' },
+      { path: 'titleId', select: 'title poster durationSeconds genres ageRating videoAssetUrl backdropUrl' },
+      { path: 'participantIds', select: 'displayName email role' },
+    ]);
 
     return sendSuccess(res, {
       statusCode: 200,
