@@ -279,6 +279,18 @@ const WatchSpace = () => {
       const video = videoRef.current;
       if (!video) return;
 
+      // CRITICAL CHECK: Media Metadata Readiness Guard
+      const isMediaReady =
+        video.readyState >= 1 &&
+        typeof video.duration === 'number' &&
+        !Number.isNaN(video.duration) &&
+        video.duration > 0;
+
+      if (!isMediaReady) {
+        setSyncStatus('Waiting for Media Metadata…');
+        return;
+      }
+
       if (playbackState.hostConnected === false) {
         if (!video.paused) video.pause();
         setIsPlaying(false);
@@ -336,30 +348,45 @@ const WatchSpace = () => {
 
   // ── Video callbacks & Host Emission ─────────────────────────────────────────
   const togglePlay = () => {
-    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
     if (!isHost) return; // Non-hosts cannot control playback directly
+
+    const isReady = video.readyState >= 1 && typeof video.duration === 'number' && !Number.isNaN(video.duration) && video.duration > 0;
+    if (!isReady) {
+      console.warn('[WatchSpace] Cannot toggle play: Media metadata is not ready.');
+      return;
+    }
 
     const nextState = !isPlaying;
     if (nextState) {
-      videoRef.current.play();
+      video.play().catch(() => {});
     } else {
-      videoRef.current.pause();
+      video.pause();
     }
     setIsPlaying(nextState);
 
     sendPlaybackUpdate({
       action: nextState ? 'play' : 'pause',
-      currentTime: videoRef.current.currentTime,
+      currentTime: video.currentTime,
       isPlaying: nextState,
     });
   };
 
   const skip = (secs) => {
-    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
     if (!isHost) return;
 
-    const newTime = Math.max(0, videoRef.current.currentTime + secs);
-    videoRef.current.currentTime = newTime;
+    const isReady = video.readyState >= 1 && typeof video.duration === 'number' && !Number.isNaN(video.duration) && video.duration > 0;
+    if (!isReady) {
+      console.warn('[WatchSpace] Cannot skip: Media metadata is not ready.');
+      return;
+    }
+
+    const currentDur = duration || video.duration || 0;
+    const newTime = Math.max(0, Math.min(currentDur, video.currentTime + secs));
+    video.currentTime = newTime;
     setCurrentTime(newTime);
 
     sendPlaybackUpdate({
@@ -378,14 +405,19 @@ const WatchSpace = () => {
   };
 
   const handleScrubberClick = (e) => {
-    if (!videoRef.current || !duration) return;
+    const video = videoRef.current;
+    if (!video) return;
     if (!isHost) return; // Only host can seek via scrubber
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = (e.clientX - rect.left) / rect.width;
-    const newTime = ratio * duration;
+    const isReady = video.readyState >= 1 && typeof video.duration === 'number' && !Number.isNaN(video.duration) && video.duration > 0;
+    const currentDur = duration || video.duration || 0;
+    if (!isReady || !currentDur) return;
 
-    videoRef.current.currentTime = newTime;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = ratio * currentDur;
+
+    video.currentTime = newTime;
     setCurrentTime(newTime);
 
     sendPlaybackUpdate({
