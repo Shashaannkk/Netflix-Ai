@@ -80,7 +80,7 @@ const formatDurationOrSeasons = (item) => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-import { MOVIE_SERVERS, getServerStreamUrl } from '../services/movieServers';
+import { MOVIE_SERVERS, SERVERS, getServerStreamUrl } from '../services/movieServers';
 
 const START_POSITIONS = [
   { id: 'beginning', label: 'From Beginning' },
@@ -417,7 +417,7 @@ const CreateWatchSpace = () => {
     setTimeout(() => setCopied(''), 2000);
   };
 
-  const selectedServerObj = SERVERS.find((s) => s.id === selectedServer) || SERVERS[0];
+  const selectedServerObj = MOVIE_SERVERS.find((s) => s.id === selectedServer) || MOVIE_SERVERS[0];
   const selectedPositionObj = START_POSITIONS.find((p) => p.id === startPosition) || START_POSITIONS[0];
 
   return (

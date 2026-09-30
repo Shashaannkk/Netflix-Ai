@@ -79,6 +79,9 @@ export const MOVIE_SERVERS = [
   }
 ];
 
+export const SERVERS = MOVIE_SERVERS;
+export default MOVIE_SERVERS;
+
 /**
  * Generate precise stream URL for any server index 1..8
  */
