@@ -266,6 +266,10 @@ const CreateWatchSpace = () => {
     } else {
       if (selectedServer === 'server_beta') {
         computedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4';
+      } else if (selectedServer === 'server_gamma') {
+        computedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+      } else if (selectedServer === 'server_delta') {
+        computedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
       } else {
         computedVideoUrl = (selectedTitle.videoAssetUrl && !selectedTitle.videoAssetUrl.includes('youtube'))
           ? selectedTitle.videoAssetUrl
@@ -495,15 +499,15 @@ const CreateWatchSpace = () => {
                   <Sparkles size={14} style={{ color: 'var(--netflix-red)' }} />
                   Select Streaming Server / Provider
                 </label>
-                <div className="cs-toggle-row">
+                <div className="cs-toggle-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                   <button
                     type="button"
                     id="server-alpha-btn"
                     className={`cs-privacy-toggle ${selectedServer === 'server_alpha' ? 'active' : ''}`}
                     onClick={() => setSelectedServer('server_alpha')}
                   >
-                    <span>🚀 Server Alpha</span>
-                    <small>Netflix AI Authorized HD</small>
+                    <span>🚀 Server 1</span>
+                    <small>Alpha HD Stream</small>
                   </button>
                   <button
                     type="button"
@@ -511,8 +515,26 @@ const CreateWatchSpace = () => {
                     className={`cs-privacy-toggle ${selectedServer === 'server_beta' ? 'active' : ''}`}
                     onClick={() => setSelectedServer('server_beta')}
                   >
-                    <span>⚡ Server Beta</span>
-                    <small>High-Speed Mirror Stream</small>
+                    <span>⚡ Server 2</span>
+                    <small>Beta High-Speed</small>
+                  </button>
+                  <button
+                    type="button"
+                    id="server-gamma-btn"
+                    className={`cs-privacy-toggle ${selectedServer === 'server_gamma' ? 'active' : ''}`}
+                    onClick={() => setSelectedServer('server_gamma')}
+                  >
+                    <span>🌐 Server 3</span>
+                    <small>Gamma CDN Mirror</small>
+                  </button>
+                  <button
+                    type="button"
+                    id="server-delta-btn"
+                    className={`cs-privacy-toggle ${selectedServer === 'server_delta' ? 'active' : ''}`}
+                    onClick={() => setSelectedServer('server_delta')}
+                  >
+                    <span>🛡️ Server 4</span>
+                    <small>Delta Fallback Stream</small>
                   </button>
                 </div>
               </div>
