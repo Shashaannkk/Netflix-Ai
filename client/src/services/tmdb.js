@@ -189,24 +189,43 @@ export const fetchUpcomingMovies = async () => {
   return CURATED_MOVIES;
 };
 
-export const fetchTrailerKey = async (id, type = 'movie') => {
+export const fetchTrailerCandidates = async (id, type = 'movie') => {
   const data = await fetchFromTMDB(`/${type}/${id}/videos`);
   if (data?.results?.length) {
-    const officialTrailer = data.results.find(
-      (v) => v.site === 'YouTube' && v.type === 'Trailer' && v.name && v.name.toLowerCase().includes('official')
-    ) || data.results.find(
-      (v) => v.site === 'YouTube' && v.type === 'Trailer'
-    ) || data.results.find(
-      (v) => v.site === 'YouTube' && (v.type === 'Teaser' || v.type === 'Clip')
-    ) || data.results[0];
+    const youtubeVideos = data.results.filter((v) => v.site === 'YouTube' && v.key && v.key.trim() !== '');
 
-    if (officialTrailer?.key) return officialTrailer.key;
+    const officialTrailers = youtubeVideos.filter(
+      (v) => v.type === 'Trailer' && (v.official || (v.name && v.name.toLowerCase().includes('official')))
+    );
+
+    const otherTrailers = youtubeVideos.filter(
+      (v) => v.type === 'Trailer' && !officialTrailers.includes(v)
+    );
+
+    const teasersAndClips = youtubeVideos.filter(
+      (v) => (v.type === 'Teaser' || v.type === 'Clip') && !officialTrailers.includes(v) && !otherTrailers.includes(v)
+    );
+
+    const remaining = youtubeVideos.filter(
+      (v) => !officialTrailers.includes(v) && !otherTrailers.includes(v) && !teasersAndClips.includes(v)
+    );
+
+    const candidates = [...officialTrailers, ...otherTrailers, ...teasersAndClips, ...remaining]
+      .map((v) => v.key)
+      .filter((key, idx, arr) => arr.indexOf(key) === idx);
+
+    if (candidates.length > 0) return candidates;
   }
-  // Check curated list fallback
+
   const curated = CURATED_MOVIES.find((m) => m.id === Number(id));
-  if (curated?.trailer_key) return curated.trailer_key;
-  // Default fallback popular trailers
-  return 'YoHD9XEInc0'; // Inception official trailer
+  if (curated?.trailer_key) return [curated.trailer_key];
+
+  return ['YoHD9XEInc0', 'qtRKDV93s2s', 'zSWdZVtXT7E', '6ZfuNTqbHE8', 'b9EkMc79ZSU'];
+};
+
+export const fetchTrailerKey = async (id, type = 'movie') => {
+  const candidates = await fetchTrailerCandidates(id, type);
+  return candidates[0] || 'YoHD9XEInc0';
 };
 
 export const fetchMediaDetails = async (id, type = 'movie') => {

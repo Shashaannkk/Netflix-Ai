@@ -71,6 +71,22 @@ export const NetflixVideoPlayer = React.forwardRef(({
   // Active Stream Source
   const [currentSource, setCurrentSource] = useState(src);
 
+  const isEmbed = Boolean(
+    currentSource &&
+    (currentSource.includes('youtube') ||
+     currentSource.includes('youtu.be') ||
+     currentSource.includes('embed') ||
+     (!currentSource.includes('.mp4') && !currentSource.includes('.webm') && !currentSource.includes('http://') && !currentSource.includes('https://')))
+  );
+
+  const handleIntroComplete = useCallback(() => {
+    setShowIntro(false);
+    if (videoRef.current && (syncIsPlaying ?? isPlaying) && isHost) {
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  }, [syncIsPlaying, isPlaying, isHost]);
+
   useEffect(() => {
     setCurrentSource(src);
     setShowIntro(true);
@@ -319,13 +335,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
       {showIntro && (
         <NetflixIntroScreen
           title="NETFLIX AI"
-          onComplete={() => {
-            setShowIntro(false);
-            if (videoRef.current && (syncIsPlaying ?? isPlaying) && isHost) {
-              videoRef.current.play().catch(() => {});
-              setIsPlaying(true);
-            }
-          }}
+          onComplete={handleIntroComplete}
         />
       )}
 
@@ -350,17 +360,22 @@ export const NetflixVideoPlayer = React.forwardRef(({
         <iframe
           key={currentSource}
           src={
-            currentSource.includes('embed') || currentSource.includes('http')
-              ? currentSource
-              : `https://www.youtube.com/embed/${currentSource}?autoplay=1&enablejsapi=1&rel=0`
+            currentSource.includes('v=') || currentSource.includes('youtu.be') || !currentSource.includes('http')
+              ? `https://www.youtube.com/embed/${
+                  currentSource.includes('v=')
+                    ? currentSource.split('v=')[1]?.split('&')[0]
+                    : currentSource.includes('youtu.be/')
+                    ? currentSource.split('youtu.be/')[1]?.split('?')[0]
+                    : currentSource
+                }?autoplay=1&enablejsapi=1&rel=0`
+              : currentSource
           }
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-          referrerPolicy="no-referrer"
+          referrerPolicy="no-referrer-when-downgrade"
           onError={() => {
-            console.warn('[NetflixVideoPlayer] Embed trailer unavailable. Falling back to HD stream.');
+            console.warn('[NetflixVideoPlayer] Embed trailer unavailable. Falling back to Server Alpha HD stream.');
             setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
           }}
           style={{ width: '100%', height: '100%', border: 'none' }}
@@ -387,8 +402,14 @@ export const NetflixVideoPlayer = React.forwardRef(({
           onWaiting={() => setIsLoading(true)}
           onCanPlay={() => setIsLoading(false)}
           onError={() => {
-            console.warn('[NetflixVideoPlayer] Video source failed to load. Switching to reliable fallback stream.');
-            setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
+            console.warn('[NetflixVideoPlayer] Video source failed to load. Trying backup server...');
+            if (currentSource === 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4') {
+              setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+            } else if (currentSource === 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4') {
+              setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4');
+            } else {
+              setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
+            }
           }}
           onEnded={onEnded}
           style={{ width: '100%', height: '100%', objectFit: 'contain' }}

@@ -123,12 +123,14 @@ const CreateWatchSpace = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTitle, setSelectedTitle] = useState(null);
 
-  // ── Room settings ──────────────────────────────────────────────────────────
+  // ── Room settings & Explicit Media Selection (Phase 6) ───────────────────
   const [roomName, setRoomName]               = useState('');
   const [isPrivate, setIsPrivate]             = useState(false);
   const [maxParticipants, setMaxParticipants] = useState(10);
   const [aiVerbosity, setAiVerbosity]         = useState('moderate');
   const [votingEnabled, setVotingEnabled]     = useState(true);
+  const [mediaChoice, setMediaChoice]         = useState('movie'); // 'movie' | 'trailer'
+  const [selectedServer, setSelectedServer]   = useState('server_alpha'); // 'server_alpha' | 'server_beta'
 
   // ── Launch / result ────────────────────────────────────────────────────────
   const [createdSpace, setCreatedSpace] = useState(null);
@@ -254,15 +256,32 @@ const CreateWatchSpace = () => {
     setCreating(true);
     setCreateError(null);
 
+    let computedVideoUrl = selectedTitle.videoAssetUrl;
+    if (mediaChoice === 'trailer') {
+      computedVideoUrl = selectedTitle.trailer_key
+        ? `https://www.youtube.com/embed/${selectedTitle.trailer_key}?autoplay=1`
+        : (selectedTitle.videoAssetUrl && selectedTitle.videoAssetUrl.includes('youtube')
+            ? selectedTitle.videoAssetUrl
+            : 'https://www.youtube.com/embed/b9EkMc79ZSU?autoplay=1');
+    } else {
+      if (selectedServer === 'server_beta') {
+        computedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4';
+      } else {
+        computedVideoUrl = (selectedTitle.videoAssetUrl && !selectedTitle.videoAssetUrl.includes('youtube'))
+          ? selectedTitle.videoAssetUrl
+          : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
+      }
+    }
+
     try {
       const res = await createSpace({
         titleId: selectedTitle._id || selectedTitle.id,
         title: selectedTitle.title,
         poster: selectedTitle.poster,
         backdropUrl: selectedTitle.backdropUrl,
-        videoAssetUrl: selectedTitle.videoAssetUrl,
+        videoAssetUrl: computedVideoUrl,
         genres: selectedTitle.genres,
-        settings: { roomName, isPrivate, maxParticipants, aiVerbosity, votingEnabled },
+        settings: { roomName, isPrivate, maxParticipants, aiVerbosity, votingEnabled, mediaChoice, selectedServer },
       });
       const space = res.data.space;
       setCreatedSpace(space);
@@ -278,13 +297,13 @@ const CreateWatchSpace = () => {
         status: 'live',
         hostUserId: user || { _id: 'guest-1', displayName: 'Host User' },
         participantIds: [],
-        settings: { roomName, isPrivate, maxParticipants, aiVerbosity, votingEnabled },
+        settings: { roomName, isPrivate, maxParticipants, aiVerbosity, votingEnabled, mediaChoice, selectedServer },
         titleId: {
           _id: selectedTitle._id || selectedTitle.id,
           title: selectedTitle.title,
           poster: selectedTitle.poster,
           backdropUrl: selectedTitle.backdropUrl,
-          videoAssetUrl: selectedTitle.videoAssetUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+          videoAssetUrl: computedVideoUrl,
         }
       };
       setCreatedSpace(demoSpace);
@@ -293,7 +312,7 @@ const CreateWatchSpace = () => {
     } finally {
       setCreating(false);
     }
-  }, [selectedTitle, roomName, isPrivate, maxParticipants, aiVerbosity, votingEnabled, setSpace, user]);
+  }, [selectedTitle, roomName, isPrivate, maxParticipants, aiVerbosity, votingEnabled, mediaChoice, selectedServer, setSpace, user]);
 
   const copyText = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -439,6 +458,66 @@ const CreateWatchSpace = () => {
           </div>
 
           <div className="cs-settings-grid">
+            {/* Phase 6: Explicit Media Selection (Trailer vs Movie) */}
+            <div className="cs-field" style={{ gridColumn: '1 / -1' }}>
+              <label className="cs-label">
+                <Play size={14} style={{ color: 'var(--netflix-red)' }} />
+                What Do You Want to Watch?
+              </label>
+              <div className="cs-toggle-row">
+                <button
+                  type="button"
+                  id="media-choice-movie"
+                  className={`cs-privacy-toggle ${mediaChoice === 'movie' ? 'active' : ''}`}
+                  onClick={() => setMediaChoice('movie')}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>🍿</span>
+                  <span>Full Movie / Feature</span>
+                  <small>Authorized Stream</small>
+                </button>
+                <button
+                  type="button"
+                  id="media-choice-trailer"
+                  className={`cs-privacy-toggle ${mediaChoice === 'trailer' ? 'active' : ''}`}
+                  onClick={() => setMediaChoice('trailer')}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>🎬</span>
+                  <span>Official Trailer</span>
+                  <small>YouTube IFrame</small>
+                </button>
+              </div>
+            </div>
+
+            {/* Phase 6: Server / Provider Selection for Feature Movie */}
+            {mediaChoice === 'movie' && (
+              <div className="cs-field" style={{ gridColumn: '1 / -1' }}>
+                <label className="cs-label">
+                  <Sparkles size={14} style={{ color: 'var(--netflix-red)' }} />
+                  Select Streaming Server / Provider
+                </label>
+                <div className="cs-toggle-row">
+                  <button
+                    type="button"
+                    id="server-alpha-btn"
+                    className={`cs-privacy-toggle ${selectedServer === 'server_alpha' ? 'active' : ''}`}
+                    onClick={() => setSelectedServer('server_alpha')}
+                  >
+                    <span>🚀 Server Alpha</span>
+                    <small>Netflix AI Authorized HD</small>
+                  </button>
+                  <button
+                    type="button"
+                    id="server-beta-btn"
+                    className={`cs-privacy-toggle ${selectedServer === 'server_beta' ? 'active' : ''}`}
+                    onClick={() => setSelectedServer('server_beta')}
+                  >
+                    <span>⚡ Server Beta</span>
+                    <small>High-Speed Mirror Stream</small>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Room Name */}
             <div className="cs-field">
               <label htmlFor="room-name" className="cs-label">Room Name</label>

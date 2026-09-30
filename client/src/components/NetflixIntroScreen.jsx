@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 /**
  * NetflixIntroScreen — Authentic Netflix AI Sound & Visual Splash Intro Component
@@ -6,6 +6,11 @@ import React, { useEffect, useState } from 'react';
  */
 export const NetflixIntroScreen = ({ onComplete, title = 'NETFLIX AI' }) => {
   const [fading, setFading] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     // Web Audio API synth sound effect for authentic "TA-DUM" boom!
@@ -32,14 +37,14 @@ export const NetflixIntroScreen = ({ onComplete, title = 'NETFLIX AI' }) => {
     }, 1800);
 
     const endTimer = setTimeout(() => {
-      if (onComplete) onComplete();
+      if (onCompleteRef.current) onCompleteRef.current();
     }, 2300);
 
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(endTimer);
     };
-  }, [onComplete]);
+  }, []);
 
   return (
     <div
