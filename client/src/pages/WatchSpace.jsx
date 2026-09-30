@@ -159,15 +159,38 @@ const WatchSpace = () => {
     updateLocalization,
   } = useWatchSpace();
 
+  // ── Video player state ──────────────────────────────────────────────────────
+  const videoRef                        = useRef(null);
+  const controlsTimer                   = useRef(null);
+  const typingTimeoutRef                 = useRef(null);
+
+  const [isPlaying, setIsPlaying]       = useState(false);
+  const [isMuted, setIsMuted]           = useState(false);
+  const [volume, setVolume]             = useState(1);
+  const [currentTime, setCurrentTime]   = useState(0);
+  const [duration, setDuration]         = useState(0);
+  const [showControls, setShowControls] = useState(true);
+  const [syncStatus, setSyncStatus]     = useState('Syncing…');
+
+  // ── UI & AI state ───────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab]       = useState('ai');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [copied, setCopied]             = useState('');
+  const [aiQuestion, setAiQuestion]     = useState('');
+  const [aiHistory, setAiHistory]       = useState([]);
+  const [aiLoading, setAiLoading]       = useState(false);
+  const [chatInputText, setChatInputText] = useState('');
+  const [isGoingLive, setIsGoingLive]   = useState(false);
+  const [isEnding, setIsEnding]         = useState(false);
+  const [confirmEnd, setConfirmEnd]     = useState(false);
   const [showTriviaAnswer, setShowTriviaAnswer] = useState(false);
+  const [remainingSec, setRemainingSec] = useState(0);
 
   useEffect(() => {
     setShowTriviaAnswer(false);
   }, [currentTrivia]);
 
   // ── Part 8: Local voting countdown & active subtitle calculation ────────────
-  const [remainingSec, setRemainingSec] = useState(0);
-
   useEffect(() => {
     if (!activeVote) {
       setRemainingSec(0);
@@ -202,30 +225,6 @@ const WatchSpace = () => {
       loadSpace(roomId).catch(() => {});
     }
   }, [roomId, currentSpace?._id, currentSpace?.titleId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Video player state ──────────────────────────────────────────────────────
-  const videoRef                        = useRef(null);
-  const [isPlaying, setIsPlaying]       = useState(false);
-  const [isMuted, setIsMuted]           = useState(false);
-  const [volume, setVolume]             = useState(1);
-  const [currentTime, setCurrentTime]   = useState(0);
-  const [duration, setDuration]         = useState(0);
-  const [showControls, setShowControls] = useState(true);
-  const [syncStatus, setSyncStatus]     = useState('Syncing…');
-  const controlsTimer                   = useRef(null);
-
-  // ── UI & AI state ───────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab]       = useState('ai');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [copied, setCopied]             = useState('');
-  const [aiQuestion, setAiQuestion]     = useState('');
-  const [aiHistory, setAiHistory]       = useState([]);
-  const [aiLoading, setAiLoading]       = useState(false);
-  const [chatInputText, setChatInputText] = useState('');
-  const [isGoingLive, setIsGoingLive]   = useState(false);
-  const [isEnding, setIsEnding]         = useState(false);
-  const [confirmEnd, setConfirmEnd]     = useState(false);
-  const typingTimeoutRef                 = useRef(null);
 
   const handleAskAi = async (questionToAsk) => {
     const qText = (questionToAsk || aiQuestion).trim();
