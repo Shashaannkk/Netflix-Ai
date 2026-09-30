@@ -692,7 +692,7 @@ const CreateWatchSpace = () => {
                         className="cs-primary-cta"
                         onClick={() => setStep(STEP_SETTINGS)}
                       >
-                        <span>Continue with This Title</span>
+                        <span>MAKE WATCH PARTY</span>
                         <ChevronRight size={18} />
                       </button>
 
@@ -1288,27 +1288,29 @@ const CreateWatchSpace = () => {
               <img src={detailsModalTitle.backdropUrl || detailsModalTitle.poster} alt="" className="cs-modal-backdrop" />
               <p>{detailsModalTitle.description}</p>
             </div>
-          {/* Mobile/Tablet Sticky Selected Title Bar */}
-          {selectedTitle && (
-            <div className="cs-mobile-selected-bar">
-              <div className="cs-mobile-selected-info">
-                <img src={selectedTitle.poster} alt={selectedTitle.title} className="cs-mobile-thumb" />
-                <div className="cs-mobile-text">
-                  <span className="cs-mobile-title">{selectedTitle.title}</span>
-                  <span className="cs-mobile-sub">{selectedTitle.year} • {formatDurationOrSeasons(selectedTitle)}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                id="mobile-continue-btn"
-                className="cs-mobile-continue-btn"
-                onClick={() => setStep(STEP_SETTINGS)}
-              >
-                <span>Make Watch Party</span>
-                <ChevronRight size={16} />
-              </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile/Tablet Sticky Selected Title Bar — Always visible when title is selected in Step 1 */}
+      {selectedTitle && step === STEP_PICK_TITLE && (
+        <div className="cs-mobile-selected-bar">
+          <div className="cs-mobile-selected-info">
+            <img src={selectedTitle.poster} alt={selectedTitle.title} className="cs-mobile-thumb" />
+            <div className="cs-mobile-text">
+              <span className="cs-mobile-title">{selectedTitle.title}</span>
+              <span className="cs-mobile-sub">{selectedTitle.year} • {formatDurationOrSeasons(selectedTitle)}</span>
             </div>
-          )}
+          </div>
+          <button
+            type="button"
+            id="mobile-continue-btn"
+            className="cs-mobile-continue-btn"
+            onClick={() => setStep(STEP_SETTINGS)}
+          >
+            <span>MAKE WATCH PARTY</span>
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
     </div>

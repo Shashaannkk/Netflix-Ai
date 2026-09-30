@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import WatchSpace from '../models/WatchSpace.js';
 import UserInteraction from '../models/UserInteraction.js';
 import ChatMessage from '../models/ChatMessage.js';
@@ -71,10 +72,46 @@ export const getUserDashboard = async (req, res) => {
 export const recordUserInteraction = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
-    const { titleId, watchedSeconds, completed, rating, genreAffinity, coWatchedUsers } = req.body;
+    let { titleId, watchedSeconds, completed, rating, genreAffinity, coWatchedUsers, title: titleName, poster, backdropUrl, genres } = req.body;
 
     if (!titleId) {
       return sendError(res, { statusCode: 400, message: 'titleId is required' });
+    }
+
+    let targetMongoTitleId = null;
+
+    if (mongoose.Types.ObjectId.isValid(titleId)) {
+      targetMongoTitleId = titleId;
+    } else {
+      // Find or create a matching Title document for TMDB / external title IDs
+      let existingTitle = null;
+      if (titleName) {
+        existingTitle = await Title.findOne({ title: new RegExp(`^${titleName}$`, 'i') });
+      }
+
+      if (!existingTitle && titleName) {
+        existingTitle = await Title.create({
+          title: titleName,
+          description: 'Popular movie or show on Netflix AI',
+          durationSeconds: 7200,
+          genres: Array.isArray(genres) ? genres : ['Movie'],
+          poster: poster || null,
+          backdropUrl: backdropUrl || null,
+          videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+          isPublished: true,
+        });
+      }
+
+      if (existingTitle) {
+        targetMongoTitleId = existingTitle._id;
+      } else {
+        const fallbackTitle = await Title.findOne();
+        if (fallbackTitle) targetMongoTitleId = fallbackTitle._id;
+      }
+    }
+
+    if (!targetMongoTitleId) {
+      return sendError(res, { statusCode: 404, message: 'Title reference not found for recording interaction' });
     }
 
     const updateFields = {};
@@ -85,7 +122,7 @@ export const recordUserInteraction = async (req, res) => {
     if (Array.isArray(coWatchedUsers)) updateFields.coWatchedUsers = coWatchedUsers;
 
     const interaction = await UserInteraction.findOneAndUpdate(
-      { userId, titleId },
+      { userId, titleId: targetMongoTitleId },
       { $set: updateFields },
       { new: true, upsert: true, runValidators: true }
     );

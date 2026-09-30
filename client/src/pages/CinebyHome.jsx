@@ -346,10 +346,299 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
         </div>
       </section>
 
-      {/* 4. Main Rows Container */}
+      {/* 4. Main Rows Container with Exact Requested Section Hierarchy */}
       <main className="cb-main-content">
 
-        {/* ── 1. POPULAR MOVIES (Master Portrait 2:3) ── */}
+        {/* ── 2. TOP IMDb — HIGHEST RATED CONTENT (Ranked 1..10) ── */}
+        {showTopImdb && (
+          <section className="cb-movie-row">
+            <div className="cb-row-header">
+              <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Trophy color="#f59e0b" size={20} /> Top IMDb — Highest Rated Content
+              </h2>
+              <span className="cb-row-sub">Top cinema masterpieces</span>
+            </div>
+
+            <div className="cb-row-slider-wrapper">
+              <button
+                className="cb-row-arrow cb-arrow-left"
+                onClick={() => handleScrollRow('topRated', 'left')}
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={24} />
+              </button>
+
+              <div
+                className="cb-row-posters portrait-row"
+                ref={(el) => (rowRefs.current['topRated'] = el)}
+              >
+                {loading
+                  ? Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="cb-skeleton-ranked-card cb-skeleton" />
+                    ))
+                  : topRatedMovies.slice(0, 10).map((item, idx) => (
+                      <div
+                        key={item.id || item._id || idx}
+                        className="cb-ranked-card"
+                        onClick={() => setSelectedMedia(item)}
+                      >
+                        <div className="cb-rank-number">#{idx + 1}</div>
+                        <div className="cb-portrait-wrapper">
+                          <img
+                            src={getImageUrl(item.poster_path || item.poster)}
+                            alt={item.title || item.name}
+                            className="cb-portrait-img"
+                          />
+                          <div className="cb-card-badge-hd">IMDb {item.vote_average ? item.vote_average.toFixed(1) : '8.6'}</div>
+                          <div className="cb-portrait-hover">
+                            <div className="cb-hover-btn-group">
+                              <button className="cb-circle-btn">
+                                <Play size={15} fill="currentColor" />
+                              </button>
+                              <button
+                                className="cb-circle-btn space"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenWatchSpace(item);
+                                }}
+                                title="Watch Together"
+                              >
+                                <Users size={14} />
+                              </button>
+                            </div>
+                            <div className="cb-hover-title">{item.title || item.name}</div>
+                            <div className="cb-hover-score" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                              <Star size={12} fill="#e50914" color="#e50914" /> {item.vote_average ? item.vote_average.toFixed(1) : '8.5'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+              </div>
+
+              <button
+                className="cb-row-arrow cb-arrow-right"
+                onClick={() => handleScrollRow('topRated', 'right')}
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ── 3. RECOMMENDED FOR YOU (Personalized Hybrid Engine Row) ── */}
+        <section className="cb-movie-row">
+          <div className="cb-row-header">
+            <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--netflix-red)' }}>
+              <Sparkles size={20} color="var(--netflix-red)" /> Recommended for You
+            </h2>
+            <span className="cb-row-sub">Personalized based on viewing history & preferences</span>
+          </div>
+
+          <div className="cb-row-slider-wrapper">
+            <button
+              className="cb-row-arrow cb-arrow-left"
+              onClick={() => handleScrollRow('recommended', 'left')}
+              aria-label="Scroll left"
+            >
+              <ChevronLeft size={24} />
+            </button>
+
+            <div
+              className="cb-row-posters portrait-row"
+              ref={(el) => (rowRefs.current['recommended'] = el)}
+            >
+              {(dashboardData.recommendations && dashboardData.recommendations.length > 0
+                ? dashboardData.recommendations
+                : (popularMovies.length > 0 ? popularMovies.slice(0, 10) : [])
+              ).map((item, idx) => (
+                <div
+                  key={item._id || item.id || idx}
+                  className="cb-portrait-card"
+                  onClick={() => setSelectedMedia(item)}
+                >
+                  <div className="cb-portrait-wrapper">
+                    <img
+                      src={getImageUrl(item.poster || item.poster_path || item.backdropUrl)}
+                      alt={item.title || item.name}
+                      className="cb-portrait-img"
+                    />
+                    <div className="cb-card-badge-hd">AI</div>
+                    <div className="cb-portrait-hover">
+                      <div className="cb-hover-btn-group">
+                        <button className="cb-circle-btn">
+                          <Play size={15} fill="currentColor" />
+                        </button>
+                        <button
+                          className="cb-circle-btn space"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenWatchSpace(item);
+                          }}
+                          title="Watch Together"
+                        >
+                          <Users size={14} />
+                        </button>
+                        <button
+                          className="cb-circle-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRatingTitleId(item._id || item.id);
+                          }}
+                          title="Rate Title"
+                        >
+                          <Star size={13} color="#f59e0b" fill="#f59e0b" />
+                        </button>
+                      </div>
+                      <div className="cb-hover-title">{item.title || item.name}</div>
+                      <div className="cb-hover-score" style={{ color: '#22c55e', fontWeight: 700 }}>
+                        {item.matchScore || `${98 - idx}% Match`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="cb-card-footer-title">{item.title || item.name}</div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="cb-row-arrow cb-arrow-right"
+              onClick={() => handleScrollRow('recommended', 'right')}
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        </section>
+
+        {/* ── 4. ACTIVE WATCH SPACES ── */}
+        <section className="cb-movie-row">
+          <div className="cb-row-header">
+            <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#22c55e' }}>
+              <Zap size={20} color="#22c55e" /> Active Watch Spaces
+            </h2>
+            <span className="cb-row-sub">Live synchronized rooms</span>
+          </div>
+
+          {dashboardData.activeSpaces && dashboardData.activeSpaces.length > 0 ? (
+            <div className="cb-row-slider-wrapper">
+              <button
+                className="cb-row-arrow cb-arrow-left"
+                onClick={() => handleScrollRow('activeSpaces', 'left')}
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={24} />
+              </button>
+
+              <div
+                className="cb-row-posters"
+                ref={(el) => (rowRefs.current['activeSpaces'] = el)}
+                style={{ paddingBottom: '1rem' }}
+              >
+                {dashboardData.activeSpaces.map((space) => (
+                  <div
+                    key={space._id}
+                    style={{
+                      flex: '0 0 320px',
+                      width: '320px',
+                      background: '#181818',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '10px',
+                      padding: '1.2rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span className={`room-status-badge ${space.status === 'live' ? 'badge-live' : 'badge-scheduled'}`}>
+                          {space.status === 'live' ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Radio size={12} /> LIVE SESSION</span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={12} /> SCHEDULED</span>
+                          )}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 600 }}>
+                          Code: <strong style={{ color: '#fff' }}>{space.inviteCode}</strong>
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', marginBottom: '0.3rem' }}>
+                        {space.settings?.roomName || 'Watch Party'}
+                      </h3>
+                      <p style={{ fontSize: '0.8rem', color: '#aaa' }}>
+                        Title: <strong style={{ color: '#ddd' }}>{space.titleId?.title || 'Tears of Steel'}</strong>
+                      </p>
+                      <p style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.2rem' }}>
+                        Host: {space.hostUserId?.displayName || 'Host'} &bull; {(space.participantIds || []).length + 1} Viewers
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button
+                        className="cb-btn cb-btn-play"
+                        onClick={() => navigate(`/space/${space._id}`)}
+                        style={{ flex: 1, fontSize: '0.85rem', padding: '0.5rem' }}
+                      >
+                        <ExternalLink size={16} /> Rejoin Space
+                      </button>
+                      <button
+                        className="cb-btn cb-btn-secondary"
+                        onClick={() => fetchAnalytics(space._id)}
+                        title="View Session Analytics"
+                        style={{ padding: '0.5rem' }}
+                      >
+                        <BarChart3 size={16} color="#e50914" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                className="cb-row-arrow cb-arrow-right"
+                onClick={() => handleScrollRow('activeSpaces', 'right')}
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px dashed rgba(255,255,255,0.12)',
+                borderRadius: '10px',
+                padding: '1.2rem 1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                <Users size={22} color="#aaa" />
+                <div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>No active Watch Spaces</div>
+                  <div style={{ fontSize: '0.8rem', color: '#888' }}>Host a room to stream live synced video with friends & AI co-pilot</div>
+                </div>
+              </div>
+              <button
+                className="cb-btn cb-btn-space"
+                onClick={() => navigate('/create-space')}
+                style={{ fontSize: '0.85rem', padding: '0.55rem 1.2rem', whiteSpace: 'nowrap' }}
+              >
+                <Users size={16} /> Create Watch Space
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* ── 5. POPULAR MOVIES ── */}
         {showMovies && (
           <section className="cb-movie-row">
             <div className="cb-row-header">
@@ -426,7 +715,7 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
           </section>
         )}
 
-        {/* ── 2. POPULAR SERIES (Master Portrait 2:3) ── */}
+        {/* ── 6. POPULAR SERIES / TV SHOWS ── */}
         {showSeries && (
           <section className="cb-movie-row">
             <div className="cb-row-header">
@@ -503,70 +792,7 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
           </section>
         )}
 
-        {/* ── 3. UPCOMING RELEASES (Master Portrait 2:3) ── */}
-        <section className="cb-movie-row">
-          <div className="cb-row-header">
-            <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Sparkles color="#e50914" size={20} /> Upcoming Releases
-            </h2>
-          </div>
-
-          <div className="cb-row-slider-wrapper">
-            <button
-              className="cb-row-arrow cb-arrow-left"
-              onClick={() => handleScrollRow('upcoming', 'left')}
-              aria-label="Scroll left"
-            >
-              <ChevronLeft size={24} />
-            </button>
-
-            <div
-              className="cb-row-posters portrait-row"
-              ref={(el) => (rowRefs.current['upcoming'] = el)}
-            >
-              {loading
-                ? Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="cb-skeleton-card cb-skeleton" />
-                  ))
-                : upcomingMovies.map((item) => (
-                    <div
-                      key={item.id}
-                      className="cb-portrait-card"
-                      onClick={() => setSelectedMedia(item)}
-                    >
-                      <div className="cb-portrait-wrapper">
-                        <img
-                          src={getImageUrl(item.poster_path)}
-                          alt={item.title}
-                          className="cb-portrait-img"
-                        />
-                        <div className="cb-card-badge-hd">Teaser</div>
-                        <div className="cb-portrait-hover">
-                          <div className="cb-hover-btn-group">
-                            <button className="cb-circle-btn">
-                              <Play size={15} fill="currentColor" />
-                            </button>
-                          </div>
-                          <div className="cb-hover-title">{item.title}</div>
-                          <div className="cb-hover-score">Coming Soon</div>
-                        </div>
-                      </div>
-                      <div className="cb-card-footer-title">{item.title}</div>
-                    </div>
-                  ))}
-            </div>
-
-            <button
-              className="cb-row-arrow cb-arrow-right"
-              onClick={() => handleScrollRow('upcoming', 'right')}
-              aria-label="Scroll right"
-            >
-              <ChevronRight size={24} />
-            </button>
-          </div>
-        </section>
-
-        {/* ── 4. TRENDING MOVIES THIS WEEK (Master Portrait 2:3) ── */}
+        {/* ── 7. TRENDING MOVIES THIS WEEK ── */}
         {showMovies && (
           <section className="cb-movie-row">
             <div className="cb-row-header">
@@ -644,7 +870,7 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
           </section>
         )}
 
-        {/* ── 5. TRENDING SERIES THIS WEEK (Master Portrait 2:3) ── */}
+        {/* ── 8. TRENDING SERIES THIS WEEK ── */}
         {showSeries && (
           <section className="cb-movie-row">
             <div className="cb-row-header">
@@ -722,243 +948,70 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
           </section>
         )}
 
-        {/* ── 6. ACTIVE WATCH SPACES (Home Section) ── */}
-        {dashboardData.activeSpaces && dashboardData.activeSpaces.length > 0 && (
-          <section className="cb-movie-row" style={{ marginBottom: '2.5rem' }}>
-            <div className="cb-row-header">
-              <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#22c55e' }}>
-                <Zap size={20} color="#22c55e" /> Active Watch Spaces
-              </h2>
-              <span className="cb-row-sub">Live synchronized rooms you belong to</span>
-            </div>
+        {/* ── 9. UPCOMING RELEASES ── */}
+        <section className="cb-movie-row">
+          <div className="cb-row-header">
+            <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Sparkles color="#e50914" size={20} /> Upcoming Releases
+            </h2>
+          </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.2rem', padding: '0.5rem 0' }}>
-              {dashboardData.activeSpaces.map((space) => (
-                <div
-                  key={space._id}
-                  style={{
-                    background: '#181818',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: '10px',
-                    padding: '1.2rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span className={`room-status-badge ${space.status === 'live' ? 'badge-live' : 'badge-scheduled'}`}>
-                        {space.status === 'live' ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Radio size={12} /> LIVE SESSION</span>
-                        ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={12} /> SCHEDULED</span>
-                        )}
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 600 }}>
-                        Code: <strong style={{ color: '#fff' }}>{space.inviteCode}</strong>
-                      </span>
-                    </div>
+          <div className="cb-row-slider-wrapper">
+            <button
+              className="cb-row-arrow cb-arrow-left"
+              onClick={() => handleScrollRow('upcoming', 'left')}
+              aria-label="Scroll left"
+            >
+              <ChevronLeft size={24} />
+            </button>
 
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', marginBottom: '0.3rem' }}>
-                      {space.settings?.roomName || 'Watch Party'}
-                    </h3>
-                    <p style={{ fontSize: '0.8rem', color: '#aaa' }}>
-                      Title: <strong style={{ color: '#ddd' }}>{space.titleId?.title || 'Tears of Steel'}</strong>
-                    </p>
-                    <p style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.2rem' }}>
-                      Host: {space.hostUserId?.displayName || 'Host'} &bull; {(space.participantIds || []).length + 1} Viewers
-                    </p>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                    <button
-                      className="cb-btn cb-btn-play"
-                      onClick={() => navigate(`/space/${space._id}`)}
-                      style={{ flex: 1, fontSize: '0.85rem', padding: '0.5rem' }}
+            <div
+              className="cb-row-posters portrait-row"
+              ref={(el) => (rowRefs.current['upcoming'] = el)}
+            >
+              {loading
+                ? Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="cb-skeleton-card cb-skeleton" />
+                  ))
+                : upcomingMovies.map((item) => (
+                    <div
+                      key={item.id}
+                      className="cb-portrait-card"
+                      onClick={() => setSelectedMedia(item)}
                     >
-                      <ExternalLink size={16} /> Rejoin Watch Space
-                    </button>
-                    <button
-                      className="cb-btn cb-btn-secondary"
-                      onClick={() => fetchAnalytics(space._id)}
-                      title="View Session Analytics"
-                      style={{ padding: '0.5rem' }}
-                    >
-                      <BarChart3 size={16} color="#e50914" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── 7. RECOMMENDED FOR YOU (Master Portrait 2:3) ── */}
-        {dashboardData.recommendations && dashboardData.recommendations.length > 0 && (
-          <section className="cb-movie-row">
-            <div className="cb-row-header">
-              <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--netflix-red)' }}>
-                <Sparkles size={20} color="var(--netflix-red)" /> Recommended for You
-              </h2>
-              <span className="cb-row-sub">Personalized based on viewing history & preferences</span>
-            </div>
-
-            <div className="cb-row-slider-wrapper">
-              <button
-                className="cb-row-arrow cb-arrow-left"
-                onClick={() => handleScrollRow('recommended', 'left')}
-                aria-label="Scroll left"
-              >
-                <ChevronLeft size={24} />
-              </button>
-
-              <div
-                className="cb-row-posters portrait-row"
-                ref={(el) => (rowRefs.current['recommended'] = el)}
-              >
-                {dashboardData.recommendations.map((item) => (
-                  <div
-                    key={item._id || item.id}
-                    className="cb-portrait-card"
-                    onClick={() => setSelectedMedia(item)}
-                  >
-                    <div className="cb-portrait-wrapper">
-                      <img
-                        src={getImageUrl(item.poster || item.backdropUrl)}
-                        alt={item.title}
-                        className="cb-portrait-img"
-                      />
-                      <div className="cb-card-badge-hd">AI</div>
-                      <div className="cb-portrait-hover">
-                        <div className="cb-hover-btn-group">
-                          <button className="cb-circle-btn">
-                            <Play size={15} fill="currentColor" />
-                          </button>
-                          <button
-                            className="cb-circle-btn space"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenWatchSpace(item);
-                            }}
-                            title="Watch Together"
-                          >
-                            <Users size={14} />
-                          </button>
-                          <button
-                            className="cb-circle-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRatingTitleId(item._id || item.id);
-                            }}
-                            title="Rate Title"
-                          >
-                            <Star size={13} color="#f59e0b" fill="#f59e0b" />
-                          </button>
-                        </div>
-                        <div className="cb-hover-title">{item.title}</div>
-                        <div className="cb-hover-score" style={{ color: '#22c55e', fontWeight: 700 }}>
-                          {item.matchScore || '98% Match'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="cb-card-footer-title">{item.title}</div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                className="cb-row-arrow cb-arrow-right"
-                onClick={() => handleScrollRow('recommended', 'right')}
-                aria-label="Scroll right"
-              >
-                <ChevronRight size={24} />
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* ── 8. TOP IMDb — HIGHEST RATED CONTENT (Ranked 1..10) ── */}
-        {showTopImdb && (
-          <section className="cb-movie-row">
-            <div className="cb-row-header">
-              <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Trophy color="#f59e0b" size={20} /> Top IMDb — Highest Rated Content
-              </h2>
-              <span className="cb-row-sub">Top 10 cinema masterpieces</span>
-            </div>
-
-            <div className="cb-row-slider-wrapper">
-              <button
-                className="cb-row-arrow cb-arrow-left"
-                onClick={() => handleScrollRow('topRated', 'left')}
-                aria-label="Scroll left"
-              >
-                <ChevronLeft size={24} />
-              </button>
-
-              <div
-                className="cb-row-posters portrait-row"
-                ref={(el) => (rowRefs.current['topRated'] = el)}
-              >
-                {loading
-                  ? Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className="cb-skeleton-ranked-card cb-skeleton" />
-                    ))
-                  : topRatedMovies.slice(0, 10).map((item, idx) => (
-                      <div
-                        key={item.id}
-                        className="cb-ranked-card"
-                        onClick={() => setSelectedMedia(item)}
-                      >
-                        <div className="cb-rank-number">#{idx + 1}</div>
-                        <div className="cb-portrait-wrapper">
-                          <img
-                            src={getImageUrl(item.poster_path)}
-                            alt={item.title}
-                            className="cb-portrait-img"
-                          />
-                          <div className="cb-card-badge-hd">HD</div>
-                          <div className="cb-portrait-hover">
-                            <div className="cb-hover-btn-group">
-                              <button className="cb-circle-btn">
-                                <Play size={15} fill="currentColor" />
-                              </button>
-                              <button
-                                className="cb-circle-btn space"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenWatchSpace(item);
-                                }}
-                                title="Watch Together"
-                              >
-                                <Users size={14} />
-                              </button>
-                            </div>
-                            <div className="cb-hover-title">{item.title}</div>
-                            <div className="cb-hover-score" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                              <Star size={12} fill="#e50914" color="#e50914" /> {item.vote_average?.toFixed(1)}
-                            </div>
+                      <div className="cb-portrait-wrapper">
+                        <img
+                          src={getImageUrl(item.poster_path)}
+                          alt={item.title}
+                          className="cb-portrait-img"
+                        />
+                        <div className="cb-card-badge-hd">Teaser</div>
+                        <div className="cb-portrait-hover">
+                          <div className="cb-hover-btn-group">
+                            <button className="cb-circle-btn">
+                              <Play size={15} fill="currentColor" />
+                            </button>
                           </div>
+                          <div className="cb-hover-title">{item.title}</div>
+                          <div className="cb-hover-score">Coming Soon</div>
                         </div>
                       </div>
-                    ))}
-              </div>
-
-              <button
-                className="cb-row-arrow cb-arrow-right"
-                onClick={() => handleScrollRow('topRated', 'right')}
-                aria-label="Scroll right"
-              >
-                <ChevronRight size={24} />
-              </button>
+                      <div className="cb-card-footer-title">{item.title}</div>
+                    </div>
+                  ))}
             </div>
-          </section>
-        )}
 
-        {/* ── 9. RECENTLY WATCHED & HISTORY ── */}
+            <button
+              className="cb-row-arrow cb-arrow-right"
+              onClick={() => handleScrollRow('upcoming', 'right')}
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        </section>
+
+        {/* ── 10. RECENTLY WATCHED & HISTORY (Follows standard section hierarchy) ── */}
         {dashboardData.recentlyWatched && dashboardData.recentlyWatched.length > 0 && (
           <section className="cb-movie-row" style={{ marginBottom: '2.5rem' }}>
             <div className="cb-row-header">
@@ -1014,7 +1067,6 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
             </div>
           </section>
         )}
-
       </main>
 
 
