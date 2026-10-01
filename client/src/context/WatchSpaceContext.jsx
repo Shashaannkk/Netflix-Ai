@@ -30,7 +30,7 @@ const WatchSpaceContext = createContext(null);
  * WatchSpaceProvider — Part 6 Chat, Presence & Moderation State Synchronizer
  */
 export const WatchSpaceProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // ── Room state ──────────────────────────────────────────────────────────────
@@ -95,6 +95,11 @@ export const WatchSpaceProvider = ({ children }) => {
 
   // ── Initialize socket connection ───────────────────────────────────────────
   useEffect(() => {
+    if (authLoading) {
+      console.log('[WATCH_SOCKET] Auth hydration in progress, deferring socket connection');
+      return;
+    }
+
     const token = getAccessToken();
     console.log('[WATCH_SOCKET] connecting to:', SOCKET_URL);
     const socket = io(SOCKET_URL, {
@@ -373,10 +378,13 @@ export const WatchSpaceProvider = ({ children }) => {
     });
 
     return () => {
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
+      socket.removeAllListeners();
       socket.disconnect();
-      socketRef.current = null;
     };
-  }, [navigate]);
+  }, [authLoading, user?._id, navigate]);
 
   // Join room whenever currentSpace or socket connection status changes
   useEffect(() => {
