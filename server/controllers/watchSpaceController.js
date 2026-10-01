@@ -3,6 +3,7 @@ import WatchSpace from '../models/WatchSpace.js';
 import Title from '../models/Title.js';
 import ChatMessage from '../models/ChatMessage.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
+import { getActiveViewerCount } from '../sockets/socketHandler.js';
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
@@ -103,7 +104,7 @@ export const getMySpaces = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const spaces = await WatchSpace.find({
+    const rawSpaces = await WatchSpace.find({
       $or: [
         { hostUserId: userId },
         { participantIds: userId },
@@ -114,6 +115,13 @@ export const getMySpaces = async (req, res) => {
       .populate('participantIds', 'displayName email role')
       .sort({ createdAt: -1 })
       .limit(50);
+
+    const spaces = rawSpaces.map((sp) => {
+      const activeCount = getActiveViewerCount(sp._id);
+      const spaceObj = sp.toObject();
+      spaceObj.activeViewerCount = activeCount > 0 ? activeCount : (sp.status === 'live' || sp.status === 'active' ? 1 : (sp.participantIds?.length ? sp.participantIds.length + 1 : 1));
+      return spaceObj;
+    });
 
     return sendSuccess(res, {
       message: 'Spaces fetched successfully.',

@@ -805,4 +805,9 @@ export const initSocketHandler = (io) => {
   });
 };
 
-
+export const getActiveViewerCount = (spaceId) => {
+  if (!spaceId) return 0;
+  const room = roomsState.get(String(spaceId));
+  if (!room || !room.connections) return 0;
+  return room.connections.size;
+};

@@ -482,8 +482,20 @@ export const WatchSpaceProvider = ({ children }) => {
   );
 
   const sendEmojiReaction = useCallback(
-    (emoji) => {
-      if (!socketRef.current?.connected || !currentSpace || !emoji) return;
+    (reactionInput) => {
+      if (!socketRef.current?.connected || !currentSpace || !reactionInput) return;
+
+      const reactionMap = {
+        fire: '🔥',
+        spark: '✨',
+        sparkles: '✨',
+        heart: '❤️',
+        zap: '⚡',
+        lightning: '⚡',
+        like: '👍',
+      };
+
+      const emoji = reactionMap[reactionInput.toLowerCase()] || reactionInput;
 
       socketRef.current.emit('room.chat.reaction', {
         event: 'room.chat.reaction',
@@ -740,6 +752,7 @@ export const WatchSpaceProvider = ({ children }) => {
     // Part 6 Presence, Chat & Moderation State
     presenceState,
     chatMessages,
+    setChatMessages,
     typingUsers,
     floatingReactions,
 

@@ -206,7 +206,7 @@ export const Dashboard = () => {
                       Title: <strong style={{ color: '#ddd' }}>{space.titleId?.title || 'Tears of Steel'}</strong>
                     </p>
                     <p style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.2rem' }}>
-                      Host: {space.hostUserId?.displayName || 'Host'} &bull; {(space.participantIds || []).length + 1} Viewers
+                      Host: {space.hostUserId?.displayName || 'Host'} &bull; {space.activeViewerCount ?? ((space.participantIds || []).length + 1)} Viewers
                     </p>
                   </div>
 

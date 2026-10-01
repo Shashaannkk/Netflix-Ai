@@ -108,16 +108,108 @@ const formatTime = (sec) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-const AvatarInitial = ({ name, color = '#e50914', size = 32 }) => (
-  <div
-    className="room-avatar"
-    style={{ width: size, height: size, background: color, fontSize: size * 0.38 }}
-  >
-    {name?.[0]?.toUpperCase() || '?'}
-  </div>
-);
+const STABLE_AVATARS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&q=80',
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80',
+];
 
-const AVATAR_COLORS = ['#e50914', '#3b82f6', '#a855f7', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6'];
+const STABLE_COLORS = [
+  '#e50914', // Netflix Red
+  '#ec4899', // Pink
+  '#8b5cf6', // Purple
+  '#3b82f6', // Blue
+  '#06b6d4', // Cyan
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#f97316', // Orange
+  '#ef4444', // Red-Orange
+  '#6366f1', // Indigo
+];
+
+const getDeterministicHash = (str = '') => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const getStableAvatar = (userId, name = '', customAvatar = null) => {
+  if (customAvatar) return customAvatar;
+  const key = String(userId || name || 'guest');
+  const index = getDeterministicHash(key) % STABLE_AVATARS.length;
+  return STABLE_AVATARS[index];
+};
+
+const getStableColor = (userId, name = '') => {
+  const key = String(userId || name || 'guest');
+  const index = getDeterministicHash(key) % STABLE_COLORS.length;
+  return STABLE_COLORS[index];
+};
+
+const UserAvatar = ({ userId, name, customAvatar, isAi = false, size = 26 }) => {
+  if (isAi) {
+    return (
+      <div
+        className="room-avatar ai-avatar-badge"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 10px rgba(168, 85, 247, 0.6)',
+          flexShrink: 0,
+        }}
+        title="Nova AI Assistant"
+      >
+        <Sparkles size={size * 0.55} color="#ffffff" />
+      </div>
+    );
+  }
+
+  const avatarUrl = getStableAvatar(userId, name, customAvatar);
+  const color = getStableColor(userId, name);
+
+  return (
+    <div
+      className="room-avatar"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        border: `2px solid ${color}`,
+        overflow: 'hidden',
+        background: 'rgba(255,255,255,0.05)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <img
+        src={avatarUrl}
+        alt={name || 'User'}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.style.display = 'none';
+        }}
+      />
+    </div>
+  );
+};
 
 const WatchSpace = () => {
   const { roomId } = useParams();
@@ -142,6 +234,7 @@ const WatchSpace = () => {
     driftInfo,
     presenceState,
     chatMessages,
+    setChatMessages,
     typingUsers,
     floatingReactions,
     sendChatMessage,
@@ -182,10 +275,9 @@ const WatchSpace = () => {
   const [selectedServer, setSelectedServer] = useState(1);
 
   // ── UI & AI state ───────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab]       = useState('ai');
+  const [activeTab, setActiveTab]       = useState('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [copied, setCopied]             = useState('');
-  const [aiQuestion, setAiQuestion]     = useState('');
   const [aiHistory, setAiHistory]       = useState([]);
   const [aiLoading, setAiLoading]       = useState(false);
   const [chatInputText, setChatInputText] = useState('');
@@ -225,20 +317,22 @@ const WatchSpace = () => {
         newMsgs.forEach((msg) => {
           const senderIdStr = msg.senderUserId?._id || msg.senderUserId || msg.senderId?._id || msg.senderId;
           const isMe = senderIdStr === user?._id || senderIdStr === user?.id;
-          const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
+          const senderDisplayName = msg.displayName || msg.senderName || (msg.isAi ? 'Nova' : (isMe ? 'You' : 'Participant'));
 
           const newItem = {
             id: msg._id || `float-${Date.now()}-${Math.random()}`,
             text: msg.text,
             senderName: senderDisplayName,
+            senderUserId: senderIdStr,
             isMe,
+            isAi: !!msg.isAi,
             isSystem: !!msg.isSystem,
             timestamp: Date.now(),
           };
 
           setFullscreenFloatingItems((prev) => [...prev.slice(-2), newItem]);
 
-          const displaySec = msg.isSystem ? 2500 : 3500;
+          const displaySec = msg.isSystem ? 2500 : 4000;
           setTimeout(() => {
             setFullscreenFloatingItems((prev) => prev.filter((item) => item.id !== newItem.id));
           }, displaySec);
@@ -258,7 +352,57 @@ const WatchSpace = () => {
       el.scrollTop = el.scrollHeight;
       isInitialChatLoadRef.current = false;
     }
-  }, [chatMessages, activeTab]);
+  }, [chatMessages, aiLoading]);
+
+  // Unified Chat Submission Handler with @ai trigger
+  const handleSendChatMessage = async (e) => {
+    if (e) e.preventDefault();
+    const rawText = chatInputText.trim();
+    if (!rawText) return;
+
+    setChatInputText('');
+    sendTypingIndicator(false);
+
+    // 1. Send normal chat message to space room
+    sendChatMessage(rawText);
+
+    // 2. Check for @ai trigger using case-insensitive word boundary parser: /(^|\s)@ai\b/i
+    const isAiTriggered = /(^|\s)@ai\b/i.test(rawText);
+
+    if (isAiTriggered && currentSpace?._id) {
+      setAiLoading(true);
+      try {
+        const res = await askAiCoPilotApi(currentSpace._id, {
+          userId: user?._id,
+          currentTs: currentTime || 0,
+          question: rawText,
+        });
+
+        if (res.data?.answer) {
+          const aiData = res.data;
+          const aiMsg = {
+            _id: 'ai_' + Date.now() + Math.random(),
+            isAi: true,
+            senderName: 'Nova',
+            displayName: 'Nova',
+            senderUserId: 'ai_assistant_nova',
+            text: aiData.answer,
+            sourceEvents: aiData.sourceEvents || [],
+            executionTimeMs: aiData.executionTimeMs,
+            createdAt: new Date().toISOString(),
+          };
+
+          if (setChatMessages) {
+            setChatMessages((prev) => [...prev, aiMsg]);
+          }
+        }
+      } catch (err) {
+        console.error('[AI @ai] Error fetching Nova response:', err);
+      } finally {
+        setAiLoading(false);
+      }
+    }
+  };
 
   // ── Part 8: Local voting countdown & active subtitle calculation ────────────
   useEffect(() => {
@@ -1119,15 +1263,6 @@ const WatchSpace = () => {
           {/* ── Tab Navigation ── */}
           <div className="cinema-sidebar-tabs">
             <button
-              id="tab-ai-btn"
-              className={`sidebar-tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
-              onClick={() => setActiveTab('ai')}
-            >
-              <Sparkles size={15} />
-              <span>AI Co-Pilot</span>
-            </button>
-
-            <button
               id="tab-chat-btn"
               className={`sidebar-tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
               onClick={() => setActiveTab('chat')}
@@ -1158,137 +1293,7 @@ const WatchSpace = () => {
           {/* ── Sidebar Body ── */}
           <div className="cinema-sidebar-body">
 
-            {/* ── AI TAB ── */}
-            {activeTab === 'ai' && (
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                {/* AI Settings bar */}
-                <div className="room-ai-settings-bar">
-                  <div>
-                    <strong style={{ color: 'var(--netflix-red)', fontSize: '0.75rem' }}>
-                      AI Co-Pilot Active
-                    </strong>
-                    <div style={{ color: '#888', fontSize: '0.7rem', marginTop: '2px' }}>
-                      Verbosity: <span style={{ color: '#e5e5e5', textTransform: 'capitalize' }}>
-                        {currentSpace?.settings?.aiVerbosity || 'moderate'}
-                      </span>
-                      {currentSpace?.settings?.votingEnabled && (
-                        <span style={{ marginLeft: '0.5rem' }}>• <Vote size={10} style={{ display: 'inline' }} /> Voting ON</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* AI conversation history area */}
-                <div className="room-ai-messages" style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div className="room-ai-bubble">
-                    <div className="room-ai-bubble-header">
-                      <Sparkles size={13} />
-                      <span>Netflix Co-Pilot</span>
-                    </div>
-                    <p>
-                      Hi {user?.displayName}! I'm watching <strong>{titleName}</strong> with
-                      your space. Ask me anything about the characters, lore, or timeline —
-                      without fear of spoilers.
-                    </p>
-                  </div>
-
-                  {aiHistory.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`room-ai-bubble ${item.role === 'user' ? 'user-question' : ''}`}
-                      style={item.role === 'user' ? { background: 'rgba(229,9,20,0.15)', border: '1px solid rgba(229,9,20,0.3)', alignSelf: 'flex-end', marginLeft: '1.5rem' } : {}}
-                    >
-                      <div className="room-ai-bubble-header">
-                        {item.role === 'user' ? <Users size={12} /> : <Sparkles size={13} />}
-                        <span>{item.role === 'user' ? user?.displayName || 'You' : 'Netflix Co-Pilot'}</span>
-                        {item.executionTimeMs && (
-                          <span style={{ fontSize: '0.65rem', color: '#888', marginLeft: 'auto' }}>
-                            {item.executionTimeMs}ms
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ marginTop: '0.2rem', whiteSpace: 'pre-wrap' }}>{item.text}</p>
-
-                      {/* Source events chips */}
-                      {item.sourceEvents && item.sourceEvents.length > 0 && (
-                        <div style={{ marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-                          <span style={{ fontSize: '0.65rem', color: '#aaa', width: '100%', fontWeight: 700 }}>GROUNDED SOURCES:</span>
-                          {item.sourceEvents.slice(0, 3).map((src, sIdx) => (
-                            <span
-                              key={sIdx}
-                              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '0.15rem 0.4rem', fontSize: '0.65rem', color: '#ddd' }}
-                            >
-                              {formatTime(src.timestampSec)} • {src.eventType}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {aiLoading && (
-                    <div className="room-ai-bubble" style={{ opacity: 0.8 }}>
-                      <div className="room-ai-bubble-header">
-                        <Loader size={13} className="spin-icon" />
-                        <span>Analyzing timeline metadata…</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {aiHistory.length === 0 && (
-                    <div style={{ marginTop: 'auto', paddingBottom: '0.5rem' }}>
-                      <p style={{ fontSize: '0.7rem', color: '#666', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Suggested Questions
-                      </p>
-                      {[
-                        'Who is the main character?',
-                        'What just happened in this scene?',
-                        'Explain the world-building so far',
-                      ].map((q) => (
-                        <button
-                          key={q}
-                          className="room-suggested-q"
-                          onClick={() => handleAskAi(q)}
-                        >
-                          {q}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* AI input form */}
-                <form
-                  className="room-ai-input-row"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleAskAi();
-                  }}
-                  style={{ padding: '0.5rem 0.75rem' }}
-                >
-                  <input
-                    id="ai-question-input"
-                    type="text"
-                    className="room-text-input"
-                    placeholder="Ask AI about this scene…"
-                    value={aiQuestion}
-                    onChange={(e) => setAiQuestion(e.target.value)}
-                    disabled={aiLoading}
-                  />
-                  <button
-                    type="submit"
-                    id="ai-send-btn"
-                    className="circle-icon-btn space-btn"
-                    style={{ width: '36px', height: '36px' }}
-                    disabled={aiLoading || !aiQuestion.trim()}
-                  >
-                    {aiLoading ? <Loader size={14} className="spin-icon" /> : <Send size={14} />}
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* ── CHAT TAB ── */}
+            {/* ── CHAT TAB (UNIFIED WITH @AI) ── */}
             {activeTab === 'chat' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 {/* Chat Panel Header Card */}
@@ -1319,24 +1324,29 @@ const WatchSpace = () => {
                   className="room-chat-messages-container"
                 >
                   {chatMessages.length === 0 ? (
-                    <div className="chat-empty-state">
-                      <div className="chat-empty-icon">
-                        <MessageSquare size={22} color="var(--netflix-red)" />
+                    <div className="chat-empty-state" style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                      <div className="chat-empty-icon" style={{ display: 'inline-flex', padding: '0.75rem', borderRadius: '50%', background: 'rgba(229,9,20,0.1)', marginBottom: '0.75rem' }}>
+                        <Sparkles size={24} color="var(--netflix-red)" />
                       </div>
-                      <h4 style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                        No messages yet
+                      <h4 style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                        Chat with everyone while you watch.
                       </h4>
-                      <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                        Start the conversation while you watch.
+                      <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '0.75rem', lineHeight: '1.4' }}>
+                        Need answers about the movie?<br />
+                        Type <span style={{ color: '#a855f7', fontWeight: 700 }}>@ai</span> before your question.
                       </p>
+                      <button
+                        type="button"
+                        className="chat-empty-chip"
+                        style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)', color: '#d8b4fe', borderRadius: '16px', padding: '0.3rem 0.8rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                        onClick={() => setChatInputText('@ai who is this character?')}
+                      >
+                        @ai who is this character?
+                      </button>
                     </div>
                   ) : (
                     chatMessages.map((msg, idx) => {
-                      const senderIdStr = msg.senderUserId?._id || msg.senderUserId || msg.senderId?._id || msg.senderId;
-                      const isMe = senderIdStr === user?._id || senderIdStr === user?.id;
-                      const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
                       const timeStr = new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                      const color = AVATAR_COLORS[idx % AVATAR_COLORS.length];
 
                       if (msg.isSystem) {
                         const isJoin = msg.text?.includes('joined');
@@ -1349,13 +1359,44 @@ const WatchSpace = () => {
                         );
                       }
 
+                      if (msg.isAi) {
+                        return (
+                          <div key={msg._id || idx} className="chat-msg-row ai-msg" style={{ width: '100%', marginBottom: '0.75rem' }}>
+                            <div className="chat-msg-header" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                              <UserAvatar isAi={true} size={22} />
+                              <span className="chat-sender-name" style={{ color: '#c084fc', fontWeight: 700, fontSize: '0.8rem' }}>Nova</span>
+                              <span style={{ fontSize: '0.62rem', background: 'rgba(168,85,247,0.2)', color: '#e9d5ff', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.3)', fontWeight: 600 }}>AI</span>
+                              <span className="chat-time-stamp" style={{ fontSize: '0.65rem', color: '#6b7280', marginLeft: 'auto' }}>{timeStr}</span>
+                            </div>
+                            <div className="chat-bubble-ai" style={{ background: 'rgba(168,85,247,0.09)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '12px', padding: '0.6rem 0.8rem', color: '#f3e8ff', fontSize: '0.82rem', lineHeight: '1.45' }}>
+                              <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
+                              {msg.sourceEvents && msg.sourceEvents.length > 0 && (
+                                <div style={{ marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(168,85,247,0.15)', display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                  <span style={{ fontSize: '0.6rem', color: '#a855f7', width: '100%', fontWeight: 700 }}>GROUNDED SOURCES:</span>
+                                  {msg.sourceEvents.slice(0, 2).map((src, sIdx) => (
+                                    <span key={sIdx} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '3px', padding: '0.1rem 0.3rem', fontSize: '0.6rem', color: '#d8b4fe' }}>
+                                      {formatTime(src.timestampSec)} • {src.eventType}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      const senderIdStr = msg.senderUserId?._id || msg.senderUserId || msg.senderId?._id || msg.senderId;
+                      const isMe = senderIdStr === user?._id || senderIdStr === user?.id;
+                      const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
+                      const userColor = getStableColor(senderIdStr, senderDisplayName);
+
                       return (
                         <div key={msg._id || idx} className={`chat-msg-row ${isMe ? 'me' : 'other'}`}>
                           <div className="chat-msg-header">
-                            {!isMe && <AvatarInitial name={senderDisplayName} color={color} size={24} />}
-                            <span className="chat-sender-name">{isMe ? 'You' : senderDisplayName}</span>
+                            {!isMe && <UserAvatar userId={senderIdStr} name={senderDisplayName} size={24} />}
+                            <span className="chat-sender-name" style={{ color: isMe ? '#fff' : userColor }}>{isMe ? 'You' : senderDisplayName}</span>
                             <span className="chat-time-stamp">{timeStr}</span>
-                            {isMe && <AvatarInitial name={user?.displayName || 'You'} color="var(--netflix-red)" size={24} />}
+                            {isMe && <UserAvatar userId={user?._id} name={user?.displayName || 'You'} size={24} />}
                           </div>
                           <div className={isMe ? 'chat-bubble-me' : 'chat-bubble-other'}>
                             <p style={{ margin: 0 }}>{msg.text}</p>
@@ -1363,6 +1404,13 @@ const WatchSpace = () => {
                         </div>
                       );
                     })
+                  )}
+
+                  {aiLoading && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: '#c084fc', background: 'rgba(168,85,247,0.08)', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.2)' }}>
+                      <Loader size={14} className="spin-icon" />
+                      <span>Nova is thinking…</span>
+                    </div>
                   )}
                 </div>
 
@@ -1376,16 +1424,17 @@ const WatchSpace = () => {
                 {/* Reaction Dock Bar */}
                 <div className="chat-reaction-dock">
                   {[
-                    { name: 'fire', icon: <Flame size={15} color="#e50914" /> },
-                    { name: 'spark', icon: <Sparkles size={15} color="#f59e0b" /> },
-                    { name: 'heart', icon: <Heart size={15} color="#ef4444" fill="#ef4444" /> },
-                    { name: 'zap', icon: <Zap size={15} color="#38bdf8" /> },
-                    { name: 'like', icon: <ThumbsUp size={15} color="#22c55e" /> },
+                    { name: 'fire', emoji: '🔥', icon: <Flame size={15} color="#e50914" /> },
+                    { name: 'spark', emoji: '✨', icon: <Sparkles size={15} color="#f59e0b" /> },
+                    { name: 'heart', emoji: '❤️', icon: <Heart size={15} color="#ef4444" fill="#ef4444" /> },
+                    { name: 'zap', emoji: '⚡', icon: <Zap size={15} color="#38bdf8" /> },
+                    { name: 'like', emoji: '👍', icon: <ThumbsUp size={15} color="#22c55e" /> },
                   ].map((item) => (
                     <button
                       key={item.name}
+                      type="button"
                       className="chat-reaction-btn"
-                      onClick={() => sendEmojiReaction(item.name)}
+                      onClick={() => sendEmojiReaction(item.emoji)}
                       title={`React ${item.name}`}
                     >
                       {item.icon}
@@ -1397,14 +1446,7 @@ const WatchSpace = () => {
                 <div className="chat-composer-container">
                   <form
                     className="chat-composer-form"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (chatInputText.trim()) {
-                        sendChatMessage(chatInputText);
-                        setChatInputText('');
-                        sendTypingIndicator(false);
-                      }
-                    }}
+                    onSubmit={handleSendChatMessage}
                   >
                     <div className="chat-input-wrapper">
                       <Smile size={18} color="#888" className="chat-input-smile" />
@@ -1412,7 +1454,7 @@ const WatchSpace = () => {
                         id="chat-input"
                         type="text"
                         className="chat-input-field"
-                        placeholder="Send a message..."
+                        placeholder="Message the room… • @ai to ask Nova"
                         value={chatInputText}
                         onChange={(e) => {
                           setChatInputText(e.target.value);
@@ -1469,7 +1511,7 @@ const WatchSpace = () => {
                   const isCurrentUser = memberId === user?._id;
                   const isMemberHost = member.isHost || memberId === currentSpace?.hostUserId?._id || memberId === currentSpace?.hostUserId;
                   const isMuted = member.isMuted;
-                  const color = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                  const userColor = getStableColor(memberId, displayName);
 
                   return (
                     <div
@@ -1478,9 +1520,9 @@ const WatchSpace = () => {
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <AvatarInitial name={displayName} color={isMemberHost ? 'var(--netflix-red)' : color} />
+                        <UserAvatar userId={memberId} name={displayName} size={28} />
                         <div className="room-member-info">
-                          <div className="room-member-name" style={{ fontSize: '0.85rem' }}>
+                          <div className="room-member-name" style={{ fontSize: '0.85rem', color: userColor }}>
                             {displayName}
                             {isCurrentUser && <span className="room-you-badge">You</span>}
                           </div>
