@@ -9,10 +9,10 @@ export const MOVIE_SERVERS = [
     id: 1,
     name: 'Server 1',
     label: 'Server 1 (Full HD 1080p)',
-    provider: 'Vidsrc.pro Engine',
+    provider: 'Vidsrc.me Engine',
     badge: 'Working Default',
     icon: '🚀',
-    bullets: ['Full HD 1080p', 'Working Default Engine', 'Vidsrc.pro']
+    bullets: ['Full HD 1080p', 'TMDB ID Direct Link', 'Vidsrc.me']
   },
   {
     id: 2,
@@ -138,25 +138,25 @@ export const getServerStreamUrl = ({ tmdbId = 550, isTv = false, season = 1, epi
 
   if (isTv) {
     switch (num) {
-      case 1: return `https://vidsrc.pro/embed/tv/${cleanId}/${season}/${episode}`;
+      case 1: return `https://vidsrc.me/embed/tv?tmdb=${cleanId}&season=${season}&episode=${episode}`;
       case 2: return `https://player.autoembed.cc/embed/tv/${cleanId}/${season}/${episode}`;
       case 3: return `https://vidsrc.to/embed/tv/${cleanId}/${season}/${episode}`;
       case 4: return `https://www.2embed.cc/embedtv/${cleanId}&s=${season}&e=${episode}`;
       case 5: return `https://vidbinge.dev/embed/tv/${cleanId}/${season}/${episode}`;
       case 6: return `https://vidsrc.me/embed/tv?tmdb=${cleanId}&season=${season}&episode=${episode}`;
       case 7: return `https://embed.smashystream.com/playere.php?tmdb=${cleanId}&season=${season}&episode=${episode}`;
-      default: return `https://vidsrc.pro/embed/tv/${cleanId}/${season}/${episode}`;
+      default: return `https://vidsrc.me/embed/tv?tmdb=${cleanId}&season=${season}&episode=${episode}`;
     }
   } else {
     switch (num) {
-      case 1: return `https://vidsrc.pro/embed/movie/${cleanId}`;
+      case 1: return `https://vidsrc.me/embed/movie?tmdb=${cleanId}`;
       case 2: return `https://player.autoembed.cc/embed/movie/${cleanId}`;
       case 3: return `https://vidsrc.to/embed/movie/${cleanId}`;
       case 4: return `https://www.2embed.cc/embed/${cleanId}`;
       case 5: return `https://vidbinge.dev/embed/movie/${cleanId}`;
       case 6: return `https://vidsrc.me/embed/movie?tmdb=${cleanId}`;
       case 7: return `https://embed.smashystream.com/playere.php?tmdb=${cleanId}`;
-      default: return `https://vidsrc.pro/embed/movie/${cleanId}`;
+      default: return `https://vidsrc.me/embed/movie?tmdb=${cleanId}`;
     }
   }
 };
