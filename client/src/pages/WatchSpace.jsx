@@ -35,6 +35,9 @@ import {
   Radio,
   HelpCircle,
   X,
+  Smile,
+  ChevronDown,
+  LogOut,
 } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useWatchSpace } from '../context/WatchSpaceContext';
@@ -195,6 +198,67 @@ const WatchSpace = () => {
   useEffect(() => {
     setShowTriviaAnswer(false);
   }, [currentTrivia]);
+
+  // ── Chat & Fullscreen Overlay Refs & State ────────────────────────────────
+  const chatMessagesContainerRef = useRef(null);
+  const isInitialChatLoadRef     = useRef(true);
+  const prevChatLengthRef        = useRef(0);
+  const [isFullscreenMode, setIsFullscreenMode] = useState(false);
+  const [fullscreenFloatingItems, setFullscreenFloatingItems] = useState([]);
+
+  // Detect browser fullscreen mode
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreenMode(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Manage temporary floating messages/notifications stack for Fullscreen/Collapsed Mode
+  useEffect(() => {
+    if (chatMessages.length > prevChatLengthRef.current) {
+      const newMsgs = chatMessages.slice(prevChatLengthRef.current);
+      prevChatLengthRef.current = chatMessages.length;
+
+      if (isFullscreenMode || !isSidebarOpen) {
+        newMsgs.forEach((msg) => {
+          const senderIdStr = msg.senderUserId?._id || msg.senderUserId || msg.senderId?._id || msg.senderId;
+          const isMe = senderIdStr === user?._id || senderIdStr === user?.id;
+          const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
+
+          const newItem = {
+            id: msg._id || `float-${Date.now()}-${Math.random()}`,
+            text: msg.text,
+            senderName: senderDisplayName,
+            isMe,
+            isSystem: !!msg.isSystem,
+            timestamp: Date.now(),
+          };
+
+          setFullscreenFloatingItems((prev) => [...prev.slice(-2), newItem]);
+
+          const displaySec = msg.isSystem ? 2500 : 3500;
+          setTimeout(() => {
+            setFullscreenFloatingItems((prev) => prev.filter((item) => item.id !== newItem.id));
+          }, displaySec);
+        });
+      }
+    } else {
+      prevChatLengthRef.current = chatMessages.length;
+    }
+  }, [chatMessages, isFullscreenMode, isSidebarOpen, user?._id]);
+
+  // Chat Auto-Scroll (Only scrolls when user is already near bottom)
+  useEffect(() => {
+    const el = chatMessagesContainerRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+    if (isNearBottom || isInitialChatLoadRef.current) {
+      el.scrollTop = el.scrollHeight;
+      isInitialChatLoadRef.current = false;
+    }
+  }, [chatMessages, activeTab]);
 
   // ── Part 8: Local voting countdown & active subtitle calculation ────────────
   useEffect(() => {
@@ -553,17 +617,26 @@ const WatchSpace = () => {
         {/* Top Header Overlay */}
         <div className={`cinema-top-bar ${showControls ? 'visible' : ''}`}>
           <button
-            className="cinema-back-btn"
+            className="cinema-leave-btn"
             onClick={() => isHost ? handleEndRoom() : exitRoom()}
+            title="Leave Watch Party"
           >
-            <ArrowLeft size={22} />
-            <span>{titleName}</span>
+            <ArrowLeft size={16} color="#e50914" />
+            <span>Leave Watch Party</span>
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             {/* Live Sync Status Pill */}
             <div className="room-sync-status-pill" title="Real-time Synchronization Engine">
-              {isHost ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><Crown size={12} color="#f59e0b" /> Host Authoritative</span> : syncStatus}
+              {isHost ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Crown size={12} color="#f59e0b" /> Host Authoritative
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span className="live-green-dot" /> {syncStatus}
+                </span>
+              )}
               {driftInfo.rttMs > 0 && <span style={{ opacity: 0.7, marginLeft: '4px' }}>({driftInfo.rttMs}ms RTT)</span>}
             </div>
 
@@ -600,11 +673,35 @@ const WatchSpace = () => {
             </button>
 
             {/* Socket status */}
-            <div className="room-socket-badge" title={socketConnected ? 'Real-time connected' : 'Disconnected'}>
-              {socketConnected ? <Wifi size={12} color="#22c55e" /> : <WifiOff size={12} color="#ef4444" />}
+            <div className="circle-icon-btn" title={socketConnected ? 'Real-time connected' : 'Disconnected'}>
+              {socketConnected ? <Wifi size={14} color="#22c55e" /> : <WifiOff size={14} color="#ef4444" />}
             </div>
           </div>
         </div>
+
+        {/* Fullscreen Floating Chat Overlay Stack (Shows temporary message bubbles in Fullscreen or Collapsed mode) */}
+        {(isFullscreenMode || !isSidebarOpen) && fullscreenFloatingItems.length > 0 && (
+          <div className="fullscreen-floating-messages-stack">
+            {fullscreenFloatingItems.map((item) => (
+              <div
+                key={item.id}
+                className={`fullscreen-floating-card ${item.isSystem ? 'system' : item.isMe ? 'me' : 'other'}`}
+              >
+                {item.isSystem ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#9ca3af' }}>
+                    {item.text?.includes('joined') ? <Users size={12} /> : <LogOut size={12} color="#ef4444" />}
+                    <span>{item.text}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="floating-sender-name">{item.isMe ? 'You' : item.senderName}</div>
+                    <div className="floating-msg-text">{item.text}</div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Video Canvas / Netflix AI Custom Player */}
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -1194,12 +1291,44 @@ const WatchSpace = () => {
             {/* ── CHAT TAB ── */}
             {activeTab === 'chat' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {/* Chat Panel Header Card */}
+                <div className="chat-panel-header">
+                  <div className="chat-header-title-group">
+                    <div className="chat-header-main">
+                      <MessageSquare size={18} color="var(--netflix-red)" />
+                      <span>Chat</span>
+                    </div>
+                    <div className="chat-header-subtitle">
+                      <span className="live-green-dot" />
+                      <span>{liveViewerCount} watching now</span>
+                    </div>
+                  </div>
+                  <button
+                    className="circle-icon-btn"
+                    style={{ width: '28px', height: '28px', border: 'none', background: 'transparent' }}
+                    onClick={() => setIsSidebarOpen(false)}
+                    title="Collapse Chat"
+                  >
+                    <ChevronDown size={18} color="#aaa" />
+                  </button>
+                </div>
+
                 {/* Chat message history list */}
-                <div className="room-chat-messages-container" style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div
+                  ref={chatMessagesContainerRef}
+                  className="room-chat-messages-container"
+                >
                   {chatMessages.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#666', marginTop: 'auto', marginBottom: 'auto', fontSize: '0.8rem' }}>
-                      <MessageSquare size={24} style={{ opacity: 0.3, marginBottom: '0.3rem' }} />
-                      <p>No messages yet. Say hi to the room!</p>
+                    <div className="chat-empty-state">
+                      <div className="chat-empty-icon">
+                        <MessageSquare size={22} color="var(--netflix-red)" />
+                      </div>
+                      <h4 style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                        No messages yet
+                      </h4>
+                      <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                        Start the conversation while you watch.
+                      </p>
                     </div>
                   ) : (
                     chatMessages.map((msg, idx) => {
@@ -1207,33 +1336,45 @@ const WatchSpace = () => {
                       const isMe = senderIdStr === user?._id || senderIdStr === user?.id;
                       const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
                       const timeStr = new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      const color = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+
+                      if (msg.isSystem) {
+                        const isJoin = msg.text?.includes('joined');
+                        return (
+                          <div key={msg._id || idx} className="chat-system-event-card">
+                            {isJoin ? <Users size={13} color="#9ca3af" /> : <LogOut size={13} color="#ef4444" />}
+                            <span>{msg.text}</span>
+                            <span className="event-time">{timeStr}</span>
+                          </div>
+                        );
+                      }
+
                       return (
-                        <div key={msg._id || idx} className={`room-chat-msg-row ${isMe ? 'mine' : ''} ${msg.isSystem ? 'system' : ''}`}>
-                          {!isMe && !msg.isSystem && (
-                            <div className="chat-avatar">{senderDisplayName?.[0]?.toUpperCase() || 'U'}</div>
-                          )}
-                          <div className="chat-msg-bubble">
-                            {!isMe && !msg.isSystem && (
-                              <span className="chat-sender-name">{senderDisplayName}</span>
-                            )}
-                            <p className="chat-msg-text">{msg.text}</p>
-                            <span className="chat-msg-time">{timeStr}</span>
+                        <div key={msg._id || idx} className={`chat-msg-row ${isMe ? 'me' : 'other'}`}>
+                          <div className="chat-msg-header">
+                            {!isMe && <AvatarInitial name={senderDisplayName} color={color} size={24} />}
+                            <span className="chat-sender-name">{isMe ? 'You' : senderDisplayName}</span>
+                            <span className="chat-time-stamp">{timeStr}</span>
+                            {isMe && <AvatarInitial name={user?.displayName || 'You'} color="var(--netflix-red)" size={24} />}
+                          </div>
+                          <div className={isMe ? 'chat-bubble-me' : 'chat-bubble-other'}>
+                            <p style={{ margin: 0 }}>{msg.text}</p>
                           </div>
                         </div>
-                      )
+                      );
                     })
                   )}
                 </div>
 
                 {/* Typing indicator prompt */}
                 {Object.keys(typingUsers).filter(id => id !== user?._id).length > 0 && (
-                  <div className="room-typing-indicator" style={{ padding: '0.2rem 0.75rem', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>
+                  <div className="room-typing-indicator" style={{ padding: '0.3rem 1rem', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>
                     {Object.values(typingUsers).join(', ')} is typing…
                   </div>
                 )}
 
-                {/* Reaction dock */}
-                <div className="room-emoji-dock" style={{ display: 'flex', gap: '0.4rem', padding: '0.4rem 0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                {/* Reaction Dock Bar */}
+                <div className="chat-reaction-dock">
                   {[
                     { name: 'fire', icon: <Flame size={15} color="#e50914" /> },
                     { name: 'spark', icon: <Sparkles size={15} color="#f59e0b" /> },
@@ -1243,46 +1384,55 @@ const WatchSpace = () => {
                   ].map((item) => (
                     <button
                       key={item.name}
-                      className="room-emoji-btn"
+                      className="chat-reaction-btn"
                       onClick={() => sendEmojiReaction(item.name)}
                       title={`React ${item.name}`}
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0.35rem 0.5rem', cursor: 'pointer' }}
                     >
                       {item.icon}
                     </button>
                   ))}
                 </div>
 
-                {/* Chat input box */}
-                <form
-                  className="room-ai-input-row"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (chatInputText.trim()) {
-                      sendChatMessage(chatInputText);
-                      setChatInputText('');
-                      sendTypingIndicator(false);
-                    }
-                  }}
-                  style={{ padding: '0.5rem 0.75rem' }}
-                >
-                  <input
-                    id="chat-input"
-                    type="text"
-                    className="room-text-input"
-                    placeholder="Send a message to room…"
-                    value={chatInputText}
-                    onChange={(e) => {
-                      setChatInputText(e.target.value);
-                      sendTypingIndicator(true);
-                      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-                      typingTimeoutRef.current = setTimeout(() => sendTypingIndicator(false), 2000);
+                {/* Message Composer */}
+                <div className="chat-composer-container">
+                  <form
+                    className="chat-composer-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (chatInputText.trim()) {
+                        sendChatMessage(chatInputText);
+                        setChatInputText('');
+                        sendTypingIndicator(false);
+                      }
                     }}
-                  />
-                  <button type="submit" id="chat-send-btn" className="circle-icon-btn primary" style={{ width: '36px', height: '36px' }}>
-                    <Send size={14} />
-                  </button>
-                </form>
+                  >
+                    <div className="chat-input-wrapper">
+                      <Smile size={18} color="#888" className="chat-input-smile" />
+                      <input
+                        id="chat-input"
+                        type="text"
+                        className="chat-input-field"
+                        placeholder="Send a message..."
+                        value={chatInputText}
+                        onChange={(e) => {
+                          setChatInputText(e.target.value);
+                          sendTypingIndicator(true);
+                          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                          typingTimeoutRef.current = setTimeout(() => sendTypingIndicator(false), 2000);
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      id="chat-send-btn"
+                      className="chat-send-btn"
+                      disabled={!chatInputText.trim()}
+                      title="Send message"
+                    >
+                      <Send size={15} />
+                    </button>
+                  </form>
+                </div>
               </div>
             )}
 
