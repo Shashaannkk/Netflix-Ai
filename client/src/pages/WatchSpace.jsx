@@ -451,23 +451,17 @@ const WatchSpace = () => {
     if (isHost) return;
 
     const checkDrift = () => {
-      const video = videoRef.current;
-      if (!video) return;
+      const player = playerRef.current;
+      if (!player) return;
 
-      // CRITICAL CHECK: Media Metadata Readiness Guard
-      const isMediaReady =
-        video.readyState >= 1 &&
-        typeof video.duration === 'number' &&
-        !Number.isNaN(video.duration) &&
-        video.duration > 0;
-
+      const isMediaReady = player.isReady ? player.isReady() : false;
       if (!isMediaReady) {
         setSyncStatus('Waiting for Media Metadata…');
         return;
       }
 
       if (playbackState.hostConnected === false) {
-        if (!video.paused) video.pause();
+        if (player.getState() === 'playing') player.pause();
         setIsPlaying(false);
         setSyncStatus('Host Disconnected (Paused)');
         return;
@@ -475,13 +469,14 @@ const WatchSpace = () => {
 
       const elapsed = (Date.now() - (playbackState.changedAtServerMs || playbackState.lastUpdatedTs)) / 1000;
       const targetTime = (playbackState.positionSeconds ?? playbackState.currentTime ?? 0) + (playbackState.isPlaying ? elapsed * (playbackState.playbackRate || 1.0) : 0);
-      const drift = targetTime - video.currentTime;
+      const localTime = player.getCurrentTime();
+      const drift = targetTime - localTime;
 
       if (!playbackState.isPlaying) {
-        if (!video.paused) video.pause();
+        if (player.getState() === 'playing') player.pause();
         setIsPlaying(false);
         if (Math.abs(drift) > 0.3) {
-          video.currentTime = targetTime;
+          player.seek(targetTime);
         }
         setSyncStatus('Paused (Synced to Host)');
         return;
@@ -490,27 +485,27 @@ const WatchSpace = () => {
       // Participant sync when host is playing
       if (Math.abs(drift) > 1.2) {
         // Hard seek for large drift
-        video.currentTime = targetTime;
-        video.playbackRate = 1.0;
-        if (video.paused) video.play().catch(() => {});
+        player.seek(targetTime);
+        player.setPlaybackRate(1.0);
+        if (player.getState() !== 'playing') player.play();
         setIsPlaying(true);
         setSyncStatus(`Hard Seek (Drift ${Math.round(drift * 1000)}ms)`);
       } else if (drift > 0.25) {
         // Gentle catch up (1.05x)
-        video.playbackRate = 1.05;
-        if (video.paused) video.play().catch(() => {});
+        player.setPlaybackRate(1.05);
+        if (player.getState() !== 'playing') player.play();
         setIsPlaying(true);
         setSyncStatus(`Catching Up 1.05x (+${Math.round(drift * 1000)}ms)`);
       } else if (drift < -0.25) {
         // Gentle slow down (0.95x)
-        video.playbackRate = 0.95;
-        if (video.paused) video.play().catch(() => {});
+        player.setPlaybackRate(0.95);
+        if (player.getState() !== 'playing') player.play();
         setIsPlaying(true);
         setSyncStatus(`Slowing Down 0.95x (${Math.round(drift * 1000)}ms)`);
       } else {
         // Target sync reached (< 250ms)
-        video.playbackRate = 1.0;
-        if (video.paused) video.play().catch(() => {});
+        player.setPlaybackRate(1.0);
+        if (player.getState() !== 'playing') player.play();
         setIsPlaying(true);
         setSyncStatus('🟢 In Sync (< 250ms)');
       }
@@ -523,45 +518,43 @@ const WatchSpace = () => {
 
   // ── Video callbacks & Host Emission ─────────────────────────────────────────
   const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (!isHost) return; // Non-hosts cannot control playback directly
+    const player = playerRef.current;
+    if (!player) return;
+    if (!isHost) return;
 
-    const isReady = video.readyState >= 1 && typeof video.duration === 'number' && !Number.isNaN(video.duration) && video.duration > 0;
-    if (!isReady) {
+    if (player.isReady && !player.isReady()) {
       console.warn('[WatchSpace] Cannot toggle play: Media metadata is not ready.');
       return;
     }
 
     const nextState = !isPlaying;
     if (nextState) {
-      video.play().catch(() => {});
+      player.play();
     } else {
-      video.pause();
+      player.pause();
     }
     setIsPlaying(nextState);
 
     sendPlaybackUpdate({
       action: nextState ? 'play' : 'pause',
-      currentTime: video.currentTime,
+      currentTime: player.getCurrentTime(),
       isPlaying: nextState,
     });
   };
 
   const skip = (secs) => {
-    const video = videoRef.current;
-    if (!video) return;
+    const player = playerRef.current;
+    if (!player) return;
     if (!isHost) return;
 
-    const isReady = video.readyState >= 1 && typeof video.duration === 'number' && !Number.isNaN(video.duration) && video.duration > 0;
-    if (!isReady) {
+    if (player.isReady && !player.isReady()) {
       console.warn('[WatchSpace] Cannot skip: Media metadata is not ready.');
       return;
     }
 
-    const currentDur = duration || video.duration || 0;
-    const newTime = Math.max(0, Math.min(currentDur, video.currentTime + secs));
-    video.currentTime = newTime;
+    const currentDur = duration || player.getDuration() || 0;
+    const newTime = Math.max(0, Math.min(currentDur, player.getCurrentTime() + secs));
+    player.seek(newTime);
     setCurrentTime(newTime);
 
     sendPlaybackUpdate({
@@ -571,28 +564,28 @@ const WatchSpace = () => {
     });
   };
 
-  const handleTimeUpdate = () => {
-    if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
+  const handleTimeUpdate = (val) => {
+    const cur = typeof val === 'number' ? val : (playerRef.current?.getCurrentTime() || 0);
+    setCurrentTime(cur);
   };
 
   const handleLoadedMetadata = () => {
-    if (videoRef.current) setDuration(videoRef.current.duration);
+    if (playerRef.current) setDuration(playerRef.current.getDuration());
   };
 
   const handleScrubberClick = (e) => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (!isHost) return; // Only host can seek via scrubber
+    const player = playerRef.current;
+    if (!player) return;
+    if (!isHost) return;
 
-    const isReady = video.readyState >= 1 && typeof video.duration === 'number' && !Number.isNaN(video.duration) && video.duration > 0;
-    const currentDur = duration || video.duration || 0;
-    if (!isReady || !currentDur) return;
+    const currentDur = duration || player.getDuration() || 0;
+    if ((player.isReady && !player.isReady()) || !currentDur) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = ratio * currentDur;
 
-    video.currentTime = newTime;
+    player.seek(newTime);
     setCurrentTime(newTime);
 
     sendPlaybackUpdate({
@@ -605,14 +598,14 @@ const WatchSpace = () => {
   const handleVolumeChange = (e) => {
     const val = parseFloat(e.target.value);
     setVolume(val);
-    if (videoRef.current) videoRef.current.volume = val;
+    if (playerRef.current) playerRef.current.setVolume(val);
     setIsMuted(val === 0);
   };
 
   const toggleMute = () => {
-    if (!videoRef.current) return;
+    if (!playerRef.current) return;
     const newMuted = !isMuted;
-    videoRef.current.muted = newMuted;
+    playerRef.current.setMuted(newMuted);
     setIsMuted(newMuted);
   };
 

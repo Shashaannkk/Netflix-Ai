@@ -41,6 +41,35 @@ export class HTML5PlayerAdapter extends MediaPlayerAdapter {
     return this.video.paused ? 'paused' : 'playing';
   }
 
+  setPlaybackRate(rate) {
+    if (this.video && typeof rate === 'number' && !isNaN(rate) && rate > 0) {
+      this.video.playbackRate = rate;
+    }
+  }
+
+  setVolume(volume) {
+    if (this.video && typeof volume === 'number' && !isNaN(volume)) {
+      this.video.volume = Math.max(0, Math.min(1, volume));
+      this.video.muted = volume === 0;
+    }
+  }
+
+  setMuted(muted) {
+    if (this.video) {
+      this.video.muted = !!muted;
+    }
+  }
+
+  isReady() {
+    if (!this.video) return false;
+    return (
+      this.video.readyState >= 1 &&
+      typeof this.video.duration === 'number' &&
+      !Number.isNaN(this.video.duration) &&
+      this.video.duration > 0
+    );
+  }
+
   destroy() {
     this.video = null;
   }

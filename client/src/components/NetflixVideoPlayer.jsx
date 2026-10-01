@@ -43,15 +43,66 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const isApplyingRemoteUpdateRef = useRef(false);
   const srcRef = useRef(src);
 
-  // Synchronize internal videoRef to forwardedRef
+  // Expose unified HTML5PlayerAdapter interface to parent via useImperativeHandle
+  React.useImperativeHandle(forwardedRef, () => ({
+    play: () => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.play();
+    },
+    pause: () => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.pause();
+    },
+    seek: (pos) => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.seek(pos);
+    },
+    getCurrentTime: () => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.getCurrentTime() ?? (videoRef.current?.currentTime || 0);
+    },
+    getDuration: () => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.getDuration() ?? (videoRef.current?.duration || 0);
+    },
+    getState: () => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.getState() ?? (videoRef.current?.paused ? 'paused' : 'playing');
+    },
+    setPlaybackRate: (rate) => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.setPlaybackRate(rate);
+    },
+    setVolume: (vol) => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.setVolume(vol);
+    },
+    setMuted: (muted) => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      return adapter?.setMuted(muted);
+    },
+    isReady: () => {
+      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
+      if (adapter && typeof adapter.isReady === 'function') {
+        return adapter.isReady();
+      }
+      const video = videoRef.current;
+      if (!video) return false;
+      return (
+        video.readyState >= 1 &&
+        typeof video.duration === 'number' &&
+        !Number.isNaN(video.duration) &&
+        video.duration > 0
+      );
+    },
+    get videoElement() {
+      return videoRef.current;
+    }
+  }), []);
+
   const handleVideoRef = useCallback((el) => {
     videoRef.current = el;
-    if (typeof forwardedRef === 'function') {
-      forwardedRef(el);
-    } else if (forwardedRef) {
-      forwardedRef.current = el;
-    }
-  }, [forwardedRef]);
+  }, []);
 
   // ── States ─────────────────────────────────────────────────────────────────
   const [isPlaying, setIsPlaying]       = useState(false);
@@ -303,11 +354,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
     // Check for double tap (within 300ms)
     if (now - lastTapRef.current.time < 300) {
       if (clickX < width * 0.35) {
-        // Double tap LEFT (-10s)
         seekBy(-10);
         triggerRipple('left', '-10s ⏪');
       } else if (clickX > width * 0.65) {
-        // Double tap RIGHT (+10s)
         seekBy(10);
         triggerRipple('right', '⏩ +10s');
       } else {
@@ -321,8 +370,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
     // Set hold timer for 2x speed boost after 350ms hold
     holdTimerRef.current = setTimeout(() => {
-      if (videoRef.current && isMediaReady()) {
-        videoRef.current.playbackRate = 2.0;
+      if (isMediaReady()) {
+        adapterRef.current?.setPlaybackRate(2.0);
         setSpeedBoost(true);
       }
     }, 350);
@@ -330,8 +379,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
   const handleMouseUp = () => {
     if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-    if (speedBoost && videoRef.current) {
-      videoRef.current.playbackRate = 1.0;
+    if (speedBoost) {
+      adapterRef.current?.setPlaybackRate(1.0);
       setSpeedBoost(false);
     }
   };
@@ -347,7 +396,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
     if (!adapter) return;
 
-    const currentDur = duration || videoRef.current?.duration || 0;
+    const currentDur = duration || adapter.getDuration() || 0;
     if (!currentDur) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -369,17 +418,13 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const handleVolumeChange = (e) => {
     const val = parseFloat(e.target.value);
     setVolume(val);
-    if (videoRef.current) {
-      videoRef.current.volume = val;
-      videoRef.current.muted = val === 0;
-    }
+    adapterRef.current?.setVolume(val);
     setIsMuted(val === 0);
   };
 
   const toggleMute = () => {
-    if (!videoRef.current) return;
     const nextMuted = !isMuted;
-    videoRef.current.muted = nextMuted;
+    adapterRef.current?.setMuted(nextMuted);
     setIsMuted(nextMuted);
   };
 

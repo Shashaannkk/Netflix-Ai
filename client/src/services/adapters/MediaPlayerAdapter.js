@@ -37,6 +37,22 @@ export class MediaPlayerAdapter {
     throw new Error('Method getState() must be implemented');
   }
 
+  setPlaybackRate(rate) {
+    // Optional implementation
+  }
+
+  setVolume(volume) {
+    // Optional implementation
+  }
+
+  setMuted(muted) {
+    // Optional implementation
+  }
+
+  isReady() {
+    return false;
+  }
+
   destroy() {
     // Optional cleanup
   }
