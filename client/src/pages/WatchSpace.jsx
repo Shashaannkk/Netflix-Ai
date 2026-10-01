@@ -45,6 +45,12 @@ import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
 import { MOVIE_SERVERS, getServerStreamUrl } from '../services/movieServers';
+import {
+  CINEMATIC_AVATARS,
+  getStableAvatar,
+  getStableColor,
+  getStableAvatarObj,
+} from '../services/avatarRegistry';
 
 // ── Part 8: Pre-Authored & Pre-Approved Localization Subtitle Variants ────────
 const PRE_AUTHORED_SUBTITLES = {
@@ -108,54 +114,6 @@ const formatTime = (sec) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-const STABLE_AVATARS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&q=80',
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80',
-];
-
-const STABLE_COLORS = [
-  '#e50914', // Netflix Red
-  '#ec4899', // Pink
-  '#8b5cf6', // Purple
-  '#3b82f6', // Blue
-  '#06b6d4', // Cyan
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#f97316', // Orange
-  '#ef4444', // Red-Orange
-  '#6366f1', // Indigo
-];
-
-const getDeterministicHash = (str = '') => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-};
-
-const getStableAvatar = (userId, name = '', customAvatar = null) => {
-  if (customAvatar) return customAvatar;
-  const key = String(userId || name || 'guest');
-  const index = getDeterministicHash(key) % STABLE_AVATARS.length;
-  return STABLE_AVATARS[index];
-};
-
-const getStableColor = (userId, name = '') => {
-  const key = String(userId || name || 'guest');
-  const index = getDeterministicHash(key) % STABLE_COLORS.length;
-  return STABLE_COLORS[index];
-};
-
 const UserAvatar = ({ userId, name, customAvatar, isAi = false, size = 26 }) => {
   if (isAi) {
     return (
@@ -179,8 +137,10 @@ const UserAvatar = ({ userId, name, customAvatar, isAi = false, size = 26 }) => 
     );
   }
 
-  const avatarUrl = getStableAvatar(userId, name, customAvatar);
+  const avatarObj = getStableAvatarObj(userId, name, customAvatar);
+  const avatarUrl = avatarObj.src || getStableAvatar(userId, name, customAvatar);
   const color = getStableColor(userId, name);
+  const characterName = avatarObj.character || 'Avatar';
 
   return (
     <div
@@ -197,10 +157,11 @@ const UserAvatar = ({ userId, name, customAvatar, isAi = false, size = 26 }) => 
         justifyContent: 'center',
         flexShrink: 0,
       }}
+      title={`${name || 'User'} (${characterName})`}
     >
       <img
         src={avatarUrl}
-        alt={name || 'User'}
+        alt={name || characterName}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         onError={(e) => {
           e.target.onerror = null;
