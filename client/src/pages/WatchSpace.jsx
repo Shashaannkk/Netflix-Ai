@@ -481,6 +481,12 @@ const WatchSpace = () => {
     ...participants.map((p) => (typeof p === 'object' ? p : { _id: p })),
   ];
 
+  // ── Live Socket.IO Presence Source of Truth ─────────────────────────────────
+  const liveMembers = presenceState.members.length > 0 ? presenceState.members : allMembers;
+  const liveViewerCount = presenceState.members.length > 0
+    ? presenceState.members.length
+    : (typeof presenceState.count === 'number' && presenceState.count > 0 ? presenceState.count : allMembers.length);
+
   // ── Status badge ──────────────────────────────────────────────────────────────
   const statusConfig = {
     scheduled: { label: 'Scheduled', cls: 'badge-scheduled' },
@@ -1039,7 +1045,7 @@ const WatchSpace = () => {
               onClick={() => setActiveTab('users')}
             >
               <Users size={15} />
-              <span>Viewers ({allMembers.length})</span>
+              <span>Viewers ({liveViewerCount})</span>
             </button>
 
             <button
@@ -1302,12 +1308,12 @@ const WatchSpace = () => {
                   </div>
                   <div className="room-info-row">
                     <span><Users size={12} /></span>
-                    <span>{presenceState.count || allMembers.length} active viewers</span>
+                    <span>{liveViewerCount} active viewers</span>
                   </div>
                 </div>
 
                 {/* Member list with Host Moderation */}
-                {(presenceState.members.length > 0 ? presenceState.members : allMembers).map((member, idx) => {
+                {liveMembers.map((member, idx) => {
                   const memberId = member.userId || member._id?.toString?.() || member._id;
                   const displayName = member.displayName || 'User';
                   const isCurrentUser = memberId === user?._id;
