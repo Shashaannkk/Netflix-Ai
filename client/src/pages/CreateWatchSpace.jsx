@@ -80,7 +80,7 @@ const formatDurationOrSeasons = (item) => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-import { MOVIE_SERVERS, SERVERS, getServerStreamUrl } from '../services/movieServers';
+import { MOVIE_SERVERS, SERVERS, getServerStreamUrl, cleanTmdbId } from '../services/movieServers';
 
 const START_POSITIONS = [
   { id: 'beginning', label: 'From Beginning' },
@@ -182,7 +182,7 @@ const CreateWatchSpace = () => {
     const yearText = item.release_date
       ? item.release_date.substring(0, 4)
       : (item.first_air_date ? item.first_air_date.substring(0, 4) : item.year || '2023');
-    const tmdbId = item.id || item._id || 550;
+    const tmdbId = cleanTmdbId(item.tmdbId || item.id || item._id) || 550;
     
     return {
       _id: String(item._id || item.id),
@@ -364,7 +364,7 @@ const CreateWatchSpace = () => {
         : 'https://www.youtube.com/embed/b9EkMc79ZSU?autoplay=1';
     } else {
       computedVideoUrl = getServerStreamUrl({
-        tmdbId: selectedTitle.id || selectedTitle._id,
+        tmdbId: cleanTmdbId(selectedTitle.tmdbId || selectedTitle.id || selectedTitle._id) || 550,
         isTv: selectedTitle.type === 'tv',
         serverNum: selectedServer
       });

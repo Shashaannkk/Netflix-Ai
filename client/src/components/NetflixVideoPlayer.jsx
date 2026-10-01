@@ -20,7 +20,7 @@ import {
 import NetflixIntroScreen from './NetflixIntroScreen';
 import HTML5PlayerAdapter from '../services/adapters/HTML5PlayerAdapter';
 import YouTubePlayerAdapter from '../services/adapters/YouTubePlayerAdapter';
-import { MOVIE_SERVERS, isEmbedProviderUrl, isYouTubeUrl, getYouTubeVideoId } from '../services/movieServers';
+import { MOVIE_SERVERS, isEmbedProviderUrl, isYouTubeUrl, getYouTubeVideoId, classifySource } from '../services/movieServers';
 
 /**
  * NetflixVideoPlayer — Custom Netflix AI Video Player
@@ -179,10 +179,18 @@ export const NetflixVideoPlayer = React.forwardRef(({
     }
   }, [src]);
 
-  // Initialize HTML5 Adapter
+  // Initialize/re-initialize HTML5 Adapter and trigger video metadata loading on source change
   useEffect(() => {
-    if (videoRef.current) {
+    if (videoRef.current && !isEmbed) {
+      if (adapterRef.current) {
+        adapterRef.current.destroy();
+      }
       adapterRef.current = new HTML5PlayerAdapter(videoRef.current);
+      try {
+        videoRef.current.load();
+      } catch (err) {
+        console.warn('[NetflixVideoPlayer] video.load() notice:', err);
+      }
     }
     return () => {
       if (adapterRef.current) {
@@ -190,7 +198,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
         adapterRef.current = null;
       }
     };
-  }, [currentSource]);
+  }, [currentSource, isEmbed]);
 
   // Exhaustive HTML5 Video Event Listeners for Inspection & Debugging
   useEffect(() => {
@@ -506,11 +514,77 @@ export const NetflixVideoPlayer = React.forwardRef(({
       )}
 
       {/* 4. Video Stage */}
-      {isEmbed ? (
+      {classifySource(currentSource) === 'INVALID' || mediaState === 'ERROR' ? (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#0a0a0a',
+            color: '#ffffff',
+            padding: '2rem',
+            textAlign: 'center',
+            position: 'relative',
+            zIndex: 20,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'rgba(20, 20, 20, 0.95)',
+              border: '1px solid rgba(229, 9, 20, 0.4)',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.85)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1rem',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <AlertTriangle size={48} color="#e50914" />
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#fff' }}>
+              Playback Source Unavailable
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: '#aaaaaa', margin: 0, lineHeight: 1.5 }}>
+              {mediaError.message ||
+                'The selected streaming provider or movie identifier is currently unavailable.'}
+            </p>
+            <div style={{ fontSize: '0.78rem', color: '#888888', background: 'rgba(255,255,255,0.05)', padding: '0.4rem 0.8rem', borderRadius: '6px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {title} • {currentSource || 'Invalid URL'}
+            </div>
+            <button
+              onClick={() => {
+                setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
+                setMediaState('LOADING');
+                setMediaError({ code: null, message: null });
+              }}
+              style={{
+                backgroundColor: '#e50914',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '0.65rem 1.25rem',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginTop: '0.5rem',
+                transition: 'background 0.2s ease',
+              }}
+            >
+              Switch to Server 8 (Demo HTML5 Player)
+            </button>
+          </div>
+        </div>
+      ) : isEmbed ? (
         <iframe
           key={currentSource}
           src={(() => {
-            // Check if currentSource is an actual YouTube URL
             if (isYouTubeUrl(currentSource)) {
               const ytId = getYouTubeVideoId(currentSource);
               if (ytId) {
@@ -518,7 +592,6 @@ export const NetflixVideoPlayer = React.forwardRef(({
                 return `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1&origin=${origin}&rel=0&modestbranding=1`;
               }
             }
-            // For all third-party provider iframe URLs (Servers 1–7), return original provider URL untouched!
             return currentSource;
           })()}
           title={title}
@@ -538,6 +611,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
           src={currentSource}
           poster={poster}
           className="netflix-video-element"
+          preload="auto"
+          playsInline
           onPlay={() => {
             setIsPlaying(true);
             if (mediaState !== 'READY') setMediaState('READY');
@@ -574,25 +649,14 @@ export const NetflixVideoPlayer = React.forwardRef(({
           onError={(e) => {
             const errObj = videoRef.current?.error;
             const errCode = errObj?.code || e.target?.error?.code || 'UNKNOWN';
-            const errMsg = errObj?.message || e.target?.error?.message || 'Failed to load media source.';
+            const errMsg = errObj?.message || e.target?.error?.message || 'Media initialization unable to load video metadata from stream source.';
             console.warn(`[NetflixVideoPlayer] Video stream load error (code ${errCode}):`, errMsg, currentSource);
 
-            const SERVER_FALLBACKS = [
-              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-            ];
-            const currentIndex = SERVER_FALLBACKS.indexOf(currentSource);
-            if (currentIndex !== -1 && currentIndex < SERVER_FALLBACKS.length - 1) {
-              const nextServer = SERVER_FALLBACKS[currentIndex + 1];
-              console.log(`[NetflixVideoPlayer] Switching to backup stream source (${currentIndex + 2}):`, nextServer);
-              setCurrentSource(nextServer);
-            } else {
-              // End of fallbacks or custom URL error -> enter ERROR state (do NOT remain in infinite LOADING state)
-              setMediaState('ERROR');
-              setMediaError({ code: errCode, message: errMsg });
-            }
+            setMediaState('ERROR');
+            setMediaError({
+              code: `CODE_${errCode}`,
+              message: `Media stream error (Code ${errCode}): ${errMsg}`,
+            });
           }}
           onEnded={onEnded}
           style={{ width: '100%', height: '100%', objectFit: 'contain' }}

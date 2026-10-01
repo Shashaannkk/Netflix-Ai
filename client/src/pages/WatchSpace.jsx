@@ -684,7 +684,10 @@ const WatchSpace = () => {
     }
   };
 
-  const targetTmdbId = effectiveSpace?.titleId?.id || effectiveSpace?.titleId?._id || 550;
+  const rawTitleObj = effectiveSpace?.titleId;
+  const targetTmdbId = (typeof rawTitleObj === 'object' && rawTitleObj !== null ? (rawTitleObj.tmdbId || rawTitleObj.id) : null) ||
+    (typeof rawTitleObj === 'number' ? rawTitleObj : null) ||
+    550;
   const isTvSeries = effectiveSpace?.titleId?.media_type === 'tv' || effectiveSpace?.titleId?.type === 'tv' || Boolean(effectiveSpace?.titleId?.first_air_date);
 
   // Compute stream URL using 8-Server Architecture (Server 1 Vidsrc default)

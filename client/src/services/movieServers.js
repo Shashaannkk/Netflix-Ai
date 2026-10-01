@@ -83,11 +83,58 @@ export const SERVERS = MOVIE_SERVERS;
 export default MOVIE_SERVERS;
 
 /**
+ * Clean & Validate TMDB ID from arbitrary inputs (object, string, internal ID)
+ * Returns a valid numeric ID, IMDb string, or null if invalid.
+ */
+export const cleanTmdbId = (rawId) => {
+  if (!rawId) return 550;
+
+  if (typeof rawId === 'number' && Number.isInteger(rawId) && rawId > 0) {
+    return rawId;
+  }
+
+  if (typeof rawId === 'object' && rawId !== null) {
+    if (rawId.tmdbId && /^\d+$/.test(String(rawId.tmdbId))) return parseInt(String(rawId.tmdbId), 10);
+    if (rawId.id && /^\d+$/.test(String(rawId.id))) return parseInt(String(rawId.id), 10);
+  }
+
+  const str = String(rawId).trim();
+
+  // Pure digits
+  if (/^\d+$/.test(str)) {
+    return parseInt(str, 10);
+  }
+
+  // Digits with prefix like tmdb-550
+  const digitsMatch = str.match(/(?:tmdb|movie|tv)[_-]?(\d+)/i);
+  if (digitsMatch) {
+    return parseInt(digitsMatch[1], 10);
+  }
+
+  // IMDb format tt1234567
+  if (/^tt\d+$/.test(str)) {
+    return str;
+  }
+
+  // Invalid non-numeric internal string like tmdb-movie-6abdfc0202974c0e926fdf3c
+  return null;
+};
+
+/**
  * Generate precise stream URL for any server index 1..8
  */
 export const getServerStreamUrl = ({ tmdbId = 550, isTv = false, season = 1, episode = 1, serverNum = 1 }) => {
-  const cleanId = tmdbId || 550;
   const num = Number(serverNum) || 1;
+
+  // Server 8: Direct HTML5 test video — independent of TMDB ID
+  if (num === 8) {
+    return `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4`;
+  }
+
+  const cleanId = cleanTmdbId(tmdbId);
+  if (!cleanId) {
+    return null; // Signals invalid stream identifier
+  }
 
   if (isTv) {
     switch (num) {
@@ -98,7 +145,6 @@ export const getServerStreamUrl = ({ tmdbId = 550, isTv = false, season = 1, epi
       case 5: return `https://vidbinge.dev/embed/tv/${cleanId}/${season}/${episode}`;
       case 6: return `https://vidsrc.me/embed/tv?tmdb=${cleanId}&season=${season}&episode=${episode}`;
       case 7: return `https://embed.smashystream.com/playere.php?tmdb=${cleanId}&season=${season}&episode=${episode}`;
-      case 8: return `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4`;
       default: return `https://vidsrc.pro/embed/tv/${cleanId}/${season}/${episode}`;
     }
   } else {
@@ -110,7 +156,6 @@ export const getServerStreamUrl = ({ tmdbId = 550, isTv = false, season = 1, epi
       case 5: return `https://vidbinge.dev/embed/movie/${cleanId}`;
       case 6: return `https://vidsrc.me/embed/movie?tmdb=${cleanId}`;
       case 7: return `https://embed.smashystream.com/playere.php?tmdb=${cleanId}`;
-      case 8: return `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4`;
       default: return `https://vidsrc.pro/embed/movie/${cleanId}`;
     }
   }
@@ -150,36 +195,51 @@ export const getYouTubeVideoId = (url) => {
 };
 
 /**
+ * Classify stream source type: 'DIRECT_MEDIA' | 'YOUTUBE' | 'EMBED_PROVIDER' | 'INVALID'
+ */
+export const classifySource = (url) => {
+  if (!url || typeof url !== 'string' || url.trim() === '' || url === 'null' || url === 'undefined') {
+    return 'INVALID';
+  }
+
+  const cleanUrl = url.trim();
+
+  // Reject malformed internal tmdb-movie string
+  if (cleanUrl.includes('tmdb-movie-') || cleanUrl.includes('tmdb=null') || cleanUrl.includes('tmdb=undefined')) {
+    return 'INVALID';
+  }
+
+  // YouTube
+  if (isYouTubeUrl(cleanUrl)) {
+    const ytId = getYouTubeVideoId(cleanUrl);
+    return ytId ? 'YOUTUBE' : 'INVALID';
+  }
+
+  // Direct HTML5 Media (.mp4, .webm, .m3u8, or Server 8 sample)
+  if (
+    cleanUrl.endsWith('.mp4') ||
+    cleanUrl.endsWith('.webm') ||
+    cleanUrl.endsWith('.m3u8') ||
+    cleanUrl.includes('.mp4?') ||
+    cleanUrl.includes('.webm?') ||
+    cleanUrl.includes('/sample/TearsOfSteel.mp4') ||
+    cleanUrl.includes('/sample/BigBuckBunny.mp4') ||
+    cleanUrl.includes('/sample/Sintel.mp4')
+  ) {
+    return 'DIRECT_MEDIA';
+  }
+
+  // Third-Party Provider (Servers 1-7)
+  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+    return 'EMBED_PROVIDER';
+  }
+
+  return 'INVALID';
+};
+
+/**
  * Helper to check if a URL is an iframe embed provider (Servers 1-7 or YouTube embeds)
  */
 export const isEmbedProviderUrl = (url) => {
-  if (!url || typeof url !== 'string') return false;
-
-  // Direct media files render in <video>, not iframe
-  if (
-    url.endsWith('.mp4') ||
-    url.endsWith('.webm') ||
-    url.endsWith('.m3u8') ||
-    url.includes('.mp4?') ||
-    url.includes('.webm?')
-  ) {
-    return false;
-  }
-
-  // Server 8 sample HTML5 video
-  if (url === 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4') {
-    return false;
-  }
-
-  // Third-party iframe providers (Servers 1-7), YouTube, or external iframe links
-  return Boolean(
-    url.includes('vidsrc') ||
-    url.includes('autoembed') ||
-    url.includes('2embed') ||
-    url.includes('vidbinge') ||
-    url.includes('smashystream') ||
-    isYouTubeUrl(url) ||
-    url.startsWith('http://') ||
-    url.startsWith('https://')
-  );
+  return classifySource(url) === 'EMBED_PROVIDER' || classifySource(url) === 'YOUTUBE';
 };
