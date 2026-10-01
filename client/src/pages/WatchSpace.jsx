@@ -1323,7 +1323,7 @@ const WatchSpace = () => {
 
                   return (
                     <div
-                      key={memberId || idx}
+                      key={member.socketId || `${memberId}-${idx}`}
                       className={`room-member-row ${isCurrentUser ? 'current-user' : ''}`}
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     >

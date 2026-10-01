@@ -258,7 +258,27 @@ export const WatchSpaceProvider = ({ children }) => {
     socket.on('room.chat.history', (envelope) => {
       const { payload } = envelope || {};
       if (Array.isArray(payload?.messages)) {
-        setChatMessages(payload.messages);
+        setChatMessages((prev) => {
+          const merged = [...prev, ...payload.messages];
+          const unique = [];
+          const seen = new Set();
+
+          for (const msg of merged) {
+            if (!msg) continue;
+            const id = msg._id;
+            if (id) {
+              if (seen.has(id)) continue;
+              seen.add(id);
+            }
+            unique.push(msg);
+          }
+
+          return unique.sort((a, b) => {
+            const aTime = new Date(a?.createdAt || 0).getTime();
+            const bTime = new Date(b?.createdAt || 0).getTime();
+            return aTime - bTime;
+          });
+        });
       }
     });
 
@@ -536,7 +556,27 @@ export const WatchSpaceProvider = ({ children }) => {
       try {
         const msgRes = await getSpaceMessages(spaceId);
         if (msgRes.data?.messages) {
-          setChatMessages(msgRes.data.messages);
+          setChatMessages((prev) => {
+            const merged = [...prev, ...msgRes.data.messages];
+            const unique = [];
+            const seen = new Set();
+
+            for (const msg of merged) {
+              if (!msg) continue;
+              const id = msg._id;
+              if (id) {
+                if (seen.has(id)) continue;
+                seen.add(id);
+              }
+              unique.push(msg);
+            }
+
+            return unique.sort((a, b) => {
+              const aTime = new Date(a?.createdAt || 0).getTime();
+              const bTime = new Date(b?.createdAt || 0).getTime();
+              return aTime - bTime;
+            });
+          });
         }
       } catch {}
 

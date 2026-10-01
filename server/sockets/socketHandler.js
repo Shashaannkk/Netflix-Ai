@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { verifySocketToken } from '../middleware/authMiddleware.js';
 import WatchSpace from '../models/WatchSpace.js';
 import ChatMessage from '../models/ChatMessage.js';
@@ -42,23 +43,78 @@ const getAuthoritativePosition = (room, currentServerTimeMs = Date.now()) => {
 };
 
 /**
+ * Updates host connection status based on active connections in room.connections.
+ * Emits room.host.disconnected if no active connections for room.hostUserId remain.
+ */
+const updateHostConnectionStatus = (room, spaceId, io) => {
+  if (!room) return;
+  let hostStillConnected = false;
+  let activeHostSocketId = null;
+
+  if (room.connections) {
+    for (const [sId, conn] of room.connections.entries()) {
+      if (conn.userId === room.hostUserId) {
+        hostStillConnected = true;
+        if (!activeHostSocketId || sId === room.hostSocketId) {
+          activeHostSocketId = sId;
+        }
+      }
+    }
+  }
+
+  if (hostStillConnected) {
+    room.hostConnected = true;
+    if (activeHostSocketId) {
+      room.hostSocketId = activeHostSocketId;
+    }
+  } else {
+    if (room.hostConnected) {
+      room.hostConnected = false;
+      const nowMs = Date.now();
+      const frozenPos = getAuthoritativePosition(room, nowMs);
+      room.playback = {
+        state: 'paused',
+        positionSeconds: frozenPos,
+        changedAtServerMs: nowMs,
+        playbackRate: room.playback?.playbackRate || 1.0,
+      };
+      room.version += 1;
+      const roomKey = `space:${spaceId}`;
+      io.to(roomKey).emit(
+        'room.host.disconnected',
+        buildEnvelope('room.host.disconnected', spaceId, {
+          message: 'Host has disconnected. Playback paused.',
+          positionSeconds: frozenPos,
+          version: room.version,
+        })
+      );
+    }
+  }
+};
+
+/**
  * Builds active member list payload for room presence broadcasting.
+ * Based on ACTIVE SOCKET CONNECTIONS in room.connections.
  */
 const buildPresencePayload = (room) => {
   const membersList = [];
-  for (const [userId, member] of room.members.entries()) {
-    membersList.push({
-      userId,
-      displayName: member.displayName,
-      isHost: userId === room.hostUserId,
-      isMuted: room.mutedUserIds.has(userId),
-    });
+  if (room && room.connections) {
+    for (const [sId, conn] of room.connections.entries()) {
+      membersList.push({
+        userId: conn.userId,
+        socketId: conn.socketId,
+        displayName: conn.displayName,
+        isHost: conn.userId === room.hostUserId,
+        isMuted: room.mutedUserIds ? room.mutedUserIds.has(conn.userId) : false,
+      });
+    }
   }
   return {
     members: membersList,
     count: membersList.length,
-    isLocked: !!room.isLocked,
-    hostConnected: !!room.hostConnected,
+    isLocked: !!room?.isLocked,
+    hostConnected: !!room?.hostConnected,
+    hostUserId: room?.hostUserId || null,
   };
 };
 /**
@@ -166,16 +222,22 @@ export const initSocketHandler = (io) => {
 
       try {
         let space = null;
-        if (mongoose.Types.ObjectId.isValid(spaceId)) {
-          space = await WatchSpace.findById(spaceId)
-            .select('status hostUserId settings titleId mediaId participantIds inviteCode')
-            .populate('titleId', 'title timeline')
-            .lean();
-        } else {
-          space = await WatchSpace.findOne({ inviteCode: spaceId })
-            .select('status hostUserId settings titleId mediaId participantIds inviteCode')
-            .populate('titleId', 'title timeline')
-            .lean();
+        if (mongoose.connection.readyState === 1) {
+          try {
+            if (mongoose.Types.ObjectId.isValid(spaceId)) {
+              space = await WatchSpace.findById(spaceId)
+                .select('status hostUserId settings titleId mediaId participantIds inviteCode')
+                .populate('titleId', 'title timeline')
+                .lean();
+            } else {
+              space = await WatchSpace.findOne({ inviteCode: spaceId })
+                .select('status hostUserId settings titleId mediaId participantIds inviteCode')
+                .populate('titleId', 'title timeline')
+                .lean();
+            }
+          } catch (dbErr) {
+            console.warn(`[WATCH_SOCKET] DB fetch fallback for ${spaceId}:`, dbErr.message);
+          }
         }
 
         if (space && space.status === 'ended') {
@@ -214,6 +276,7 @@ export const initSocketHandler = (io) => {
             version: 1,
             hostSocketId: isHost ? socket.id : null,
             hostConnected: isHost,
+            connections: new Map(),
             members: new Map(),
           };
           roomsState.set(spaceId, room);
@@ -230,7 +293,19 @@ export const initSocketHandler = (io) => {
           }
         }
 
-        // Register member presence
+        if (!room.connections) room.connections = new Map();
+        if (!room.members) room.members = new Map();
+
+        // Register socket connection presence (connection-aware)
+        room.connections.set(socket.id, {
+          userId: currentUser.id,
+          socketId: socket.id,
+          displayName: currentUser.displayName,
+          isHost,
+          joinedAt: Date.now(),
+        });
+
+        // Maintain user level presence map
         room.members.set(currentUser.id, {
           socketId: socket.id,
           displayName: currentUser.displayName,
@@ -486,23 +561,37 @@ export const initSocketHandler = (io) => {
           io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', watchSpaceId, buildPresencePayload(room)));
         } else if (action === 'lock') {
           room.isLocked = !!isLocked;
-          await WatchSpace.findByIdAndUpdate(watchSpaceId, { 'settings.isLocked': room.isLocked });
+          if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
+            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { 'settings.isLocked': room.isLocked }); } catch {}
+          }
           io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', watchSpaceId, buildPresencePayload(room)));
         } else if (action === 'kick' && targetUserId) {
-          const targetMember = room.members.get(targetUserId);
-          if (targetMember?.socketId) {
-            const targetSocket = io.sockets.sockets.get(targetMember.socketId);
-            if (targetSocket) {
-              targetSocket.emit('room.kicked', buildEnvelope('room.kicked', watchSpaceId, { message: 'You have been removed from the Watch Space by the host.' }));
-              targetSocket.leave(roomKey);
+          if (room.connections) {
+            for (const [sId, conn] of Array.from(room.connections.entries())) {
+              if (conn.userId === targetUserId) {
+                const targetSocket = io.sockets.sockets.get(sId);
+                if (targetSocket) {
+                  targetSocket.emit('room.kicked', buildEnvelope('room.kicked', watchSpaceId, { message: 'You have been removed from the Watch Space by the host.' }));
+                  targetSocket.leave(roomKey);
+                }
+                room.connections.delete(sId);
+              }
             }
           }
-          room.members.delete(targetUserId);
-          await WatchSpace.findByIdAndUpdate(watchSpaceId, { $pull: { participantIds: targetUserId } });
+          if (room.members) {
+            room.members.delete(targetUserId);
+          }
+          if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
+            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { $pull: { participantIds: targetUserId } }); } catch {}
+          }
+          updateHostConnectionStatus(room, watchSpaceId, io);
           io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', watchSpaceId, buildPresencePayload(room)));
         } else if (action === 'transfer_host' && targetUserId) {
           room.hostUserId = targetUserId;
-          await WatchSpace.findByIdAndUpdate(watchSpaceId, { hostUserId: targetUserId });
+          if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
+            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { hostUserId: targetUserId }); } catch {}
+          }
+          updateHostConnectionStatus(room, watchSpaceId, io);
           io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', watchSpaceId, buildPresencePayload(room)));
         }
       } catch (err) {
@@ -660,57 +749,56 @@ export const initSocketHandler = (io) => {
       socket.leave(roomKey);
 
       const room = roomsState.get(spaceId);
-      if (room && user) {
-        room.members.delete(user.id);
-        if (user.id === room.hostUserId || socket.id === room.hostSocketId) {
-          const nowMs = Date.now();
-          const frozenPos = getAuthoritativePosition(room, nowMs);
-          room.hostConnected = false;
-          room.playback = {
-            state: 'paused',
-            positionSeconds: frozenPos,
-            changedAtServerMs: nowMs,
-            playbackRate: room.playback?.playbackRate || 1.0,
-          };
-          room.version += 1;
-          io.to(roomKey).emit('room.host.disconnected', buildEnvelope('room.host.disconnected', spaceId, {
-            message: 'Host has disconnected. Playback paused.',
-            positionSeconds: frozenPos,
-            version: room.version,
-          }));
+      if (room) {
+        if (room.connections && room.connections.has(socket.id)) {
+          room.connections.delete(socket.id);
         }
-        io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', spaceId, buildPresencePayload(room)));
+        const currentUserId = user?.id || user?._id || socket.id;
+        let userHasOtherConnections = false;
+        if (room.connections && currentUserId) {
+          for (const conn of room.connections.values()) {
+            if (conn.userId === currentUserId) {
+              userHasOtherConnections = true;
+              break;
+            }
+          }
+        }
+        if (!userHasOtherConnections && room.members && currentUserId) {
+          room.members.delete(currentUserId);
+        }
+
+        updateHostConnectionStatus(room, spaceId, io);
+        io.to(roomKey).emit(
+          'room.presence.update',
+          buildEnvelope('room.presence.update', spaceId, buildPresencePayload(room))
+        );
       }
     });
 
     socket.on('disconnect', (reason) => {
-      console.log(`[WATCH_SOCKET] client disconnected`);
-      console.log(`[WATCH_SOCKET] disconnect reason: ${reason}`);
-      if (!user) return;
+      console.log(`[WATCH_SOCKET] client disconnected: ${socket.id} | reason: ${reason}`);
+      const currentUserId = user?.id || user?._id || socket.id;
       for (const [spaceId, room] of roomsState.entries()) {
-        if (room.members.has(user.id)) {
-          room.members.delete(user.id);
-          const roomKey = `space:${spaceId}`;
+        if (room.connections && room.connections.has(socket.id)) {
+          room.connections.delete(socket.id);
 
-          if (user.id === room.hostUserId || socket.id === room.hostSocketId) {
-            const nowMs = Date.now();
-            const frozenPos = getAuthoritativePosition(room, nowMs);
-            room.hostConnected = false;
-            room.playback = {
-              state: 'paused',
-              positionSeconds: frozenPos,
-              changedAtServerMs: nowMs,
-              playbackRate: room.playback?.playbackRate || 1.0,
-            };
-            room.version += 1;
-            io.to(roomKey).emit('room.host.disconnected', buildEnvelope('room.host.disconnected', spaceId, {
-              message: 'Host has disconnected. Playback paused.',
-              positionSeconds: frozenPos,
-              version: room.version,
-            }));
+          let userHasOtherConnections = false;
+          for (const conn of room.connections.values()) {
+            if (conn.userId === currentUserId) {
+              userHasOtherConnections = true;
+              break;
+            }
+          }
+          if (!userHasOtherConnections && room.members && currentUserId) {
+            room.members.delete(currentUserId);
           }
 
-          io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', spaceId, buildPresencePayload(room)));
+          updateHostConnectionStatus(room, spaceId, io);
+          const roomKey = `space:${spaceId}`;
+          io.to(roomKey).emit(
+            'room.presence.update',
+            buildEnvelope('room.presence.update', spaceId, buildPresencePayload(room))
+          );
         }
       }
     });
