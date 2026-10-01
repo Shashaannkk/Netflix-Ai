@@ -20,7 +20,7 @@ import {
 import NetflixIntroScreen from './NetflixIntroScreen';
 import HTML5PlayerAdapter from '../services/adapters/HTML5PlayerAdapter';
 import YouTubePlayerAdapter from '../services/adapters/YouTubePlayerAdapter';
-import { MOVIE_SERVERS, isEmbedProviderUrl } from '../services/movieServers';
+import { MOVIE_SERVERS, isEmbedProviderUrl, isYouTubeUrl, getYouTubeVideoId } from '../services/movieServers';
 
 /**
  * NetflixVideoPlayer — Custom Netflix AI Video Player
@@ -510,20 +510,15 @@ export const NetflixVideoPlayer = React.forwardRef(({
         <iframe
           key={currentSource}
           src={(() => {
-            if (currentSource.includes('v=') || currentSource.includes('youtu.be') || currentSource.includes('embed') || !currentSource.includes('http')) {
-              let videoId = currentSource;
-              if (currentSource.includes('v=')) {
-                videoId = currentSource.split('v=')[1]?.split('&')[0];
-              } else if (currentSource.includes('youtu.be/')) {
-                videoId = currentSource.split('youtu.be/')[1]?.split('?')[0];
-              } else if (currentSource.includes('embed/')) {
-                videoId = currentSource.split('embed/')[1]?.split('?')[0];
+            // Check if currentSource is an actual YouTube URL
+            if (isYouTubeUrl(currentSource)) {
+              const ytId = getYouTubeVideoId(currentSource);
+              if (ytId) {
+                const origin = typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : 'https%3A%2F%2Fnetflix-aipro.vercel.app';
+                return `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1&origin=${origin}&rel=0&modestbranding=1`;
               }
-              // Extract clean 11-character videoId
-              const cleanId = (videoId && videoId.length >= 11) ? videoId.substring(0, 11) : 'YoHD9XEInc0';
-              const origin = typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : 'https%3A%2F%2Fnetflix-aipro.vercel.app';
-              return `https://www.youtube.com/embed/${cleanId}?autoplay=1&enablejsapi=1&origin=${origin}&rel=0&modestbranding=1`;
             }
+            // For all third-party provider iframe URLs (Servers 1–7), return original provider URL untouched!
             return currentSource;
           })()}
           title={title}
@@ -531,8 +526,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
           allowFullScreen
           referrerPolicy="origin-when-cross-origin"
           onError={() => {
-            console.warn('[NetflixVideoPlayer] Embed trailer unavailable. Falling back to Server Alpha HD stream.');
-            setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
+            console.warn('[NetflixVideoPlayer] Embed provider stream error:', currentSource);
+            setMediaState('ERROR');
+            setMediaError({ code: 'PROVIDER_ERROR', message: 'The selected movie server embed stream could not be loaded.' });
           }}
           style={{ width: '100%', height: '100%', border: 'none' }}
         />

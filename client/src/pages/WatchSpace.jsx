@@ -451,7 +451,7 @@ const WatchSpace = () => {
     if (isHost) return;
 
     const checkDrift = () => {
-      const player = playerRef.current;
+      const player = videoRef.current;
       if (!player) return;
 
       const isMediaReady = player.isReady ? player.isReady() : false;
@@ -518,7 +518,7 @@ const WatchSpace = () => {
 
   // ── Video callbacks & Host Emission ─────────────────────────────────────────
   const togglePlay = () => {
-    const player = playerRef.current;
+    const player = videoRef.current;
     if (!player) return;
     if (!isHost) return;
 
@@ -543,7 +543,7 @@ const WatchSpace = () => {
   };
 
   const skip = (secs) => {
-    const player = playerRef.current;
+    const player = videoRef.current;
     if (!player) return;
     if (!isHost) return;
 
@@ -565,16 +565,16 @@ const WatchSpace = () => {
   };
 
   const handleTimeUpdate = (val) => {
-    const cur = typeof val === 'number' ? val : (playerRef.current?.getCurrentTime() || 0);
+    const cur = typeof val === 'number' ? val : (videoRef.current?.getCurrentTime() || 0);
     setCurrentTime(cur);
   };
 
   const handleLoadedMetadata = () => {
-    if (playerRef.current) setDuration(playerRef.current.getDuration());
+    if (videoRef.current) setDuration(videoRef.current.getDuration());
   };
 
   const handleScrubberClick = (e) => {
-    const player = playerRef.current;
+    const player = videoRef.current;
     if (!player) return;
     if (!isHost) return;
 
@@ -598,14 +598,14 @@ const WatchSpace = () => {
   const handleVolumeChange = (e) => {
     const val = parseFloat(e.target.value);
     setVolume(val);
-    if (playerRef.current) playerRef.current.setVolume(val);
+    if (videoRef.current) videoRef.current.setVolume(val);
     setIsMuted(val === 0);
   };
 
   const toggleMute = () => {
-    if (!playerRef.current) return;
+    if (!videoRef.current) return;
     const newMuted = !isMuted;
-    playerRef.current.setMuted(newMuted);
+    videoRef.current.setMuted(newMuted);
     setIsMuted(newMuted);
   };
 

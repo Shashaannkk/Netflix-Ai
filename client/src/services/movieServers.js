@@ -117,19 +117,69 @@ export const getServerStreamUrl = ({ tmdbId = 550, isTv = false, season = 1, epi
 };
 
 /**
+ * Helper to check if a URL is an actual YouTube URL
+ */
+export const isYouTubeUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return Boolean(
+    url.includes('youtube.com') ||
+    url.includes('youtube-nocookie.com') ||
+    url.includes('youtu.be')
+  );
+};
+
+/**
+ * Extract 11-character YouTube video ID from a valid YouTube URL
+ */
+export const getYouTubeVideoId = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  if (!isYouTubeUrl(url)) return null;
+
+  const vMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (vMatch) return vMatch[1];
+
+  const beMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (beMatch) return beMatch[1];
+
+  const embedMatch = url.match(/youtube(?:-nocookie)?\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (embedMatch) return embedMatch[1];
+
+  if (/^[a-zA-Z0-9_-]{11}$/.test(url.trim())) return url.trim();
+
+  return null;
+};
+
+/**
  * Helper to check if a URL is an iframe embed provider (Servers 1-7 or YouTube embeds)
  */
 export const isEmbedProviderUrl = (url) => {
   if (!url || typeof url !== 'string') return false;
+
+  // Direct media files render in <video>, not iframe
+  if (
+    url.endsWith('.mp4') ||
+    url.endsWith('.webm') ||
+    url.endsWith('.m3u8') ||
+    url.includes('.mp4?') ||
+    url.includes('.webm?')
+  ) {
+    return false;
+  }
+
+  // Server 8 sample HTML5 video
+  if (url === 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4') {
+    return false;
+  }
+
+  // Third-party iframe providers (Servers 1-7), YouTube, or external iframe links
   return Boolean(
     url.includes('vidsrc') ||
     url.includes('autoembed') ||
     url.includes('2embed') ||
     url.includes('vidbinge') ||
     url.includes('smashystream') ||
-    url.includes('youtube') ||
-    url.includes('youtu.be') ||
-    url.includes('embed') ||
-    (!url.endsWith('.mp4') && !url.endsWith('.webm'))
+    isYouTubeUrl(url) ||
+    url.startsWith('http://') ||
+    url.startsWith('https://')
   );
 };
