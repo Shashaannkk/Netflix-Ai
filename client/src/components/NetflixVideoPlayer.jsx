@@ -8,23 +8,24 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  Settings,
-  Globe,
   FastForward,
   Loader,
   AlertTriangle,
   RefreshCw,
-  Tv,
-  Film
 } from 'lucide-react';
+
 import NetflixIntroScreen from './NetflixIntroScreen';
 import HTML5PlayerAdapter from '../services/adapters/HTML5PlayerAdapter';
-import YouTubePlayerAdapter from '../services/adapters/YouTubePlayerAdapter';
-import { MOVIE_SERVERS, isEmbedProviderUrl, isYouTubeUrl, getYouTubeVideoId, classifySource } from '../services/movieServers';
 
-/**
- * NetflixVideoPlayer — Custom Netflix AI Video Player
- */
+import {
+  isEmbedProviderUrl,
+  isYouTubeUrl,
+  getYouTubeVideoId,
+  classifySource,
+} from '../services/movieServers';
+
+const SYNC_HARD_CORRECTION_THRESHOLD = 0.25;
+
 export const NetflixVideoPlayer = React.forwardRef(({
   src,
   poster,
@@ -38,160 +39,311 @@ export const NetflixVideoPlayer = React.forwardRef(({
   hideDefaultControls = false,
 }, forwardedRef) => {
   const videoRef = useRef(null);
-  const ytPlayerRef = useRef(null);
+  const iframeRef = useRef(null);
   const adapterRef = useRef(null);
   const isApplyingRemoteUpdateRef = useRef(false);
   const srcRef = useRef(src);
 
-  // Expose unified HTML5PlayerAdapter interface to parent via useImperativeHandle
-  React.useImperativeHandle(forwardedRef, () => ({
-    play: () => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.play();
-    },
-    pause: () => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.pause();
-    },
-    seek: (pos) => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.seek(pos);
-    },
-    getCurrentTime: () => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.getCurrentTime() ?? (videoRef.current?.currentTime || 0);
-    },
-    getDuration: () => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.getDuration() ?? (videoRef.current?.duration || 0);
-    },
-    getState: () => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.getState() ?? (videoRef.current?.paused ? 'paused' : 'playing');
-    },
-    setPlaybackRate: (rate) => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.setPlaybackRate(rate);
-    },
-    setVolume: (vol) => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.setVolume(vol);
-    },
-    setMuted: (muted) => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      return adapter?.setMuted(muted);
-    },
-    isReady: () => {
-      const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-      if (adapter && typeof adapter.isReady === 'function') {
-        return adapter.isReady();
-      }
-      const video = videoRef.current;
-      if (!video) return false;
-      return (
-        video.readyState >= 1 &&
-        typeof video.duration === 'number' &&
-        !Number.isNaN(video.duration) &&
-        video.duration > 0
-      );
-    },
-    get videoElement() {
-      return videoRef.current;
-    }
-  }), []);
+  const controlsTimeoutRef = useRef(null);
+  const holdTimerRef = useRef(null);
+  const lastTapRef = useRef({ time: 0, x: 0 });
 
-  const handleVideoRef = useCallback((el) => {
-    videoRef.current = el;
-  }, []);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
-  // ── States ─────────────────────────────────────────────────────────────────
-  const [isPlaying, setIsPlaying]       = useState(false);
-  const [currentTime, setCurrentTime]   = useState(0);
-  const [duration, setDuration]         = useState(0);
-  const [volume, setVolume]             = useState(1);
-  const [isMuted, setIsMuted]           = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
-  // Media State Machine: 'LOADING' | 'READY' | 'ERROR'
-  const [mediaState, setMediaState]     = useState('LOADING');
-  const [mediaError, setMediaError]     = useState({ code: null, message: null });
-  const [showIntro, setShowIntro]       = useState(true);
+  const [mediaState, setMediaState] = useState('LOADING');
+  const [mediaError, setMediaError] = useState({
+    code: null,
+    message: null,
+  });
 
-  // Double tap & Speed Boost state
-  const [speedBoost, setSpeedBoost]     = useState(false);
-  const [seekRipple, setSeekRipple]     = useState(null);
-  const holdTimerRef                   = useRef(null);
-  const lastTapRef                    = useRef({ time: 0, x: 0 });
-  const controlsTimeoutRef            = useRef(null);
+  const [showIntro, setShowIntro] = useState(true);
 
-  // Active Stream Source (Defaults to Server 1 Vidsrc embed or specified src)
-  const [currentSource, setCurrentSource] = useState(src || 'https://vidsrc.pro/embed/movie/550');
+  const [speedBoost, setSpeedBoost] = useState(false);
+  const [seekRipple, setSeekRipple] = useState(null);
+
+  const [currentSource, setCurrentSource] = useState(
+    src || 'https://vidsrc.pro/embed/movie/550'
+  );
+
+  /*
+   * This state is used only for cross-origin iframe providers.
+   *
+   * We cannot call play(), pause() or currentTime directly inside a
+   * third-party iframe because of browser same-origin restrictions.
+   *
+   * For the PLAY command, we reload the same provider URL with
+   * autoplay=1. This keeps the provider unchanged.
+   */
+  const [embedPlaybackRequested, setEmbedPlaybackRequested] = useState(false);
 
   const isEmbed = isEmbedProviderUrl(currentSource);
 
-  // Helper: Verify if media element has valid loaded metadata
+  /*
+   * Build the iframe source.
+   *
+   * IMPORTANT:
+   * - Never convert a generic "/embed/" URL into YouTube.
+   * - Never replace a provider URL with a demo MP4.
+   * - Preserve the original provider/domain.
+   * - Only add autoplay=1 when Watch Together requests PLAY.
+   */
+  const buildEmbedSource = useCallback((source, autoplay = false) => {
+    if (!source) return source;
+
+    /*
+     * YouTube is handled separately because it has its own iframe API
+     * parameters.
+     */
+    if (isYouTubeUrl(source)) {
+      const id = getYouTubeVideoId(source);
+
+      if (!id) {
+        return source;
+      }
+
+      const params = new URLSearchParams({
+        autoplay: autoplay ? '1' : '0',
+        enablejsapi: '1',
+        origin:
+          typeof window !== 'undefined'
+            ? window.location.origin
+            : 'https://netflix-aipro.vercel.app',
+        rel: '0',
+        modestbranding: '1',
+      });
+
+      return `https://www.youtube.com/embed/${id}?${params.toString()}`;
+    }
+
+    /*
+     * For every other iframe provider:
+     * preserve the exact provider URL.
+     */
+    if (!autoplay) {
+      return source;
+    }
+
+    try {
+      const url = new URL(source);
+      url.searchParams.set('autoplay', '1');
+      return url.toString();
+    } catch {
+      const separator = source.includes('?') ? '&' : '?';
+      return `${source}${separator}autoplay=1`;
+    }
+  }, []);
+
+  /*
+   * Determine whether the active player is ready.
+   *
+   * HTML5:
+   * requires actual media metadata.
+   *
+   * iframe:
+   * only requires that the iframe exists because we cannot inspect
+   * the third-party video's internal readyState.
+   */
   const isMediaReady = useCallback(() => {
+    if (isEmbed) {
+      return Boolean(iframeRef.current);
+    }
+
     const video = videoRef.current;
-    if (!video) return false;
+
+    if (!video) {
+      return false;
+    }
+
     return (
-      video.readyState >= 1 && // HAVE_METADATA or higher
-      typeof video.duration === 'number' &&
-      !Number.isNaN(video.duration) &&
+      video.readyState >= 1 &&
+      Number.isFinite(video.duration) &&
       video.duration > 0
     );
+  }, [isEmbed]);
+
+  /*
+   * Get the HTML5 adapter.
+   *
+   * For iframe providers this intentionally returns null.
+   */
+  const getAdapter = useCallback(() => {
+    if (adapterRef.current) {
+      return adapterRef.current;
+    }
+
+    if (!videoRef.current || isEmbed) {
+      return null;
+    }
+
+    adapterRef.current = new HTML5PlayerAdapter(videoRef.current);
+
+    return adapterRef.current;
+  }, [isEmbed]);
+
+  /*
+   * Expose the HTML5 player interface to WatchSpace.
+   *
+   * For iframe providers these methods naturally return undefined because
+   * the browser does not expose the provider's internal video element.
+   */
+  React.useImperativeHandle(
+    forwardedRef,
+    () => ({
+      play: () => getAdapter()?.play(),
+
+      pause: () => getAdapter()?.pause(),
+
+      seek: (pos) => getAdapter()?.seek(pos),
+
+      getCurrentTime: () =>
+        getAdapter()?.getCurrentTime() ??
+        (videoRef.current?.currentTime || 0),
+
+      getDuration: () =>
+        getAdapter()?.getDuration() ??
+        (videoRef.current?.duration || 0),
+
+      getState: () =>
+        getAdapter()?.getState() ??
+        (videoRef.current?.paused ? 'paused' : 'playing'),
+
+      setPlaybackRate: (rate) =>
+        getAdapter()?.setPlaybackRate(rate),
+
+      setVolume: (vol) =>
+        getAdapter()?.setVolume(vol),
+
+      setMuted: (muted) =>
+        getAdapter()?.setMuted(muted),
+
+      isReady: () => isMediaReady(),
+
+      get videoElement() {
+        return videoRef.current;
+      },
+    }),
+    [getAdapter, isMediaReady]
+  );
+
+  /*
+   * Controls auto-hide.
+   */
+  const resetControlsTimer = useCallback(() => {
+    setShowControls(true);
+
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 3500);
+  }, [isPlaying]);
+
+  /*
+   * Seek ripple animation.
+   */
+  const triggerRipple = useCallback((side, text) => {
+    setSeekRipple({
+      side,
+      text,
+    });
+
+    setTimeout(() => {
+      setSeekRipple(null);
+    }, 800);
   }, []);
 
-  // Detailed Media Inspector Logger
-  const logMediaState = useCallback((eventName) => {
-    const video = videoRef.current;
-    if (!video) return;
-    console.log(
-      `[MediaDebug:${eventName}] ` +
-      `currentSrc: "${video.currentSrc || video.src}" | ` +
-      `readyState: ${video.readyState} | ` +
-      `networkState: ${video.networkState} | ` +
-      `duration: ${video.duration} | ` +
-      `currentTime: ${video.currentTime} | ` +
-      `paused: ${video.paused} | ` +
-      `error: ${video.error ? `${video.error.code} - ${video.error.message}` : 'none'}`
-    );
-  }, []);
+  /*
+   * Notify WatchSpace/backend about host playback actions.
+   */
+  const notifyPlayback = useCallback(
+    (action, positionSeconds, playing) => {
+      if (
+        !isHost ||
+        isApplyingRemoteUpdateRef.current ||
+        !onPlaybackChange
+      ) {
+        return;
+      }
 
-  const handleIntroComplete = useCallback(() => {
-    setShowIntro(false);
-    if (isMediaReady() && (syncIsPlaying ?? isPlaying) && isHost) {
-      videoRef.current.play().catch((err) => {
-        console.warn('[NetflixVideoPlayer] Autoplay prevented by browser:', err.message);
+      onPlaybackChange({
+        action,
+        positionSeconds,
+        isPlaying: playing,
       });
-      setIsPlaying(true);
-    }
-  }, [syncIsPlaying, isPlaying, isHost, isMediaReady]);
+    },
+    [isHost, onPlaybackChange]
+  );
 
-  // Update currentSource when src prop changes, avoiding loops if src is unchanged
+  /*
+   * Update source when parent changes it.
+   */
   useEffect(() => {
-    if (src && src !== srcRef.current) {
-      srcRef.current = src;
-      setCurrentSource(src);
-      setMediaState('LOADING');
-      setMediaError({ code: null, message: null });
-      setShowIntro(true);
+    if (!src || src === srcRef.current) {
+      return;
     }
+
+    srcRef.current = src;
+
+    setCurrentSource(src);
+    setMediaState('LOADING');
+
+    setMediaError({
+      code: null,
+      message: null,
+    });
+
+    setShowIntro(true);
+    setEmbedPlaybackRequested(false);
+
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
   }, [src]);
 
-  // Initialize/re-initialize HTML5 Adapter and trigger video metadata loading on source change
+  /*
+   * Initialize HTML5 adapter only for native video sources.
+   */
   useEffect(() => {
-    if (videoRef.current && !isEmbed) {
+    if (isEmbed) {
       if (adapterRef.current) {
         adapterRef.current.destroy();
+        adapterRef.current = null;
       }
-      adapterRef.current = new HTML5PlayerAdapter(videoRef.current);
-      try {
-        videoRef.current.load();
-      } catch (err) {
-        console.warn('[NetflixVideoPlayer] video.load() notice:', err);
-      }
+
+      return undefined;
     }
+
+    if (!videoRef.current) {
+      return undefined;
+    }
+
+    if (adapterRef.current) {
+      adapterRef.current.destroy();
+    }
+
+    adapterRef.current = new HTML5PlayerAdapter(videoRef.current);
+
+    try {
+      videoRef.current.load();
+    } catch (err) {
+      console.warn(
+        '[NetflixVideoPlayer] video.load():',
+        err
+      );
+    }
+
     return () => {
       if (adapterRef.current) {
         adapterRef.current.destroy();
@@ -200,72 +352,83 @@ export const NetflixVideoPlayer = React.forwardRef(({
     };
   }, [currentSource, isEmbed]);
 
-  // Exhaustive HTML5 Video Event Listeners for Inspection & Debugging
+  /*
+   * Controls timer.
+   */
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || isEmbed) return;
-
-    const eventsToLog = [
-      'loadstart',
-      'loadedmetadata',
-      'loadeddata',
-      'canplay',
-      'canplaythrough',
-      'durationchange',
-      'progress',
-      'waiting',
-      'stalled',
-      'suspend',
-      'error',
-      'play',
-      'playing',
-      'pause',
-      'ended'
-    ];
-
-    const handlers = {};
-    eventsToLog.forEach((evtName) => {
-      handlers[evtName] = () => {
-        logMediaState(evtName);
-      };
-    });
-
-    eventsToLog.forEach((evtName) => {
-      video.addEventListener(evtName, handlers[evtName]);
-    });
+    resetControlsTimer();
 
     return () => {
-      eventsToLog.forEach((evtName) => {
-        video.removeEventListener(evtName, handlers[evtName]);
-      });
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
     };
-  }, [currentSource, isEmbed, logMediaState]);
+  }, [resetControlsTimer]);
 
-  // Synchronize incoming authoritative playback state from backend
+  /*
+   * AUTHORITATIVE WATCH TOGETHER SYNC
+   *
+   * HTML5:
+   * - drift correction
+   * - play/pause
+   *
+   * iframe:
+   * - PLAY request becomes autoplay=1
+   *
+   * Generic third-party iframe pause/seek cannot be performed by React
+   * without a provider-specific API.
+   */
   useEffect(() => {
-    if (typeof syncTime !== 'number' || isNaN(syncTime)) return;
-    if (!isMediaReady()) {
-      console.log('[NetflixVideoPlayer] Skipping remote sync update: media metadata not yet loaded (readyState === 0 or duration missing).');
+    if (
+      typeof syncTime !== 'number' ||
+      Number.isNaN(syncTime)
+    ) {
       return;
     }
 
-    const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-    if (!adapter) return;
+    /*
+     * Cross-origin iframe.
+     *
+     * If server says PLAY, reload the same provider URL with autoplay=1.
+     */
+    if (isEmbed) {
+      if (syncIsPlaying) {
+        setEmbedPlaybackRequested(true);
+        setMediaState('READY');
+      }
+
+      return;
+    }
+
+    /*
+     * Native HTML5 source.
+     */
+    if (!isMediaReady()) {
+      return;
+    }
+
+    const adapter = getAdapter();
+
+    if (!adapter) {
+      return;
+    }
 
     const localTime = adapter.getCurrentTime();
     const drift = Math.abs(localTime - syncTime);
 
-    logger.sync(`Drift measurement: ${drift.toFixed(3)}s | Target: ${syncTime.toFixed(2)}s | Local: ${localTime.toFixed(2)}s`);
-
     isApplyingRemoteUpdateRef.current = true;
 
-    // Perform hard correction if drift exceeds threshold or play state differs
+    /*
+     * Hard correction above 250ms.
+     */
     if (drift > SYNC_HARD_CORRECTION_THRESHOLD) {
-      logger.playback(`Applying drift correction: ${drift.toFixed(2)}s`);
       adapter.seek(syncTime);
       setCurrentTime(syncTime);
     }
 
+    /*
+     * Authoritative play state.
+     */
     if (syncIsPlaying && !isPlaying) {
       adapter.play();
       setIsPlaying(true);
@@ -277,200 +440,497 @@ export const NetflixVideoPlayer = React.forwardRef(({
     setTimeout(() => {
       isApplyingRemoteUpdateRef.current = false;
     }, 150);
-  }, [syncTime, syncIsPlaying, isMediaReady, isPlaying]);
+  }, [
+    syncTime,
+    syncIsPlaying,
+    isEmbed,
+    isMediaReady,
+    getAdapter,
+    isPlaying,
+  ]);
 
-  // ── Handle Controls Auto-hide ──────────────────────────────────────────────
-  const resetControlsTimer = useCallback(() => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) setShowControls(false);
-    }, 3500);
-  }, [isPlaying]);
+  /*
+   * Netflix intro completion.
+   */
+  const handleIntroComplete = useCallback(() => {
+    setShowIntro(false);
 
-  useEffect(() => {
-    resetControlsTimer();
-    return () => {
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    };
-  }, [resetControlsTimer]);
+    /*
+     * iframe:
+     * the sync effect / host play handler controls autoplay.
+     */
+    if (isEmbed) {
+      if (
+        (syncIsPlaying ?? isPlaying) &&
+        isHost
+      ) {
+        setEmbedPlaybackRequested(true);
+        setMediaState('READY');
+      }
 
-  // ── Play / Pause toggle ───────────────────────────────────────────────────
-  const togglePlay = useCallback(() => {
-    if (!isHost) return;
-    if (!isMediaReady()) {
-      console.warn('[NetflixVideoPlayer] Cannot play: Media metadata is not ready.');
       return;
     }
 
-    const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-    if (!adapter) return;
+    /*
+     * HTML5:
+     * start playback if authoritative state says playing.
+     */
+    if (
+      isMediaReady() &&
+      (syncIsPlaying ?? isPlaying) &&
+      isHost
+    ) {
+      videoRef.current
+        ?.play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn(
+            '[NetflixVideoPlayer] Autoplay prevented:',
+            err?.message
+          );
+        });
+    }
+  }, [
+    isEmbed,
+    syncIsPlaying,
+    isPlaying,
+    isHost,
+    isMediaReady,
+  ]);
 
-    const nextPlayState = !isPlaying;
-    if (nextPlayState) {
+  /*
+   * PLAY / PAUSE
+   */
+  const togglePlay = useCallback(() => {
+    if (!isHost) {
+      return;
+    }
+
+    /*
+     * Cross-origin provider.
+     *
+     * PLAY:
+     * reload same URL with autoplay=1.
+     *
+     * PAUSE:
+     * update local/watch-party state only.
+     * Generic iframe pause is impossible without provider API.
+     */
+    if (isEmbed) {
+      const next = !isPlaying;
+
+      if (next) {
+        setEmbedPlaybackRequested(true);
+        setMediaState('READY');
+      }
+
+      setIsPlaying(next);
+
+      notifyPlayback(
+        next ? 'play' : 'pause',
+        currentTime,
+        next
+      );
+
+      return;
+    }
+
+    /*
+     * HTML5 source.
+     */
+    if (!isMediaReady()) {
+      return;
+    }
+
+    const adapter = getAdapter();
+
+    if (!adapter) {
+      return;
+    }
+
+    const next = !isPlaying;
+
+    if (next) {
       adapter.play();
-      setIsPlaying(true);
     } else {
       adapter.pause();
-      setIsPlaying(false);
     }
 
-    // Notify backend if Host and not processing remote command
-    if (isHost && !isApplyingRemoteUpdateRef.current && onPlaybackChange) {
-      onPlaybackChange({
-        action: nextPlayState ? 'play' : 'pause',
-        positionSeconds: adapter.getCurrentTime(),
-        isPlaying: nextPlayState,
-      });
-    }
-  }, [isPlaying, isHost, onPlaybackChange, isMediaReady]);
+    setIsPlaying(next);
 
-  // ── Seek helper ────────────────────────────────────────────────────────────
-  const seekBy = useCallback((seconds) => {
-    if (!isHost) return;
-    if (!isMediaReady()) {
-      console.warn('[NetflixVideoPlayer] Cannot seek: Media metadata is not ready.');
-      return;
-    }
+    notifyPlayback(
+      next ? 'play' : 'pause',
+      adapter.getCurrentTime(),
+      next
+    );
+  }, [
+    isHost,
+    isEmbed,
+    isPlaying,
+    currentTime,
+    notifyPlayback,
+    isMediaReady,
+    getAdapter,
+  ]);
 
-    const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-    if (!adapter) return;
-
-    const currentDur = duration || videoRef.current?.duration || 0;
-    const newTime = Math.max(0, Math.min(currentDur, adapter.getCurrentTime() + seconds));
-    adapter.seek(newTime);
-    setCurrentTime(newTime);
-
-    if (isHost && !isApplyingRemoteUpdateRef.current && onPlaybackChange) {
-      onPlaybackChange({
-        action: 'seek',
-        positionSeconds: newTime,
-        isPlaying,
-      });
-    }
-  }, [duration, isPlaying, isHost, onPlaybackChange, isMediaReady]);
-
-  // ── Press & Hold 2x Speed boost handlers ──────────────────────────────────
-  const handleMouseDown = (e) => {
-    resetControlsTimer();
-    if (!isHost) return;
-    const now = Date.now();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const width = rect.width;
-
-    // Check for double tap (within 300ms)
-    if (now - lastTapRef.current.time < 300) {
-      if (clickX < width * 0.35) {
-        seekBy(-10);
-        triggerRipple('left', '-10s ⏪');
-      } else if (clickX > width * 0.65) {
-        seekBy(10);
-        triggerRipple('right', '⏩ +10s');
-      } else {
-        togglePlay();
+  /*
+   * SEEK ±10 seconds.
+   *
+   * Only native HTML5 sources can be controlled directly.
+   */
+  const seekBy = useCallback(
+    (seconds) => {
+      if (
+        !isHost ||
+        isEmbed ||
+        !isMediaReady()
+      ) {
+        return;
       }
-      lastTapRef.current.time = 0;
-      return;
+
+      const adapter = getAdapter();
+
+      if (!adapter) {
+        return;
+      }
+
+      const max =
+        duration ||
+        adapter.getDuration() ||
+        0;
+
+      const next = Math.max(
+        0,
+        Math.min(
+          max,
+          adapter.getCurrentTime() + seconds
+        )
+      );
+
+      adapter.seek(next);
+
+      setCurrentTime(next);
+
+      notifyPlayback(
+        'seek',
+        next,
+        isPlaying
+      );
+    },
+    [
+      isHost,
+      isEmbed,
+      isMediaReady,
+      getAdapter,
+      duration,
+      notifyPlayback,
+      isPlaying,
+    ]
+  );
+
+  /*
+   * Mouse / touch handling.
+   */
+  const handleMouseDown = useCallback(
+    (e) => {
+      resetControlsTimer();
+
+      if (!isHost) {
+        return;
+      }
+
+      const now = Date.now();
+
+      const rect =
+        e.currentTarget.getBoundingClientRect();
+
+      const x =
+        e.clientX - rect.left;
+
+      const width = rect.width;
+
+      /*
+       * Double tap.
+       */
+      if (
+        now - lastTapRef.current.time <
+        300
+      ) {
+        if (x < width * 0.35) {
+          seekBy(-10);
+          triggerRipple(
+            'left',
+            '-10s ⏪'
+          );
+        } else if (
+          x > width * 0.65
+        ) {
+          seekBy(10);
+          triggerRipple(
+            'right',
+            '⏩ +10s'
+          );
+        } else {
+          togglePlay();
+        }
+
+        lastTapRef.current.time = 0;
+
+        return;
+      }
+
+      lastTapRef.current = {
+        time: now,
+        x,
+      };
+
+      /*
+       * Hold for 2x speed.
+       *
+       * Only available for native HTML5 media.
+       */
+      if (holdTimerRef.current) {
+        clearTimeout(
+          holdTimerRef.current
+        );
+      }
+
+      holdTimerRef.current =
+        setTimeout(() => {
+          if (
+            !isEmbed &&
+            isMediaReady()
+          ) {
+            getAdapter()?.setPlaybackRate(2);
+            setSpeedBoost(true);
+          }
+        }, 350);
+    },
+    [
+      resetControlsTimer,
+      isHost,
+      seekBy,
+      triggerRipple,
+      togglePlay,
+      isEmbed,
+      isMediaReady,
+      getAdapter,
+    ]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (holdTimerRef.current) {
+      clearTimeout(
+        holdTimerRef.current
+      );
     }
 
-    lastTapRef.current = { time: now, x: clickX };
-
-    // Set hold timer for 2x speed boost after 350ms hold
-    holdTimerRef.current = setTimeout(() => {
-      if (isMediaReady()) {
-        adapterRef.current?.setPlaybackRate(2.0);
-        setSpeedBoost(true);
-      }
-    }, 350);
-  };
-
-  const handleMouseUp = () => {
-    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
     if (speedBoost) {
-      adapterRef.current?.setPlaybackRate(1.0);
+      getAdapter()?.setPlaybackRate(1);
       setSpeedBoost(false);
     }
-  };
+  }, [
+    speedBoost,
+    getAdapter,
+  ]);
 
-  const triggerRipple = (side, text) => {
-    setSeekRipple({ side, text });
-    setTimeout(() => setSeekRipple(null), 800);
-  };
+  /*
+   * Scrubber.
+   */
+  const handleScrubberClick =
+    useCallback(
+      (e) => {
+        if (
+          !isHost ||
+          isEmbed ||
+          !isMediaReady()
+        ) {
+          return;
+        }
 
-  // ── Scrubber click ────────────────────────────────────────────────────────
-  const handleScrubberClick = (e) => {
-    if (!isHost || !isMediaReady()) return;
-    const adapter = adapterRef.current || (videoRef.current ? new HTML5PlayerAdapter(videoRef.current) : null);
-    if (!adapter) return;
+        const adapter = getAdapter();
 
-    const currentDur = duration || adapter.getDuration() || 0;
-    if (!currentDur) return;
+        if (!adapter) {
+          return;
+        }
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const newTime = pct * currentDur;
-    adapter.seek(newTime);
-    setCurrentTime(newTime);
+        const dur =
+          duration ||
+          adapter.getDuration() ||
+          0;
 
-    if (isHost && !isApplyingRemoteUpdateRef.current && onPlaybackChange) {
-      onPlaybackChange({
-        action: 'seek',
-        positionSeconds: newTime,
+        if (!dur) {
+          return;
+        }
+
+        const rect =
+          e.currentTarget.getBoundingClientRect();
+
+        const pct = Math.max(
+          0,
+          Math.min(
+            1,
+            (e.clientX - rect.left) /
+            rect.width
+          )
+        );
+
+        const next = pct * dur;
+
+        adapter.seek(next);
+
+        setCurrentTime(next);
+
+        notifyPlayback(
+          'seek',
+          next,
+          isPlaying
+        );
+      },
+      [
+        isHost,
+        isEmbed,
+        isMediaReady,
+        getAdapter,
+        duration,
+        notifyPlayback,
         isPlaying,
+      ]
+    );
+
+  /*
+   * Volume.
+   */
+  const handleVolumeChange =
+    useCallback(
+      (e) => {
+        const val =
+          Number(e.target.value);
+
+        setVolume(val);
+        setIsMuted(val === 0);
+
+        getAdapter()?.setVolume(val);
+      },
+      [getAdapter]
+    );
+
+  const toggleMute = useCallback(
+    () => {
+      const next = !isMuted;
+
+      getAdapter()?.setMuted(next);
+
+      setIsMuted(next);
+    },
+    [getAdapter, isMuted]
+  );
+
+  /*
+   * Fullscreen.
+   */
+  const toggleFullscreen =
+    useCallback(() => {
+      const container =
+        videoRef.current
+          ?.parentElement ||
+        iframeRef.current
+          ?.parentElement;
+
+      if (!container) {
+        return;
+      }
+
+      if (!document.fullscreenElement) {
+        container.requestFullscreen?.();
+        setIsFullscreen(true);
+      } else {
+        document.exitFullscreen?.();
+        setIsFullscreen(false);
+      }
+    }, []);
+
+  /*
+   * Retry.
+   */
+  const handleRetryStream =
+    useCallback(() => {
+      setMediaState('LOADING');
+
+      setMediaError({
+        code: null,
+        message: null,
       });
-    }
-  };
 
-  // ── Volume & Mute ──────────────────────────────────────────────────────────
-  const handleVolumeChange = (e) => {
-    const val = parseFloat(e.target.value);
-    setVolume(val);
-    adapterRef.current?.setVolume(val);
-    setIsMuted(val === 0);
-  };
+      if (isEmbed) {
+        /*
+         * Recreate iframe using the same source.
+         */
+        setEmbedPlaybackRequested(false);
 
-  const toggleMute = () => {
-    const nextMuted = !isMuted;
-    adapterRef.current?.setMuted(nextMuted);
-    setIsMuted(nextMuted);
-  };
+        requestAnimationFrame(() => {
+          setEmbedPlaybackRequested(true);
+        });
+      } else {
+        videoRef.current?.load();
+      }
+    }, [isEmbed]);
 
-  // ── Fullscreen toggle ──────────────────────────────────────────────────────
-  const toggleFullscreen = () => {
-    const container = videoRef.current?.parentElement;
-    if (!container) return;
-
-    if (!document.fullscreenElement) {
-      container.requestFullscreen?.();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen?.();
-      setIsFullscreen(false);
-    }
-  };
-
-  // ── Retry Stream Loading ───────────────────────────────────────────────────
-  const handleRetryStream = () => {
-    console.log('[NetflixVideoPlayer] Manual retry requested for stream:', currentSource);
-    setMediaState('LOADING');
-    setMediaError({ code: null, message: null });
-    if (videoRef.current) {
-      videoRef.current.load();
-    }
-  };
-
-  // ── Format time (seconds -> 0:00 or 0:00:00) ──────────────────────────────
+  /*
+   * Time formatting.
+   */
   const formatTime = (sec) => {
-    if (!sec || isNaN(sec)) return '0:00';
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = Math.floor(sec % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${m}:${String(s).padStart(2, '0')}`;
+    if (
+      !Number.isFinite(sec) ||
+      sec <= 0
+    ) {
+      return '0:00';
+    }
+
+    const h = Math.floor(
+      sec / 3600
+    );
+
+    const m = Math.floor(
+      (sec % 3600) / 60
+    );
+
+    const s = Math.floor(
+      sec % 60
+    );
+
+    if (h > 0) {
+      return (
+        `${h}:${String(m).padStart(
+          2,
+          '0'
+        )}:${String(s).padStart(
+          2,
+          '0'
+        )}`
+      );
+    }
+
+    return (
+      `${m}:${String(s).padStart(
+        2,
+        '0'
+      )}`
+    );
   };
 
-  const progressPct = duration ? (currentTime / duration) * 100 : 0;
+  const progressPct = duration
+    ? Math.min(
+      100,
+      (currentTime / duration) * 100
+    )
+    : 0;
+
+  const sourceInvalid =
+    classifySource(currentSource) ===
+    'INVALID';
 
   return (
     <div
@@ -489,15 +949,15 @@ export const NetflixVideoPlayer = React.forwardRef(({
         userSelect: 'none',
       }}
     >
-      {/* 1. Netflix AI Intro Splash Overlay */}
       {showIntro && (
         <NetflixIntroScreen
           title="NETFLIX AI"
-          onComplete={handleIntroComplete}
+          onComplete={
+            handleIntroComplete
+          }
         />
       )}
 
-      {/* 2. 2x Speed Boost Top Floating Badge */}
       {speedBoost && (
         <div className="netflix-speed-badge">
           <FastForward size={16} />
@@ -505,109 +965,108 @@ export const NetflixVideoPlayer = React.forwardRef(({
         </div>
       )}
 
-      {/* 3. Double-tap Ripple Animation Badge */}
       {seekRipple && (
-        <div className={`netflix-seek-ripple ${seekRipple.side}`}>
+        <div
+          className={`netflix-seek-ripple ${seekRipple.side}`}
+        >
           <div className="ripple-circle" />
-          <span className="ripple-text">{seekRipple.text}</span>
+          <span>
+            {seekRipple.text}
+          </span>
         </div>
       )}
 
-      {/* 4. Video Stage */}
-      {classifySource(currentSource) === 'INVALID' || mediaState === 'ERROR' ? (
-        <div
+      {sourceInvalid ||
+        mediaState === 'ERROR' ? (
+        <div className="netflix-player-error-card">
+          <AlertTriangle
+            size={48}
+            color="#e50914"
+          />
+
+          <h3>
+            Playback Source Unavailable
+          </h3>
+
+          <p>
+            {mediaError.message ||
+              'The selected streaming provider or movie identifier is currently unavailable.'}
+          </p>
+
+          <div className="netflix-source-label">
+            {title} •{' '}
+            {currentSource ||
+              'Invalid URL'}
+          </div>
+
+          <button
+            onClick={
+              handleRetryStream
+            }
+            className="netflix-error-btn"
+          >
+            <RefreshCw size={16} />
+            Retry Stream
+          </button>
+        </div>
+      ) : isEmbed ? (
+        /*
+         * CROSS-ORIGIN PROVIDER
+         *
+         * The original provider URL is kept.
+         *
+         * When Watch Together says PLAY,
+         * embedPlaybackRequested becomes true
+         * and autoplay=1 is added.
+         */
+        <iframe
+          key={`${currentSource}|${embedPlaybackRequested
+              ? 'play'
+              : 'idle'
+            }`}
+          ref={iframeRef}
+          src={buildEmbedSource(
+            currentSource,
+            embedPlaybackRequested
+          )}
+          title={title}
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; clipboard-write"
+          allowFullScreen
+          referrerPolicy="origin-when-cross-origin"
+          onLoad={() => {
+            setMediaState('READY');
+
+            if (
+              embedPlaybackRequested
+            ) {
+              console.log(
+                '[NetflixVideoPlayer] Embed loaded with autoplay request:',
+                currentSource
+              );
+            }
+          }}
+          onError={() => {
+            setMediaState('ERROR');
+
+            setMediaError({
+              code:
+                'PROVIDER_ERROR',
+              message:
+                'The selected movie server embed stream could not be loaded.',
+            });
+          }}
           style={{
             width: '100%',
             height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#0a0a0a',
-            color: '#ffffff',
-            padding: '2rem',
-            textAlign: 'center',
-            position: 'relative',
-            zIndex: 20,
+            border: 'none',
           }}
-        >
-          <div
-            style={{
-              backgroundColor: 'rgba(20, 20, 20, 0.95)',
-              border: '1px solid rgba(229, 9, 20, 0.4)',
-              borderRadius: '12px',
-              padding: '2rem',
-              maxWidth: '500px',
-              width: '90%',
-              boxShadow: '0 12px 32px rgba(0,0,0,0.85)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1rem',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <AlertTriangle size={48} color="#e50914" />
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#fff' }}>
-              Playback Source Unavailable
-            </h3>
-            <p style={{ fontSize: '0.88rem', color: '#aaaaaa', margin: 0, lineHeight: 1.5 }}>
-              {mediaError.message ||
-                'The selected streaming provider or movie identifier is currently unavailable.'}
-            </p>
-            <div style={{ fontSize: '0.78rem', color: '#888888', background: 'rgba(255,255,255,0.05)', padding: '0.4rem 0.8rem', borderRadius: '6px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {title} • {currentSource || 'Invalid URL'}
-            </div>
-            <button
-              onClick={() => {
-                setCurrentSource('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4');
-                setMediaState('LOADING');
-                setMediaError({ code: null, message: null });
-              }}
-              style={{
-                backgroundColor: '#e50914',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '0.65rem 1.25rem',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginTop: '0.5rem',
-                transition: 'background 0.2s ease',
-              }}
-            >
-              Switch to Server 8 (Demo HTML5 Player)
-            </button>
-          </div>
-        </div>
-      ) : isEmbed ? (
-        <iframe
-          key={currentSource}
-          src={(() => {
-            if (isYouTubeUrl(currentSource)) {
-              const ytId = getYouTubeVideoId(currentSource);
-              if (ytId) {
-                const origin = typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : 'https%3A%2F%2Fnetflix-aipro.vercel.app';
-                return `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1&origin=${origin}&rel=0&modestbranding=1`;
-              }
-            }
-            return currentSource;
-          })()}
-          title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          referrerPolicy="origin-when-cross-origin"
-          onError={() => {
-            console.warn('[NetflixVideoPlayer] Embed provider stream error:', currentSource);
-            setMediaState('ERROR');
-            setMediaError({ code: 'PROVIDER_ERROR', message: 'The selected movie server embed stream could not be loaded.' });
-          }}
-          style={{ width: '100%', height: '100%', border: 'none' }}
         />
       ) : (
+        /*
+         * NATIVE HTML5 PLAYER
+         */
         <video
-          ref={handleVideoRef}
+          ref={videoRef}
           src={currentSource}
           poster={poster}
           className="netflix-video-element"
@@ -615,187 +1074,294 @@ export const NetflixVideoPlayer = React.forwardRef(({
           playsInline
           onPlay={() => {
             setIsPlaying(true);
-            if (mediaState !== 'READY') setMediaState('READY');
+            setMediaState('READY');
           }}
-          onPause={() => setIsPlaying(false)}
+          onPause={() => {
+            setIsPlaying(false);
+          }}
           onTimeUpdate={() => {
-            if (videoRef.current) {
-              const cur = videoRef.current.currentTime;
-              setCurrentTime(cur);
-              if (onTimeUpdate) onTimeUpdate(cur);
-            }
+            const cur =
+              videoRef.current
+                ?.currentTime || 0;
+
+            setCurrentTime(cur);
+
+            onTimeUpdate?.(cur);
           }}
           onLoadedMetadata={() => {
-            if (videoRef.current) {
-              const dur = videoRef.current.duration;
-              if (typeof dur === 'number' && !Number.isNaN(dur) && dur > 0) {
-                setDuration(dur);
-                setMediaState('READY');
-                setMediaError({ code: null, message: null });
-                console.log(`[NetflixVideoPlayer] Media Metadata Loaded: duration = ${dur}s (${formatTime(dur)})`);
-              }
+            const dur =
+              videoRef.current
+                ?.duration;
+
+            if (
+              Number.isFinite(dur) &&
+              dur > 0
+            ) {
+              setDuration(dur);
+
+              setMediaState(
+                'READY'
+              );
+
+              setMediaError({
+                code: null,
+                message: null,
+              });
             }
           }}
           onCanPlay={() => {
-            if (mediaState !== 'READY' && isMediaReady()) {
-              setMediaState('READY');
-            }
-          }}
-          onWaiting={() => {
-            if (mediaState === 'READY') {
-              console.log('[NetflixVideoPlayer] Video buffering (waiting event fired)');
+            if (
+              isMediaReady()
+            ) {
+              setMediaState(
+                'READY'
+              );
             }
           }}
           onError={(e) => {
-            const errObj = videoRef.current?.error;
-            const errCode = errObj?.code || e.target?.error?.code || 'UNKNOWN';
-            const errMsg = errObj?.message || e.target?.error?.message || 'Media initialization unable to load video metadata from stream source.';
-            console.warn(`[NetflixVideoPlayer] Video stream load error (code ${errCode}):`, errMsg, currentSource);
+            const error =
+              e.currentTarget?.error;
 
-            setMediaState('ERROR');
+            const code =
+              error?.code ||
+              'UNKNOWN';
+
+            const message =
+              error?.message ||
+              'Media initialization unable to load video metadata from stream source.';
+
+            setMediaState(
+              'ERROR'
+            );
+
             setMediaError({
-              code: `CODE_${errCode}`,
-              message: `Media stream error (Code ${errCode}): ${errMsg}`,
+              code: `CODE_${code}`,
+              message:
+                `Media stream error (Code ${code}): ${message}`,
             });
           }}
           onEnded={onEnded}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+          }}
         />
       )}
 
-      {/* 5. Loading Spinner State */}
-      {mediaState === 'LOADING' && !isEmbed && !showIntro && (
-        <div className="netflix-player-loader">
-          <Loader size={48} className="spin-icon" color="var(--netflix-red)" />
-          <span style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.75rem' }}>
-            Loading Media Metadata…
-          </span>
-        </div>
-      )}
+      {mediaState ===
+        'LOADING' &&
+        !isEmbed &&
+        !showIntro && (
+          <div className="netflix-player-loader">
+            <Loader
+              size={48}
+              className="spin-icon"
+              color="var(--netflix-red)"
+            />
 
-      {/* 6. Media Error State & Retry Interface */}
-      {mediaState === 'ERROR' && !isEmbed && (
-        <div className="netflix-player-error-overlay">
-          <AlertTriangle size={48} color="#ef4444" style={{ marginBottom: '0.75rem' }} />
-          <h3 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-            Media Initialization Failed
-          </h3>
-          <p style={{ color: '#aaa', fontSize: '0.85rem', maxWidth: '400px', textAlign: 'center', marginBottom: '1rem', lineHeight: '1.4' }}>
-            Unable to load video metadata from stream source.
-            {mediaError.code && <span style={{ display: 'block', marginTop: '4px', color: '#ffb703' }}>Error Code: {mediaError.code}</span>}
-          </p>
-          <button
-            className="btn-netflix-retry"
-            onClick={handleRetryStream}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: 'var(--netflix-red)',
-              color: '#fff',
-              border: 'none',
-              padding: '0.6rem 1.25rem',
-              borderRadius: '6px',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            <RefreshCw size={16} />
-            <span>Retry Stream</span>
-          </button>
-        </div>
-      )}
-
-      {/* 7. Netflix AI Custom Controls Bar */}
-      {!isEmbed && !hideDefaultControls && (
-        <div className={`netflix-controls-overlay ${showControls ? 'visible' : ''}`}>
-          {/* Top Title Bar */}
-          <div className="netflix-controls-top">
-            <span className="netflix-player-title">{title}</span>
+            <span>
+              Loading Media Metadata…
+            </span>
           </div>
+        )}
 
-          {/* Bottom Controls Cluster */}
-          <div className="netflix-controls-bottom">
-            {/* Scrubber Progress Bar */}
-            <div
-              className="netflix-scrubber-wrapper"
-              onClick={handleScrubberClick}
-              title="Seek time"
-            >
-              <div className="netflix-scrubber-track">
-                <div
-                  className="netflix-scrubber-fill"
-                  style={{ width: `${progressPct}%` }}
-                >
-                  <div className="netflix-scrubber-head" />
-                </div>
-              </div>
-            </div>
+      {mediaState ===
+        'ERROR' &&
+        !isEmbed && (
+          <div className="netflix-player-error-overlay">
+            <AlertTriangle
+              size={48}
+              color="#ef4444"
+            />
 
-            <div className="netflix-controls-row">
-              <div className="controls-group-left">
-                <button
-                  className="netflix-ctrl-btn"
-                  onClick={togglePlay}
-                  title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-                >
-                  {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
-                </button>
+            <h3>
+              Media Initialization
+              Failed
+            </h3>
 
-                <button
-                  className="netflix-ctrl-btn"
-                  onClick={() => seekBy(-10)}
-                  title="Rewind 10s (Double-tap left)"
-                >
-                  <RotateCcw size={20} />
-                </button>
+            <p>
+              Unable to load video
+              metadata from stream
+              source.
 
-                <button
-                  className="netflix-ctrl-btn"
-                  onClick={() => seekBy(10)}
-                  title="Forward 10s (Double-tap right)"
-                >
-                  <RotateCw size={20} />
-                </button>
-
-                {/* Volume slider */}
-                <div className="netflix-volume-group">
-                  <button className="netflix-ctrl-btn" onClick={toggleMute}>
-                    {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                  </button>
-                  <input
-                    type="range"
-                    className="netflix-volume-slider"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                  />
-                </div>
-
-                <span className="netflix-time-label">
-                  {formatTime(currentTime)} / {formatTime(duration)}
+              {mediaError.code && (
+                <span className="error-code">
+                  {mediaError.code}
                 </span>
+              )}
+            </p>
+
+            <button
+              className="btn-netflix-retry"
+              onClick={
+                handleRetryStream
+              }
+            >
+              <RefreshCw size={16} />
+              Retry Stream
+            </button>
+          </div>
+        )}
+
+      {!isEmbed &&
+        !hideDefaultControls && (
+          <div
+            className={`netflix-controls-overlay ${showControls
+                ? 'visible'
+                : ''
+              }`}
+          >
+            <div className="netflix-controls-top">
+              <span className="netflix-player-title">
+                {title}
+              </span>
+            </div>
+
+            <div className="netflix-controls-bottom">
+              <div
+                className="netflix-scrubber-wrapper"
+                onClick={
+                  handleScrubberClick
+                }
+              >
+                <div className="netflix-scrubber-track">
+                  <div
+                    className="netflix-scrubber-fill"
+                    style={{
+                      width: `${progressPct}%`,
+                    }}
+                  >
+                    <div className="netflix-scrubber-head" />
+                  </div>
+                </div>
               </div>
 
-              <div className="controls-group-right">
-                <button
-                  className="netflix-ctrl-btn"
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-                >
-                  {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-                </button>
+              <div className="netflix-controls-row">
+                <div className="controls-group-left">
+                  <button
+                    className="netflix-ctrl-btn"
+                    onClick={
+                      togglePlay
+                    }
+                    title={
+                      isPlaying
+                        ? 'Pause'
+                        : 'Play'
+                    }
+                  >
+                    {isPlaying ? (
+                      <Pause
+                        size={24}
+                        fill="currentColor"
+                      />
+                    ) : (
+                      <Play
+                        size={24}
+                        fill="currentColor"
+                      />
+                    )}
+                  </button>
+
+                  <button
+                    className="netflix-ctrl-btn"
+                    onClick={() =>
+                      seekBy(-10)
+                    }
+                    title="Rewind 10s"
+                  >
+                    <RotateCcw
+                      size={20}
+                    />
+                  </button>
+
+                  <button
+                    className="netflix-ctrl-btn"
+                    onClick={() =>
+                      seekBy(10)
+                    }
+                    title="Forward 10s"
+                  >
+                    <RotateCw
+                      size={20}
+                    />
+                  </button>
+
+                  <div className="netflix-volume-group">
+                    <button
+                      className="netflix-ctrl-btn"
+                      onClick={
+                        toggleMute
+                      }
+                    >
+                      {isMuted ||
+                        volume === 0 ? (
+                        <VolumeX
+                          size={20}
+                        />
+                      ) : (
+                        <Volume2
+                          size={20}
+                        />
+                      )}
+                    </button>
+
+                    <input
+                      type="range"
+                      className="netflix-volume-slider"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={
+                        isMuted
+                          ? 0
+                          : volume
+                      }
+                      onChange={
+                        handleVolumeChange
+                      }
+                    />
+                  </div>
+
+                  <span className="netflix-time-label">
+                    {formatTime(
+                      currentTime
+                    )}{' '}
+                    /{' '}
+                    {formatTime(
+                      duration
+                    )}
+                  </span>
+                </div>
+
+                <div className="controls-group-right">
+                  <button
+                    className="netflix-ctrl-btn"
+                    onClick={
+                      toggleFullscreen
+                    }
+                    title={
+                      isFullscreen
+                        ? 'Exit Fullscreen'
+                        : 'Fullscreen'
+                    }
+                  >
+                    {isFullscreen ? (
+                      <Minimize
+                        size={20}
+                      />
+                    ) : (
+                      <Maximize
+                        size={20}
+                      />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Styles */}
       <style>{`
         .netflix-video-player-container {
           cursor: default;
@@ -816,7 +1382,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
           align-items: center;
           gap: 0.4rem;
           z-index: 100;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.8), 0 0 20px rgba(229, 9, 20, 0.6);
+          box-shadow:
+            0 4px 16px rgba(0,0,0,0.8),
+            0 0 20px rgba(229,9,20,0.6);
           letter-spacing: 1px;
         }
 
@@ -834,24 +1402,38 @@ export const NetflixVideoPlayer = React.forwardRef(({
           font-weight: 800;
           font-size: 1.1rem;
         }
-        .netflix-seek-ripple.left { left: 15%; }
-        .netflix-seek-ripple.right { right: 15%; }
+
+        .netflix-seek-ripple.left {
+          left: 15%;
+        }
+
+        .netflix-seek-ripple.right {
+          right: 15%;
+        }
 
         .ripple-circle {
           width: 80px;
           height: 80px;
           border-radius: 50%;
-          background: rgba(229, 9, 20, 0.35);
+          background: rgba(229,9,20,0.35);
           border: 2px solid var(--netflix-red);
           animation: rippleExpand 0.7s ease-out forwards;
         }
 
         @keyframes rippleExpand {
-          0% { transform: scale(0.5); opacity: 1; }
-          100% { transform: scale(1.6); opacity: 0; }
+          0% {
+            transform: scale(0.5);
+            opacity: 1;
+          }
+
+          100% {
+            transform: scale(1.6);
+            opacity: 0;
+          }
         }
 
-        .netflix-player-loader, .netflix-player-error-overlay {
+        .netflix-player-loader,
+        .netflix-player-error-overlay {
           position: absolute;
           top: 50%;
           left: 50%;
@@ -863,17 +1445,110 @@ export const NetflixVideoPlayer = React.forwardRef(({
           justify-content: center;
         }
 
+        .netflix-player-loader {
+          color: #fff;
+          font-size: 0.85rem;
+          font-weight: 600;
+          gap: 0.75rem;
+        }
+
         .spin-icon {
           animation: spin 0.8s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .netflix-player-error-card {
+          position: absolute;
+          inset: 0;
+          z-index: 60;
+          background: #0a0a0a;
+          color: #fff;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem;
+          text-align: center;
+        }
+
+        .netflix-player-error-card h3 {
+          font-size: 1.25rem;
+          margin: 1rem 0 0.5rem;
+        }
+
+        .netflix-player-error-card p {
+          color: #aaa;
+          max-width: 600px;
+          line-height: 1.5;
+        }
+
+        .netflix-source-label {
+          font-size: 0.75rem;
+          color: #777;
+          max-width: 80%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          margin: 0.5rem;
+        }
+
+        .netflix-error-btn,
+        .btn-netflix-retry {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: var(--netflix-red);
+          color: #fff;
+          border: 0;
+          border-radius: 6px;
+          padding: 0.65rem 1.25rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .netflix-player-error-overlay {
+          inset: 0;
+          transform: none;
+          top: 0;
+          left: 0;
+          color: #fff;
+          background: rgba(0,0,0,0.55);
+        }
+
+        .netflix-player-error-overlay h3 {
+          font-size: 1.2rem;
+        }
+
+        .netflix-player-error-overlay p {
+          color: #aaa;
+          text-align: center;
+          max-width: 400px;
+        }
+
+        .error-code {
+          display: block;
+          color: #ffb703;
+          margin-top: 4px;
+        }
 
         .netflix-controls-overlay {
           position: absolute;
           inset: 0;
-          background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 75%, rgba(0,0,0,0.85) 100%);
+          background:
+            linear-gradient(
+              180deg,
+              rgba(0,0,0,0.7) 0%,
+              transparent 20%,
+              transparent 75%,
+              rgba(0,0,0,0.85) 100%
+            );
           opacity: 0;
-          transition: opacity 0.3s ease;
+          transition: opacity 0.3s;
           pointer-events: none;
           display: flex;
           flex-direction: column;
@@ -881,9 +1556,15 @@ export const NetflixVideoPlayer = React.forwardRef(({
           padding: 1.5rem;
           z-index: 80;
         }
+
         .netflix-controls-overlay.visible {
           opacity: 1;
           pointer-events: auto;
+        }
+
+        .netflix-controls-top {
+          display: flex;
+          justify-content: flex-start;
         }
 
         .netflix-player-title {
@@ -891,6 +1572,10 @@ export const NetflixVideoPlayer = React.forwardRef(({
           font-size: 1.25rem;
           font-weight: 800;
           text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .netflix-controls-bottom {
+          width: 100%;
         }
 
         .netflix-scrubber-wrapper {
@@ -901,12 +1586,14 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
         .netflix-scrubber-track {
           height: 4px;
-          background: rgba(255, 255, 255, 0.3);
+          background: rgba(255,255,255,0.3);
           border-radius: 2px;
           position: relative;
-          transition: height 0.15s ease;
+          transition: height 0.15s;
         }
-        .netflix-scrubber-wrapper:hover .netflix-scrubber-track {
+
+        .netflix-scrubber-wrapper:hover
+        .netflix-scrubber-track {
           height: 7px;
         }
 
@@ -926,10 +1613,12 @@ export const NetflixVideoPlayer = React.forwardRef(({
           height: 14px;
           border-radius: 50%;
           background: var(--netflix-red);
-          box-shadow: 0 0 10px rgba(229, 9, 20, 0.8);
-          transition: transform 0.15s ease;
+          box-shadow: 0 0 10px rgba(229,9,20,0.8);
+          transition: transform 0.15s;
         }
-        .netflix-scrubber-wrapper:hover .netflix-scrubber-head {
+
+        .netflix-scrubber-wrapper:hover
+        .netflix-scrubber-head {
           transform: translateY(-50%) scale(1);
         }
 
@@ -940,7 +1629,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
           margin-top: 0.5rem;
         }
 
-        .controls-group-left, .controls-group-right {
+        .controls-group-left,
+        .controls-group-right {
           display: flex;
           align-items: center;
           gap: 1rem;
@@ -955,8 +1645,11 @@ export const NetflixVideoPlayer = React.forwardRef(({
           align-items: center;
           justify-content: center;
           padding: 4px;
-          transition: transform 0.15s, opacity 0.15s;
+          transition:
+            transform 0.15s,
+            color 0.15s;
         }
+
         .netflix-ctrl-btn:hover {
           transform: scale(1.15);
           color: var(--netflix-red);
