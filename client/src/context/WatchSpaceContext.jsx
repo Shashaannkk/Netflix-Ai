@@ -88,10 +88,31 @@ export const WatchSpaceProvider = ({ children }) => {
 
   // ── Socket.IO ref & state ───────────────────────────────────────────────────
   const socketRef = useRef(null);
+  const currentSpaceIdRef = useRef(null);
+  const joinedSpaceIdRef  = useRef(null);
+
   const [socketConnected, setSocketConnected] = useState(false);
   const [socketId, setSocketId]               = useState(null);
   const [socketTransport, setSocketTransport] = useState(null);
   const pingTimerRef = useRef(null);
+
+  // Keep currentSpaceIdRef in sync with state
+  useEffect(() => {
+    currentSpaceIdRef.current = currentSpace?._id || null;
+  }, [currentSpace?._id]);
+
+  // Cleanup socket ONLY on true unmount of WatchSpaceProvider
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        const s = socketRef.current;
+        socketRef.current = null;
+        console.log(`[SOCKET_DIAGNOSTIC] SOCKET_DISCONNECT ${s.id || 'unmount'}`);
+        s.removeAllListeners();
+        s.disconnect();
+      }
+    };
+  }, []);
 
   // ── Initialize socket connection ───────────────────────────────────────────
   useEffect(() => {
@@ -101,46 +122,58 @@ export const WatchSpaceProvider = ({ children }) => {
     }
 
     const token = getAccessToken();
-    console.log('[WATCH_SOCKET] connecting to:', SOCKET_URL);
-    const socket = io(SOCKET_URL, {
-      auth: { token: token || undefined },
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-    });
 
-    socketRef.current = socket;
+    // Create socket instance ONCE for this WatchSpaceProvider lifecycle
+    if (!socketRef.current) {
+      const instanceId = Math.random().toString(36).substring(2, 9);
+      console.log(`[SOCKET_DIAGNOSTIC] SOCKET_CREATED ${instanceId}`);
+      console.log('[WATCH_SOCKET] connecting to:', SOCKET_URL);
 
-    socket.on('connect', () => {
-      const transportName = socket.io?.engine?.transport?.name || 'unknown';
-      console.log('[WATCH_SOCKET] connected');
-      console.log('[WATCH_SOCKET] socket id:', socket.id);
-      console.log('[WATCH_SOCKET] transport:', transportName);
-      setSocketConnected(true);
-      setSocketId(socket.id);
-      setSocketTransport(transportName);
+      const socket = io(SOCKET_URL, {
+        auth: { token: token || undefined },
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+        autoConnect: false,
+      });
 
-      if (currentSpace?._id) {
-        console.log('[WATCH_SOCKET] room join requested:', currentSpace._id);
-        socket.emit('space:join', { spaceId: currentSpace._id });
-      }
-    });
+      socketRef.current = socket;
 
-    socket.on('connect_error', (err) => {
-      console.error('[WATCH_SOCKET] connection error:', err?.message || err);
-      setSocketConnected(false);
-    });
+      socket.on('connect', () => {
+        const transportName = socket.io?.engine?.transport?.name || 'unknown';
+        console.log(`[SOCKET_DIAGNOSTIC] SOCKET_CONNECT ${socket.id}`);
+        console.log('[WATCH_SOCKET] connected | socket id:', socket.id, '| transport:', transportName);
+        setSocketConnected(true);
+        setSocketId(socket.id);
+        setSocketTransport(transportName);
 
-    socket.on('disconnect', (reason) => {
-      console.log('[WATCH_SOCKET] disconnected:', reason);
-      setSocketConnected(false);
-      setSocketId(null);
-      setSocketTransport(null);
-    });
+        // Reset room join tracker on new socket connection/reconnect
+        joinedSpaceIdRef.current = null;
 
-    socket.on('connection:ack', (data) => {
-      console.log('[WATCH_SOCKET] Server ACK:', data.message);
-    });
+        const targetSpaceId = currentSpaceIdRef.current;
+        if (targetSpaceId) {
+          console.log(`[SOCKET_DIAGNOSTIC] SPACE_JOIN ${socket.id} ${targetSpaceId}`);
+          socket.emit('space:join', { spaceId: targetSpaceId });
+          joinedSpaceIdRef.current = targetSpaceId;
+        }
+      });
+
+      socket.on('connect_error', (err) => {
+        console.error('[WATCH_SOCKET] connection error:', err?.message || err);
+        setSocketConnected(false);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log(`[SOCKET_DIAGNOSTIC] SOCKET_DISCONNECT ${socket.id || 'unknown'} | reason: ${reason}`);
+        setSocketConnected(false);
+        setSocketId(null);
+        setSocketTransport(null);
+        joinedSpaceIdRef.current = null;
+      });
+
+      socket.on('connection:ack', (data) => {
+        console.log('[WATCH_SOCKET] Server ACK:', data.message);
+      });
 
     // ── PRD Event: room.playback.update ─────────────────────────────────────
     socket.on('room.playback.update', (envelope) => {
@@ -372,25 +405,27 @@ export const WatchSpaceProvider = ({ children }) => {
       if (payload.subtitleTrack) setSelectedSubtitle(payload.subtitleTrack);
     });
 
-    socket.on('room.error', (envelope) => {
-      const msg = envelope?.payload?.message;
-      if (msg) console.warn('[WatchSpaceContext] Room error:', msg);
-    });
-
-    return () => {
-      if (socketRef.current === socket) {
-        socketRef.current = null;
+    } else {
+      if (socketRef.current) {
+        socketRef.current.auth = { token: token || undefined };
       }
-      socket.removeAllListeners();
-      socket.disconnect();
-    };
-  }, [authLoading, user?._id, navigate]);
+    }
 
-  // Join room whenever currentSpace or socket connection status changes
+    const activeSocket = socketRef.current;
+    if (activeSocket && !activeSocket.connected && !activeSocket.connecting) {
+      activeSocket.connect();
+    }
+  }, [authLoading, user?._id]);
+
+  // Single authoritative room join when currentSpace changes on connected socket
   useEffect(() => {
-    if (socketConnected && socketRef.current?.connected && currentSpace?._id) {
-      console.log('[WatchSpaceContext] Emitting space:join for:', currentSpace._id);
-      socketRef.current.emit('space:join', { spaceId: currentSpace._id });
+    const s = socketRef.current;
+    if (socketConnected && s?.connected && currentSpace?._id) {
+      if (joinedSpaceIdRef.current !== currentSpace._id) {
+        console.log(`[SOCKET_DIAGNOSTIC] SPACE_JOIN ${s.id} ${currentSpace._id}`);
+        s.emit('space:join', { spaceId: currentSpace._id });
+        joinedSpaceIdRef.current = currentSpace._id;
+      }
     }
   }, [currentSpace?._id, socketConnected]);
 
@@ -588,10 +623,6 @@ export const WatchSpaceProvider = ({ children }) => {
         }
       } catch {}
 
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('space:join', { spaceId });
-      }
-
       return space;
     } catch (err) {
       console.warn('[WatchSpaceContext] Backend offline or space error, using fallback room state:', err.message);
@@ -633,9 +664,6 @@ export const WatchSpaceProvider = ({ children }) => {
 
   const setSpace = useCallback((space) => {
     setCurrentSpace(space);
-    if (space && socketRef.current?.connected) {
-      socketRef.current.emit('space:join', { spaceId: space._id });
-    }
   }, []);
 
   // ── Host Lifecycle Actions ─────────────────────────────────────────────────

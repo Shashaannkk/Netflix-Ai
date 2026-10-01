@@ -24,7 +24,7 @@ const SOCKET_URL = getSocketUrl();
  * Automatically connects to backend WebSocket server.
  */
 export const socket = io(SOCKET_URL, {
-  autoConnect: true,
+  autoConnect: false,
   reconnectionAttempts: 5,
   reconnectionDelay: 2000,
   transports: ['websocket', 'polling']
