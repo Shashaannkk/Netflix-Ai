@@ -467,8 +467,8 @@ const WatchSpace = () => {
         return;
       }
 
-      const elapsed = (Date.now() - (playbackState.changedAtServerMs || playbackState.lastUpdatedTs)) / 1000;
-      const targetTime = (playbackState.positionSeconds ?? playbackState.currentTime ?? 0) + (playbackState.isPlaying ? elapsed * (playbackState.playbackRate || 1.0) : 0);
+      const elapsed = (Date.now() - (playbackState.lastUpdatedTs || Date.now())) / 1000;
+      const targetTime = (playbackState.positionSeconds ?? 0) + (playbackState.isPlaying ? elapsed * (playbackState.playbackRate || 1.0) : 0);
       const localTime = player.getCurrentTime();
       const drift = targetTime - localTime;
 

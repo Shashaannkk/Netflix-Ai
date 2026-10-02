@@ -458,8 +458,13 @@ export const NetflixVideoPlayer = React.forwardRef(({
     }
 
     /*
-     * Native HTML5 source.
+     * Native HTML5 source: restrict sync corrections to non-host participants.
+     * Host is authoritative over local playback and must not be seeked by incoming sync updates.
      */
+    if (isHost) {
+      return;
+    }
+
     if (!isMediaReady()) {
       return;
     }
