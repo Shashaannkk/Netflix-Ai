@@ -24,7 +24,7 @@ import {
   classifySource,
 } from '../services/movieServers';
 
-const SYNC_HARD_CORRECTION_THRESHOLD = 0.25;
+const SYNC_HARD_CORRECTION_THRESHOLD = 1.2;
 
 export const NetflixVideoPlayer = React.forwardRef(({
   src,
@@ -43,6 +43,10 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const adapterRef = useRef(null);
   const isApplyingRemoteUpdateRef = useRef(false);
   const srcRef = useRef(src);
+  const syncTimeRef = useRef(syncTime);
+  const syncIsPlayingRef = useRef(syncIsPlaying);
+  const isHostRef = useRef(isHost);
+  const hasAppliedInitialSyncRef = useRef(false);
 
   const controlsTimeoutRef = useRef(null);
   const holdTimerRef = useRef(null);
@@ -287,6 +291,18 @@ export const NetflixVideoPlayer = React.forwardRef(({
   );
 
   /*
+   * Keep refs synced with props for async video lifecycle events.
+   */
+  useEffect(() => {
+    syncTimeRef.current = syncTime;
+    syncIsPlayingRef.current = syncIsPlaying;
+  }, [syncTime, syncIsPlaying]);
+
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
+
+  /*
    * Update source when parent changes it.
    */
   useEffect(() => {
@@ -306,11 +322,52 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
     setShowIntro(true);
     setEmbedPlaybackRequested(false);
+    hasAppliedInitialSyncRef.current = false;
 
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
   }, [src]);
+
+  /*
+   * Apply initial sync snapshot for non-host participants when media becomes ready.
+   */
+  const applyInitialParticipantSync = useCallback(() => {
+    if (isEmbed || isHostRef.current || hasAppliedInitialSyncRef.current) {
+      return;
+    }
+
+    if (!isMediaReady()) {
+      return;
+    }
+
+    const targetTime = syncTimeRef.current;
+    const shouldPlay = syncIsPlayingRef.current;
+
+    if (typeof targetTime === 'number' && !Number.isNaN(targetTime)) {
+      const adapter = getAdapter();
+
+      if (adapter) {
+        hasAppliedInitialSyncRef.current = true;
+        isApplyingRemoteUpdateRef.current = true;
+
+        adapter.seek(targetTime);
+        setCurrentTime(targetTime);
+
+        if (shouldPlay) {
+          adapter.play();
+          setIsPlaying(true);
+        } else {
+          adapter.pause();
+          setIsPlaying(false);
+        }
+
+        setTimeout(() => {
+          isApplyingRemoteUpdateRef.current = false;
+        }, 150);
+      }
+    }
+  }, [isEmbed, isMediaReady, getAdapter]);
 
   /*
    * Initialize HTML5 adapter only for native video sources.
@@ -413,28 +470,46 @@ export const NetflixVideoPlayer = React.forwardRef(({
       return;
     }
 
-    const localTime = adapter.getCurrentTime();
-    const drift = Math.abs(localTime - syncTime);
-
     isApplyingRemoteUpdateRef.current = true;
 
     /*
-     * Hard correction above 250ms.
+     * Non-host initial readiness sync catchup.
      */
-    if (drift > SYNC_HARD_CORRECTION_THRESHOLD) {
+    if (!isHost && !hasAppliedInitialSyncRef.current) {
+      hasAppliedInitialSyncRef.current = true;
       adapter.seek(syncTime);
       setCurrentTime(syncTime);
-    }
 
-    /*
-     * Authoritative play state.
-     */
-    if (syncIsPlaying && !isPlaying) {
-      adapter.play();
-      setIsPlaying(true);
-    } else if (!syncIsPlaying && isPlaying) {
-      adapter.pause();
-      setIsPlaying(false);
+      if (syncIsPlaying) {
+        adapter.play();
+        setIsPlaying(true);
+      } else {
+        adapter.pause();
+        setIsPlaying(false);
+      }
+    } else {
+      const localTime = adapter.getCurrentTime();
+      const drift = Math.abs(localTime - syncTime);
+      const hardCorrectionThreshold = (!syncIsPlaying || !isPlaying) ? 0.25 : SYNC_HARD_CORRECTION_THRESHOLD;
+
+      /*
+       * Hard correction above threshold (1.2s when playing, 0.25s when paused).
+       */
+      if (drift > hardCorrectionThreshold) {
+        adapter.seek(syncTime);
+        setCurrentTime(syncTime);
+      }
+
+      /*
+       * Authoritative play state.
+       */
+      if (syncIsPlaying && !isPlaying) {
+        adapter.play();
+        setIsPlaying(true);
+      } else if (!syncIsPlaying && isPlaying) {
+        adapter.pause();
+        setIsPlaying(false);
+      }
     }
 
     setTimeout(() => {
@@ -447,6 +522,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     isMediaReady,
     getAdapter,
     isPlaying,
+    isHost,
   ]);
 
   /*
@@ -475,22 +551,24 @@ export const NetflixVideoPlayer = React.forwardRef(({
      * HTML5:
      * start playback if authoritative state says playing.
      */
-    if (
-      isMediaReady() &&
-      (syncIsPlaying ?? isPlaying) &&
-      isHost
-    ) {
-      videoRef.current
-        ?.play()
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch((err) => {
-          console.warn(
-            '[NetflixVideoPlayer] Autoplay prevented:',
-            err?.message
-          );
-        });
+    if (isMediaReady()) {
+      if (isHost) {
+        if (syncIsPlaying ?? isPlaying) {
+          videoRef.current
+            ?.play()
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch((err) => {
+              console.warn(
+                '[NetflixVideoPlayer] Autoplay prevented:',
+                err?.message
+              );
+            });
+        }
+      } else {
+        applyInitialParticipantSync();
+      }
     }
   }, [
     isEmbed,
@@ -498,6 +576,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     isPlaying,
     isHost,
     isMediaReady,
+    applyInitialParticipantSync,
   ]);
 
   /*
@@ -1107,6 +1186,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
                 code: null,
                 message: null,
               });
+
+              applyInitialParticipantSync();
             }
           }}
           onCanPlay={() => {
@@ -1116,6 +1197,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
               setMediaState(
                 'READY'
               );
+
+              applyInitialParticipantSync();
             }
           }}
           onError={(e) => {
