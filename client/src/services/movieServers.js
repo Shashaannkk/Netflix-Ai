@@ -75,7 +75,7 @@ export const MOVIE_SERVERS = [
     provider: 'Demo MP4 Engine',
     badge: 'HTML5 Direct',
     icon: '🎞️',
-    bullets: ['HTML5 Direct MP4', 'Tears of Steel Sample', 'Custom Sync Engine']
+    bullets: ['HTML5 Direct MP4', 'Big Buck Bunny Sample', 'Custom Sync Engine']
   }
 ];
 
@@ -128,7 +128,7 @@ export const getServerStreamUrl = ({ tmdbId = 550, isTv = false, season = 1, epi
 
   // Server 8: Direct HTML5 test video — independent of TMDB ID
   if (num === 8) {
-    return `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4`;
+    return `https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@master/big_buck_bunny.mp4`;
   }
 
   const cleanId = cleanTmdbId(tmdbId);
