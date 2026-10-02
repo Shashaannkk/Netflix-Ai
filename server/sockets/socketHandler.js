@@ -325,7 +325,7 @@ export const initSocketHandler = (io) => {
             action: 'sync',
             state: room.playback.state,
             positionSeconds: currentProjectedPos,
-            changedAtServerMs: room.playback.changedAtServerMs,
+            changedAtServerMs: nowMs,
             playbackRate: room.playback.playbackRate || 1.0,
             version: room.version,
             isHost,
