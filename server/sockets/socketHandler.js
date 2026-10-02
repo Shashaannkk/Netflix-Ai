@@ -434,7 +434,7 @@ export const initSocketHandler = (io) => {
           serverTs: nowMs,
           positionSeconds: currentProjectedPos,
           state,
-          changedAtServerMs: room ? room.playback.changedAtServerMs : nowMs,
+          changedAtServerMs: nowMs,
           playbackRate,
           version: room ? room.version : 1,
           hostConnected,
