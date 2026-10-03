@@ -994,10 +994,6 @@ export const NetflixVideoPlayer = React.forwardRef(({
     )
     : 0;
 
-  const sourceInvalid =
-    classifySource(currentSource) ===
-    'INVALID';
-
   return (
     <div
       className="netflix-video-player-container"
