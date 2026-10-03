@@ -59,6 +59,10 @@ const timelineEventSchema = new mongoose.Schema(
 const titleSchema = new mongoose.Schema(
   {
     // ── Core metadata ──────────────────────────────────────────────────────────
+    tmdbId: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     title: {
       type: String,
       required: [true, 'Title name is required'],
@@ -143,6 +147,7 @@ const titleSchema = new mongoose.Schema(
 );
 
 // ── Indexes ────────────────────────────────────────────────────────────────────
+titleSchema.index({ tmdbId: 1 });
 // Accelerate genre-filtered catalogue queries
 titleSchema.index({ genres: 1 });
 // Accelerate published-only catalogue queries

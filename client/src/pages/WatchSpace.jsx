@@ -48,7 +48,7 @@ import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
 import { fetchSeasonEpisodes } from '../services/tmdb';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
-import { MOVIE_SERVERS, getServerStreamUrl } from '../services/movieServers';
+import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId } from '../services/movieServers';
 import {
   CINEMATIC_AVATARS,
   getStableAvatar,
@@ -746,9 +746,10 @@ const WatchSpace = () => {
   };
 
   const rawTitleObj = effectiveSpace?.titleId;
-  const targetTmdbId = (typeof rawTitleObj === 'object' && rawTitleObj !== null ? (rawTitleObj.tmdbId || rawTitleObj.id) : null) ||
-    (typeof rawTitleObj === 'number' ? rawTitleObj : null) ||
-    550;
+  const targetTmdbId = cleanTmdbId(
+    (typeof rawTitleObj === 'object' && rawTitleObj !== null ? (rawTitleObj.tmdbId || rawTitleObj.id) : null) ||
+    (typeof rawTitleObj === 'number' || typeof rawTitleObj === 'string' ? rawTitleObj : null)
+  );
   const isTvSeries = effectiveSpace?.titleId?.media_type === 'tv' || effectiveSpace?.titleId?.type === 'tv' || Boolean(effectiveSpace?.titleId?.first_air_date);
 
   // Load TV episodes when season or title changes
@@ -771,13 +772,22 @@ const WatchSpace = () => {
   }, [targetTmdbId, selectedSeason, isTvSeries]);
 
   // Compute stream URL using 8-Server Architecture (Server 1 Vidsrc default)
-  const videoSrc = getServerStreamUrl({
+  let videoSrc = getServerStreamUrl({
     tmdbId: targetTmdbId,
     isTv: isTvSeries,
     season: selectedSeason,
     episode: selectedEpisode,
     serverNum: selectedServer,
   });
+
+  // Backward compatibility fallback for old records without tmdbId:
+  // Use existing stored videoAssetUrl if targetTmdbId is missing and videoAssetUrl is valid
+  if (!videoSrc && !targetTmdbId && effectiveSpace?.titleId?.videoAssetUrl) {
+    const existingUrl = effectiveSpace.titleId.videoAssetUrl;
+    if (typeof existingUrl === 'string' && (existingUrl.startsWith('http://') || existingUrl.startsWith('https://'))) {
+      videoSrc = existingUrl;
+    }
+  }
 
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;

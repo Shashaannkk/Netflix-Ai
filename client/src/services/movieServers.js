@@ -87,15 +87,21 @@ export default MOVIE_SERVERS;
  * Returns a valid numeric ID, IMDb string, or null if invalid.
  */
 export const cleanTmdbId = (rawId) => {
-  if (!rawId) return 550;
+  if (!rawId) return null;
 
   if (typeof rawId === 'number' && Number.isInteger(rawId) && rawId > 0) {
     return rawId;
   }
 
   if (typeof rawId === 'object' && rawId !== null) {
-    if (rawId.tmdbId && /^\d+$/.test(String(rawId.tmdbId))) return parseInt(String(rawId.tmdbId), 10);
-    if (rawId.id && /^\d+$/.test(String(rawId.id))) return parseInt(String(rawId.id), 10);
+    if (rawId.tmdbId) {
+      const res = cleanTmdbId(rawId.tmdbId);
+      if (res) return res;
+    }
+    if (rawId.id) {
+      const res = cleanTmdbId(rawId.id);
+      if (res) return res;
+    }
   }
 
   const str = String(rawId).trim();
@@ -123,7 +129,7 @@ export const cleanTmdbId = (rawId) => {
 /**
  * Generate precise stream URL for any server index 1..8
  */
-export const getServerStreamUrl = ({ tmdbId = 550, isTv = false, season = 1, episode = 1, serverNum = 1 }) => {
+export const getServerStreamUrl = ({ tmdbId, isTv = false, season = 1, episode = 1, serverNum = 1 }) => {
   const num = Number(serverNum) || 1;
 
   // Server 8: Direct HTML5 test video — independent of TMDB ID

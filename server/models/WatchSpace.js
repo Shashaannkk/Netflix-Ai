@@ -231,7 +231,7 @@ watchSpaceSchema.methods.getCurrentCount = function () {
 watchSpaceSchema.statics.findByInviteCode = function (code) {
   return this.findOne({ inviteCode: code.toUpperCase() })
     .populate('hostUserId', 'displayName email role')
-    .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl')
+    .populate('titleId', 'tmdbId title poster durationSeconds genres ageRating videoAssetUrl')
     .populate('participantIds', 'displayName email role');
 };
 

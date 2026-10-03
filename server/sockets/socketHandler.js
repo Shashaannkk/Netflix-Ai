@@ -227,12 +227,12 @@ export const initSocketHandler = (io) => {
             if (mongoose.Types.ObjectId.isValid(spaceId)) {
               space = await WatchSpace.findById(spaceId)
                 .select('status hostUserId settings titleId mediaId participantIds inviteCode')
-                .populate('titleId', 'title timeline')
+                .populate('titleId', 'tmdbId title timeline')
                 .lean();
             } else {
               space = await WatchSpace.findOne({ inviteCode: spaceId })
                 .select('status hostUserId settings titleId mediaId participantIds inviteCode')
-                .populate('titleId', 'title timeline')
+                .populate('titleId', 'tmdbId title timeline')
                 .lean();
             }
           } catch (dbErr) {

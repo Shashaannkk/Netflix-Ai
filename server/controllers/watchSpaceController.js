@@ -7,14 +7,35 @@ import { getActiveViewerCount } from '../sockets/socketHandler.js';
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
+const cleanTmdbId = (rawId) => {
+  if (!rawId) return null;
+  if (typeof rawId === 'number' && Number.isInteger(rawId) && rawId > 0) return rawId;
+  if (typeof rawId === 'object' && rawId !== null) {
+    if (rawId.tmdbId) {
+      const res = cleanTmdbId(rawId.tmdbId);
+      if (res) return res;
+    }
+    if (rawId.id) {
+      const res = cleanTmdbId(rawId.id);
+      if (res) return res;
+    }
+  }
+  const str = String(rawId).trim();
+  if (/^\d+$/.test(str)) return parseInt(str, 10);
+  const digitsMatch = str.match(/(?:tmdb|movie|tv)[_-]?(\d+)/i);
+  if (digitsMatch) return parseInt(digitsMatch[1], 10);
+  if (/^tt\d+$/.test(str)) return str;
+  return null;
+};
+
 // ──────────────────────────────────────────────────────────────────────────────
 //  POST /api/spaces
 //  Auth required. Any authenticated user can create a Watch Space.
-//  Body: { titleId, title, poster, backdropUrl, videoAssetUrl, genres, settings }
+//  Body: { titleId, tmdbId, title, poster, backdropUrl, videoAssetUrl, genres, settings }
 // ──────────────────────────────────────────────────────────────────────────────
 export const createWatchSpace = async (req, res) => {
   try {
-    const { titleId, title: titleName, poster, backdropUrl, videoAssetUrl, genres, settings = {} } = req.body;
+    const { titleId, tmdbId: rawTmdbId, title: titleName, poster, backdropUrl, videoAssetUrl, genres, settings = {} } = req.body;
 
     if (!titleId) {
       return sendError(res, {
@@ -23,6 +44,8 @@ export const createWatchSpace = async (req, res) => {
       });
     }
 
+    const cleanId = cleanTmdbId(rawTmdbId || titleId);
+
     let targetTitle = null;
 
     // 1. Try finding by ObjectId if valid
@@ -30,14 +53,24 @@ export const createWatchSpace = async (req, res) => {
       targetTitle = await Title.findById(titleId);
     }
 
-    // 2. Search by title name if not found by ObjectId
+    // 2. Search by tmdbId or title name if not found by ObjectId
+    if (!targetTitle && cleanId) {
+      targetTitle = await Title.findOne({ tmdbId: cleanId });
+    }
     if (!targetTitle && titleName) {
       targetTitle = await Title.findOne({ title: titleName });
+    }
+
+    // If target title exists but lacks tmdbId, preserve/update tmdbId if provided
+    if (targetTitle && cleanId && !targetTitle.tmdbId) {
+      targetTitle.tmdbId = cleanId;
+      await targetTitle.save();
     }
 
     // 3. Auto-upsert Title document for TMDB/external items so WatchSpace creation always succeeds
     if (!targetTitle) {
       targetTitle = await Title.create({
+        tmdbId: cleanId || null,
         title: titleName || `Title ${titleId}`,
         description: 'Stream and watch together in real-time with Netflix AI co-pilot.',
         durationSeconds: 720,
@@ -73,7 +106,7 @@ export const createWatchSpace = async (req, res) => {
     // Re-fetch with populated fields for the response
     const populated = await WatchSpace.findById(space._id)
       .populate('hostUserId', 'displayName email role')
-      .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl backdropUrl');
+      .populate('titleId', 'tmdbId title poster durationSeconds genres ageRating videoAssetUrl backdropUrl');
 
     return sendSuccess(res, {
       statusCode: 201,
@@ -111,7 +144,7 @@ export const getMySpaces = async (req, res) => {
       ],
     })
       .populate('hostUserId', 'displayName email role')
-      .populate('titleId', 'title poster durationSeconds genres ageRating')
+      .populate('titleId', 'tmdbId title poster durationSeconds genres ageRating')
       .populate('participantIds', 'displayName email role')
       .sort({ createdAt: -1 })
       .limit(50);
@@ -148,14 +181,14 @@ export const getWatchSpaceById = async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(spaceIdParam)) {
       space = await WatchSpace.findById(spaceIdParam)
         .populate('hostUserId', 'displayName email role')
-        .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
+        .populate('titleId', 'tmdbId title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
         .populate('participantIds', 'displayName email role');
     }
 
     if (!space) {
       space = await WatchSpace.findOne({ inviteCode: spaceIdParam.toUpperCase() })
         .populate('hostUserId', 'displayName email role')
-        .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
+        .populate('titleId', 'tmdbId title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
         .populate('participantIds', 'displayName email role');
     }
 
@@ -251,6 +284,7 @@ export const resolveInviteCode = async (req, res) => {
           },
           title: {
             id: space.titleId._id,
+            tmdbId: space.titleId.tmdbId,
             name: space.titleId.title,
             poster: space.titleId.poster,
             genres: space.titleId.genres,
@@ -281,14 +315,14 @@ export const joinWatchSpace = async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(spaceIdParam)) {
       space = await WatchSpace.findById(spaceIdParam)
         .populate('hostUserId', 'displayName email role')
-        .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
+        .populate('titleId', 'tmdbId title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
         .populate('participantIds', 'displayName email role');
     }
 
     if (!space) {
       space = await WatchSpace.findOne({ inviteCode: spaceIdParam.toUpperCase() })
         .populate('hostUserId', 'displayName email role')
-        .populate('titleId', 'title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
+        .populate('titleId', 'tmdbId title poster durationSeconds genres ageRating videoAssetUrl backdropUrl')
         .populate('participantIds', 'displayName email role');
     }
 

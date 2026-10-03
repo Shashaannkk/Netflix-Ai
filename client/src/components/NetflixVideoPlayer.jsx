@@ -73,9 +73,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const [speedBoost, setSpeedBoost] = useState(false);
   const [seekRipple, setSeekRipple] = useState(null);
 
-  const [currentSource, setCurrentSource] = useState(
-    src || 'https://vidsrc.pro/embed/movie/550'
-  );
+  const [currentSource, setCurrentSource] = useState(src || null);
 
   /*
    * This state is used only for cross-origin iframe providers.
@@ -306,13 +304,13 @@ export const NetflixVideoPlayer = React.forwardRef(({
    * Update source when parent changes it.
    */
   useEffect(() => {
-    if (!src || src === srcRef.current) {
+    if (src === srcRef.current) {
       return;
     }
 
     srcRef.current = src;
 
-    setCurrentSource(src);
+    setCurrentSource(src || null);
     setMediaState('LOADING');
 
     setMediaError({

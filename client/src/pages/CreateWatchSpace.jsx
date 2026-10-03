@@ -182,11 +182,12 @@ const CreateWatchSpace = () => {
     const yearText = item.release_date
       ? item.release_date.substring(0, 4)
       : (item.first_air_date ? item.first_air_date.substring(0, 4) : item.year || '2023');
-    const tmdbId = cleanTmdbId(item.tmdbId || item.id || item._id) || 550;
+    const resolvedTmdbId = cleanTmdbId(item.tmdbId || item.id || item._id) || null;
     
     return {
       _id: String(item._id || item.id),
       id: String(item.id || item._id),
+      tmdbId: resolvedTmdbId,
       title: titleText,
       description: item.overview || item.description || 'Watch together in real-time with synchronized stream and AI co-pilot on Netflix AI.',
       durationSeconds: item.runtime ? item.runtime * 60 : (item.durationSeconds || 7200),
@@ -202,7 +203,7 @@ const CreateWatchSpace = () => {
       poster: getImageUrl(item.poster_path || item.poster),
       backdropUrl: getImageUrl(item.backdrop_path || item.backdropUrl || item.poster_path, true),
       trailer_key: item.trailer_key,
-      videoAssetUrl: getServerStreamUrl({ tmdbId, isTv, serverNum: 1 })
+      videoAssetUrl: getServerStreamUrl({ tmdbId: resolvedTmdbId, isTv, serverNum: 1 })
     };
   }, []);
 
@@ -297,10 +298,11 @@ const CreateWatchSpace = () => {
         setSelectedTitle(found);
         userSelectedRef.current = true;
       } else if (paramTitle) {
-        const tmdbId = preselectedId || 550;
+        const tmdbId = cleanTmdbId(preselectedId);
         setSelectedTitle({
           _id: preselectedId || 'custom-1',
           id: preselectedId || 'custom-1',
+          tmdbId,
           title: paramTitle,
           description: 'Stream movie & trailer together with live AI co-pilot on Netflix AI.',
           durationSeconds: 10800,
@@ -357,6 +359,8 @@ const CreateWatchSpace = () => {
     if (!selectedTitle) return;
     setCreating(true);
 
+    const resolvedTmdbId = cleanTmdbId(selectedTitle.tmdbId || selectedTitle.id || selectedTitle._id) || null;
+
     let computedVideoUrl = '';
     if (mediaChoice === 'trailer') {
       computedVideoUrl = selectedTitle.trailer_key
@@ -364,8 +368,8 @@ const CreateWatchSpace = () => {
         : 'https://www.youtube.com/embed/b9EkMc79ZSU?autoplay=1';
     } else {
       computedVideoUrl = getServerStreamUrl({
-        tmdbId: cleanTmdbId(selectedTitle.tmdbId || selectedTitle.id || selectedTitle._id) || 550,
-        isTv: selectedTitle.type === 'tv',
+        tmdbId: resolvedTmdbId,
+        isTv: selectedTitle.type === 'tv' || selectedTitle.media_type === 'tv',
         serverNum: selectedServer
       });
     }
@@ -373,6 +377,7 @@ const CreateWatchSpace = () => {
     try {
       const res = await createSpace({
         titleId: selectedTitle._id || selectedTitle.id,
+        tmdbId: resolvedTmdbId,
         title: selectedTitle.title,
         poster: selectedTitle.poster,
         backdropUrl: selectedTitle.backdropUrl,
@@ -397,6 +402,7 @@ const CreateWatchSpace = () => {
         settings: { roomName, isPrivate, maxParticipants, startPosition, aiVerbosity, votingEnabled, mediaChoice, selectedServer },
         titleId: {
           _id: selectedTitle._id || selectedTitle.id,
+          tmdbId: resolvedTmdbId,
           title: selectedTitle.title,
           poster: selectedTitle.poster,
           backdropUrl: selectedTitle.backdropUrl,
