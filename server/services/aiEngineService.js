@@ -85,20 +85,10 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
   const context = retrieveTimelineContext(titleDoc, currentTs);
   const { currentScene, recentEvents, characters, glossary, matchedSourceEvents } = context;
 
-  // ── Insufficient Metadata Fallback Guard ──
-  if (!matchedSourceEvents || matchedSourceEvents.length === 0) {
-    return {
-      answer: 'The available timeline metadata does not contain enough information to answer this question.',
-      sourceEvents: [],
-      generatedAt: new Date().toISOString(),
-      executionTimeMs: Date.now() - startTime,
-    };
-  }
-
-  const qLower = question.toLowerCase();
+  const qLower = (question || '').toLowerCase();
 
   // Keyword / Topic Matching on Grounded Context
-  let matchedEvents = matchedSourceEvents.filter((ev) => {
+  let matchedEvents = (matchedSourceEvents || []).filter((ev) => {
     const payloadStr = JSON.stringify(ev.payload || {}).toLowerCase();
     const typeStr = (ev.eventType || '').toLowerCase();
     return (
@@ -109,7 +99,7 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
     );
   });
 
-  if (matchedEvents.length === 0) {
+  if (matchedEvents.length === 0 && (matchedSourceEvents || []).length > 0) {
     matchedEvents = matchedSourceEvents.slice(0, 3);
   }
 
@@ -119,25 +109,25 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
   const getCharName = (c) => c?.payload?.characterName || c?.payload?.name || 'Character';
 
   // Check character query
-  const charMatches = characters.filter((c) => {
+  const charMatches = (characters || []).filter((c) => {
     const cName = getCharName(c).toLowerCase();
     return qLower.includes(cName);
   });
 
-  if (charMatches.length > 0 || qLower.includes('who') || qLower.includes('character')) {
+  if (charMatches.length > 0 || (qLower.includes('who') && (characters || []).length > 0)) {
     if (charMatches.length > 0) {
       const c = charMatches[0].payload;
       const cName = c.characterName || c.name || 'Character';
-      answerText = `In ${titleDoc.title}, **${cName}** (${c.role || 'Key Role'}) is introduced at timestamp ${formatSec(charMatches[0].timestampStart)}. ${c.description || ''}`;
+      answerText = `In ${titleDoc?.title || 'this title'}, **${cName}** (${c.role || 'Key Role'}) is introduced at timestamp ${formatSec(charMatches[0].timestampStart)}. ${c.description || ''}`;
     } else if (characters.length > 0) {
       const cList = characters.map((c) => `**${getCharName(c)}** (${c.payload?.role || 'Role'})`).join(', ');
-      answerText = `Key characters introduced so far in ${titleDoc.title} up to timestamp ${formatSec(currentTs)} include: ${cList}.`;
+      answerText = `Key characters introduced so far in ${titleDoc?.title || 'this title'} up to timestamp ${formatSec(currentTs)} include: ${cList}.`;
     }
   }
 
   // Check glossary / definition query
   if (!answerText && (qLower.includes('what is') || qLower.includes('define') || qLower.includes('meaning') || qLower.includes('explain'))) {
-    const termMatches = glossary.filter((g) =>
+    const termMatches = (glossary || []).filter((g) =>
       qLower.includes(g.payload?.term?.toLowerCase())
     );
     if (termMatches.length > 0) {
@@ -151,8 +141,13 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
     if (currentScene) {
       const p = currentScene.payload;
       answerText = `At timestamp ${formatSec(currentTs)}, the current scene is **"${p.sceneName || 'Untitled Scene'}"** set in **${p.location || 'Unknown Location'}**. ${p.synopsis || p.description || ''}`;
+    } else if (titleDoc?.title && titleDoc?.description) {
+      const genresStr = Array.isArray(titleDoc.genres) ? titleDoc.genres.join(', ') : (titleDoc.genres || '');
+      answerText = `You are watching **${titleDoc.title}**${genresStr ? ` (${genresStr})` : ''} at timestamp ${formatSec(currentTs)}. ${titleDoc.description}`;
+    } else if (titleDoc?.title) {
+      answerText = `At timestamp ${formatSec(currentTs)} in **${titleDoc.title}**, the scene portrays key plot developments as recorded in the title context.`;
     } else {
-      answerText = `At timestamp ${formatSec(currentTs)} in ${titleDoc.title}, the scene portrays key plot developments as recorded in the timeline.`;
+      answerText = 'The available room and movie data does not contain enough information to answer this question.';
     }
   }
 
