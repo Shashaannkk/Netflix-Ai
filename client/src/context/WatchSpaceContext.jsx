@@ -48,8 +48,12 @@ export const WatchSpaceProvider = ({ children }) => {
   // ── Authoritative Playback State ────────────────────────────────────────────
   const [playbackState, setPlaybackState] = useState({
     currentTime: 0,
+    positionSeconds: 0,
     isPlaying: false,
     playbackRate: 1.0,
+    serverNum: 1,
+    season: 1,
+    episode: 1,
     hostConnected: true,
     lastUpdatedTs: Date.now(),
     action: 'initial',
@@ -191,18 +195,22 @@ export const WatchSpaceProvider = ({ children }) => {
         ? Math.max(0, basePos + elapsedSec * (payload.playbackRate || 1.0))
         : Math.max(0, basePos);
 
-      setPlaybackState({
+      setPlaybackState((prev) => ({
+        ...prev,
         state: isPlaying ? 'playing' : 'paused',
         positionSeconds: projectedPos,
         currentTime: projectedPos,
         isPlaying,
         playbackRate: payload.playbackRate || 1.0,
+        serverNum: payload.serverNum ?? prev.serverNum ?? 1,
+        season: payload.season ?? prev.season ?? 1,
+        episode: payload.episode ?? prev.episode ?? 1,
         version: payload.version || 1,
         hostConnected: payload.hostConnected !== false,
         changedAtServerMs: payload.changedAtServerMs || now,
         lastUpdatedTs: now,
         action: payload.action || 'update',
-      });
+      }));
     });
 
     // ── PRD Event: room.host.disconnected ──────────────────────────────────
@@ -255,6 +263,9 @@ export const WatchSpaceProvider = ({ children }) => {
           currentTime: projectedPos,
           isPlaying,
           playbackRate: payload.playbackRate || 1.0,
+          serverNum: payload.serverNum ?? prev.serverNum ?? 1,
+          season: payload.season ?? prev.season ?? 1,
+          episode: payload.episode ?? prev.episode ?? 1,
           version: payload.version || prev.version,
           hostConnected: payload.hostConnected !== false,
           changedAtServerMs: payload.changedAtServerMs || now,
@@ -574,9 +585,9 @@ export const WatchSpaceProvider = ({ children }) => {
     [currentSpace]
   );
 
-  // ── Host Playback Update ─────────────────────────────────────────────────
+  // ── Host Playback & Server Updates ───────────────────────────────────────
   const sendPlaybackUpdate = useCallback(
-    ({ action, positionSeconds, currentTime, state, isPlaying, playbackRate }) => {
+    ({ action, positionSeconds, currentTime, state, isPlaying, playbackRate, serverNum, season, episode }) => {
       if (!socketRef.current?.connected || !currentSpace) return;
 
       const pos = typeof positionSeconds === 'number' ? positionSeconds : (typeof currentTime === 'number' ? currentTime : 0);
@@ -592,6 +603,28 @@ export const WatchSpaceProvider = ({ children }) => {
           state: currentState,
           isPlaying: currentState === 'playing',
           playbackRate: playbackRate || 1.0,
+          serverNum,
+          season,
+          episode,
+        },
+        ts: Date.now(),
+      });
+    },
+    [currentSpace]
+  );
+
+  const sendServerChange = useCallback(
+    ({ serverNum, season, episode, positionSeconds }) => {
+      if (!socketRef.current?.connected || !currentSpace) return;
+
+      socketRef.current.emit('room.server.change', {
+        event: 'room.server.change',
+        watchSpaceId: currentSpace._id,
+        payload: {
+          serverNum: typeof serverNum === 'number' ? serverNum : 1,
+          season: typeof season === 'number' ? season : 1,
+          episode: typeof episode === 'number' ? episode : 1,
+          positionSeconds: typeof positionSeconds === 'number' ? positionSeconds : 0,
         },
         ts: Date.now(),
       });
@@ -777,6 +810,7 @@ export const WatchSpaceProvider = ({ children }) => {
 
     // Playback Actions
     sendPlaybackUpdate,
+    sendServerChange,
 
     // Room Actions
     loadSpace,

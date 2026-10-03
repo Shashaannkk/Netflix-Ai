@@ -272,6 +272,9 @@ export const initSocketHandler = (io) => {
               positionSeconds: 0,
               changedAtServerMs: Date.now(),
               playbackRate: 1.0,
+              serverNum: 1,
+              season: 1,
+              episode: 1,
             },
             version: 1,
             hostSocketId: isHost ? socket.id : null,
@@ -327,6 +330,9 @@ export const initSocketHandler = (io) => {
             positionSeconds: currentProjectedPos,
             changedAtServerMs: nowMs,
             playbackRate: room.playback.playbackRate || 1.0,
+            serverNum: room.playback.serverNum || 1,
+            season: room.playback.season || 1,
+            episode: room.playback.episode || 1,
             version: room.version,
             isHost,
             hostConnected: room.hostConnected,
@@ -372,7 +378,7 @@ export const initSocketHandler = (io) => {
         return;
       }
 
-      const { action, positionSeconds, state, isPlaying, playbackRate } = payload;
+      const { action, positionSeconds, state, isPlaying, playbackRate, serverNum, season, episode } = payload;
       const nowMs = Date.now();
 
       // State versioning increment
@@ -382,7 +388,12 @@ export const initSocketHandler = (io) => {
       const newState = state || (isPlaying ? 'playing' : 'paused');
       const newRate = typeof playbackRate === 'number' ? playbackRate : (room.playback.playbackRate || 1.0);
 
+      if (typeof serverNum === 'number') room.playback.serverNum = serverNum;
+      if (typeof season === 'number') room.playback.season = season;
+      if (typeof episode === 'number') room.playback.episode = episode;
+
       room.playback = {
+        ...room.playback,
         state: newState,
         positionSeconds: Math.max(0, newPos),
         changedAtServerMs: nowMs,
@@ -397,6 +408,9 @@ export const initSocketHandler = (io) => {
         positionSeconds: room.playback.positionSeconds,
         changedAtServerMs: room.playback.changedAtServerMs,
         playbackRate: room.playback.playbackRate,
+        serverNum: room.playback.serverNum || 1,
+        season: room.playback.season || 1,
+        episode: room.playback.episode || 1,
         version: room.version,
         isHost: true,
         hostConnected: true,
@@ -414,6 +428,50 @@ export const initSocketHandler = (io) => {
         }
       }
       checkAndEmitTrivia(watchSpaceId, room, room.playback.positionSeconds, io);
+    });
+
+    // ── 3b. Server & Season/Episode Change (Host Only) ────────────────────────
+    socket.on('room.server.change', (data) => {
+      const { watchSpaceId, payload } = data || {};
+      if (!user || !watchSpaceId || !payload) return;
+
+      const room = roomsState.get(watchSpaceId);
+      if (!room) return;
+
+      if (user.id !== room.hostUserId && user.role !== 'admin') {
+        socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Unauthorized: Only the host can change server or episode.' }));
+        return;
+      }
+
+      const { serverNum, season, episode, positionSeconds } = payload;
+      const nowMs = Date.now();
+      room.version += 1;
+
+      if (typeof serverNum === 'number') room.playback.serverNum = serverNum;
+      if (typeof season === 'number') room.playback.season = season;
+      if (typeof episode === 'number') room.playback.episode = episode;
+
+      if (typeof positionSeconds === 'number') {
+        room.playback.positionSeconds = Math.max(0, positionSeconds);
+        room.playback.changedAtServerMs = nowMs;
+      }
+
+      const envelope = buildEnvelope('room.playback.update', watchSpaceId, {
+        action: 'server_change',
+        state: room.playback.state,
+        positionSeconds: room.playback.positionSeconds,
+        changedAtServerMs: room.playback.changedAtServerMs,
+        playbackRate: room.playback.playbackRate || 1.0,
+        serverNum: room.playback.serverNum || 1,
+        season: room.playback.season || 1,
+        episode: room.playback.episode || 1,
+        version: room.version,
+        isHost: true,
+        hostConnected: true,
+        serverTs: nowMs,
+      });
+
+      io.to(`space:${watchSpaceId}`).emit('room.playback.update', envelope);
     });
 
     // ── 4. Drift Measurement Ping/Pong ──────────────────────────────────────
@@ -436,6 +494,9 @@ export const initSocketHandler = (io) => {
           state,
           changedAtServerMs: nowMs,
           playbackRate,
+          serverNum: room ? (room.playback.serverNum || 1) : 1,
+          season: room ? (room.playback.season || 1) : 1,
+          episode: room ? (room.playback.episode || 1) : 1,
           version: room ? room.version : 1,
           hostConnected,
         })

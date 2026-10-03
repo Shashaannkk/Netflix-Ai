@@ -160,6 +160,33 @@ const runSyncSuite = async () => {
   assert(voteRecord.size === 2, 'Ensures single vote per user ID');
   assert(voteRecord.get('user_1') === 'option_beta', 'Allows participants to switch vote before expiration');
 
+  // ── 5. 8-Server & TV Episode Synchronization Logic ──
+  console.log('\n── 5. 8-Server & TV Episode Synchronization Invariants ──');
+  const processServerChange = (spaceId, userId, payload) => {
+    const room = activeRooms.get(spaceId);
+    if (!room) return { error: 'ROOM_NOT_FOUND' };
+    if (room.hostUserId !== userId) {
+      return { error: 'FORBIDDEN_NOT_HOST' };
+    }
+    room.playback.serverNum = payload.serverNum || 1;
+    room.playback.season = payload.season || 1;
+    room.playback.episode = payload.episode || 1;
+    room.playback.version += 1;
+    return { success: true, playback: room.playback };
+  };
+
+  const serverSwitchPart = processServerChange(roomId, participantId, { serverNum: 3, season: 1, episode: 1 });
+  assert(serverSwitchPart.error === 'FORBIDDEN_NOT_HOST', 'Rejects server switch from non-host participants');
+
+  const serverSwitchHost = processServerChange(roomId, hostId, { serverNum: 5, season: 2, episode: 4 });
+  assert(
+    serverSwitchHost.success &&
+    serverSwitchHost.playback.serverNum === 5 &&
+    serverSwitchHost.playback.season === 2 &&
+    serverSwitchHost.playback.episode === 4,
+    'Allows host to change streaming server (Server 5) and TV episode (S2:E4) for all participants'
+  );
+
   console.log('\n================================================================');
   console.log(`📊 TEST SUITE SUMMARY: ${passed} PASSED | ${failed} FAILED`);
   console.log('================================================================\n');
