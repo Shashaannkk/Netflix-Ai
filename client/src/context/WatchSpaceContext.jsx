@@ -465,13 +465,13 @@ export const WatchSpaceProvider = ({ children }) => {
 
   // ── Chat Actions ──────────────────────────────────────────────────────────
   const sendChatMessage = useCallback(
-    (text) => {
+    (text, extraPayload = {}) => {
       if (!socketRef.current?.connected || !currentSpace || !text.trim()) return;
 
       socketRef.current.emit('room.chat.message', {
         event: 'room.chat.message',
         watchSpaceId: currentSpace._id,
-        payload: { text: text.trim() },
+        payload: { text: text.trim(), ...extraPayload },
         ts: Date.now(),
       });
     },

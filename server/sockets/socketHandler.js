@@ -522,9 +522,11 @@ export const initSocketHandler = (io) => {
       }
 
       try {
+        const isAiMsg = Boolean(payload.isAi);
+        const senderNameClean = isAiMsg ? (payload.senderName || 'Nova') : currentUser.displayName;
         const textClean = String(payload.text)
           .replace(/[<>]/g, '')
-          .slice(0, 500)
+          .slice(0, 1000)
           .trim();
         if (!textClean) return;
 
@@ -532,26 +534,32 @@ export const initSocketHandler = (io) => {
         try {
           chatMsg = await ChatMessage.create({
             watchSpaceId,
-            senderId: currentUser.id,
-            senderName: currentUser.displayName,
+            senderId: isAiMsg ? (new mongoose.Types.ObjectId()) : currentUser.id,
+            senderName: senderNameClean,
             text: textClean,
+            isAi: isAiMsg,
+            sourceEvents: payload.sourceEvents || [],
           });
         } catch (dbErr) {
           console.warn('[Socket.IO] Chat message DB persist fallback:', dbErr.message);
           chatMsg = {
             _id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             senderId: currentUser.id,
-            senderName: currentUser.displayName,
+            senderName: senderNameClean,
             text: textClean,
+            isAi: isAiMsg,
+            sourceEvents: payload.sourceEvents || [],
             createdAt: new Date().toISOString(),
           };
         }
 
         const envelope = buildEnvelope('room.chat.message', watchSpaceId, {
           _id: chatMsg._id,
-          senderId: currentUser.id,
-          senderName: currentUser.displayName,
+          senderId: chatMsg.senderId,
+          senderName: chatMsg.senderName,
           text: chatMsg.text,
+          isAi: isAiMsg,
+          sourceEvents: payload.sourceEvents || chatMsg.sourceEvents || [],
           createdAt: chatMsg.createdAt,
           isSystem: false,
         });

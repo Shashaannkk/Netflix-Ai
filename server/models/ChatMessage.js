@@ -36,6 +36,14 @@ const chatMessageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isAi: {
+      type: Boolean,
+      default: false,
+    },
+    sourceEvents: {
+      type: Array,
+      default: [],
+    },
   },
   {
     timestamps: true, // adds createdAt and updatedAt

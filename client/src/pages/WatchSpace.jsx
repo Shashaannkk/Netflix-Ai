@@ -402,21 +402,11 @@ const WatchSpace = () => {
 
         if (res.data?.answer) {
           const aiData = res.data;
-          const aiMsg = {
-            _id: 'ai_' + Date.now() + Math.random(),
+          sendChatMessage(aiData.answer, {
             isAi: true,
             senderName: 'Nova',
-            displayName: 'Nova',
-            senderUserId: 'ai_assistant_nova',
-            text: aiData.answer,
             sourceEvents: aiData.sourceEvents || [],
-            executionTimeMs: aiData.executionTimeMs,
-            createdAt: new Date().toISOString(),
-          };
-
-          if (setChatMessages) {
-            setChatMessages((prev) => [...prev, aiMsg]);
-          }
+          });
         }
       } catch (err) {
         console.error('[AI @ai] Error fetching Nova response:', err);
