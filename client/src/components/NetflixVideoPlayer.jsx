@@ -86,7 +86,11 @@ export const NetflixVideoPlayer = React.forwardRef(({
    */
   const [embedPlaybackRequested, setEmbedPlaybackRequested] = useState(false);
 
-  const isEmbed = isEmbedProviderUrl(currentSource);
+  const sourceType = classifySource(currentSource);
+  const isGenericEmbed = sourceType === 'EMBED_PROVIDER';
+  const isYouTube = sourceType === 'YOUTUBE';
+  const isEmbed = isGenericEmbed || isYouTube;
+  const sourceInvalid = sourceType === 'INVALID';
 
   /*
    * Build the iframe source.
@@ -95,24 +99,19 @@ export const NetflixVideoPlayer = React.forwardRef(({
    * - Never convert a generic "/embed/" URL into YouTube.
    * - Never replace a provider URL with a demo MP4.
    * - Preserve the original provider/domain.
-   * - Only add autoplay=1 when Watch Together requests PLAY.
+   * - Keep YouTube-specific API params separate from generic embeds.
    */
-  const buildEmbedSource = useCallback((source, autoplay = false) => {
+  const buildEmbedSource = useCallback((source) => {
     if (!source) return source;
 
     /*
-     * YouTube is handled separately because it has its own iframe API
-     * parameters.
+     * YouTube is handled separately because it has its own iframe API parameters.
      */
     if (isYouTubeUrl(source)) {
       const id = getYouTubeVideoId(source);
-
-      if (!id) {
-        return source;
-      }
+      if (!id) return source;
 
       const params = new URLSearchParams({
-        autoplay: autoplay ? '1' : '0',
         enablejsapi: '1',
         origin:
           typeof window !== 'undefined'
@@ -126,21 +125,10 @@ export const NetflixVideoPlayer = React.forwardRef(({
     }
 
     /*
-     * For every other iframe provider:
-     * preserve the exact provider URL.
+     * Generic movie provider embeds (Servers 1-7):
+     * Return clean provider URL directly without forcing fake autoplay parameter reloads.
      */
-    if (!autoplay) {
-      return source;
-    }
-
-    try {
-      const url = new URL(source);
-      url.searchParams.set('autoplay', '1');
-      return url.toString();
-    } catch {
-      const separator = source.includes('?') ? '&' : '?';
-      return `${source}${separator}autoplay=1`;
-    }
+    return source;
   }, []);
 
   /*
@@ -447,11 +435,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
      * If server says PLAY, reload the same provider URL with autoplay=1.
      */
     if (isEmbed) {
-      if (syncIsPlaying) {
-        setEmbedPlaybackRequested(true);
-        setMediaState('READY');
-      }
-
+      setMediaState('READY');
       return;
     }
 
@@ -1031,7 +1015,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
         userSelect: 'none',
       }}
     >
-      {showIntro && (
+      {!isEmbed && showIntro && (
         <NetflixIntroScreen
           title="NETFLIX AI"
           onComplete={
@@ -1040,14 +1024,14 @@ export const NetflixVideoPlayer = React.forwardRef(({
         />
       )}
 
-      {speedBoost && (
+      {!isEmbed && speedBoost && (
         <div className="netflix-speed-badge">
           <FastForward size={16} />
           <span>2X SPEED</span>
         </div>
       )}
 
-      {seekRipple && (
+      {!isEmbed && seekRipple && (
         <div
           className={`netflix-seek-ripple ${seekRipple.side}`}
         >
@@ -1093,39 +1077,19 @@ export const NetflixVideoPlayer = React.forwardRef(({
         </div>
       ) : isEmbed ? (
         /*
-         * CROSS-ORIGIN PROVIDER
-         *
-         * The original provider URL is kept.
-         *
-         * When Watch Together says PLAY,
-         * embedPlaybackRequested becomes true
-         * and autoplay=1 is added.
+         * CROSS-ORIGIN EMBED PROVIDER (MODE B - Servers 1-7)
+         * Renders edge-to-edge clean provider iframe without fake transport controls.
          */
         <iframe
-          key={`${currentSource}|${embedPlaybackRequested
-              ? 'play'
-              : 'idle'
-            }`}
+          key={currentSource}
           ref={iframeRef}
-          src={buildEmbedSource(
-            currentSource,
-            embedPlaybackRequested
-          )}
+          src={buildEmbedSource(currentSource)}
           title={title}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; clipboard-write"
           allowFullScreen
           referrerPolicy="origin-when-cross-origin"
           onLoad={() => {
             setMediaState('READY');
-
-            if (
-              embedPlaybackRequested
-            ) {
-              console.log(
-                '[NetflixVideoPlayer] Embed loaded with autoplay request:',
-                currentSource
-              );
-            }
           }}
           onError={() => {
             setMediaState('ERROR');

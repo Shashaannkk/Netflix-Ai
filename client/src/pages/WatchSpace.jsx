@@ -48,7 +48,7 @@ import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
 import { fetchSeasonEpisodes } from '../services/tmdb';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
-import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId } from '../services/movieServers';
+import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId, classifySource } from '../services/movieServers';
 import {
   CINEMATIC_AVATARS,
   getStableAvatar,
@@ -718,16 +718,6 @@ const WatchSpace = () => {
   };
   const statusBadge = statusConfig[currentSpace?.status] || statusConfig.scheduled;
 
-  // ── Loading / Error states ──────────────────────────────────────────────────
-  if (spaceLoading && !currentSpace) {
-    return (
-      <div className="room-full-loader">
-        <Loader size={40} className="spin-icon" color="var(--netflix-red)" />
-        <span style={{ color: '#fff', marginTop: '1rem', fontWeight: 600 }}>Loading Netflix AI Watch Space…</span>
-      </div>
-    );
-  }
-
   const effectiveSpace = currentSpace || {
     _id: roomId || `demo-${Date.now()}`,
     status: 'live',
@@ -771,6 +761,16 @@ const WatchSpace = () => {
     return () => { isMounted = false; };
   }, [targetTmdbId, selectedSeason, isTvSeries]);
 
+  // ── Loading / Error states ──────────────────────────────────────────────────
+  if (spaceLoading && !currentSpace) {
+    return (
+      <div className="room-full-loader">
+        <Loader size={40} className="spin-icon" color="var(--netflix-red)" />
+        <span style={{ color: '#fff', marginTop: '1rem', fontWeight: 600 }}>Loading Netflix AI Watch Space…</span>
+      </div>
+    );
+  }
+
   // Compute stream URL using 8-Server Architecture (Server 1 Vidsrc default)
   let videoSrc = getServerStreamUrl({
     tmdbId: targetTmdbId,
@@ -788,6 +788,8 @@ const WatchSpace = () => {
       videoSrc = existingUrl;
     }
   }
+
+  const isEmbedServer = selectedServer !== 8 && classifySource(videoSrc) === 'EMBED_PROVIDER';
 
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;
@@ -818,8 +820,15 @@ const WatchSpace = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             {/* Live Sync Status Pill */}
-            <div className="room-sync-status-pill" title="Real-time Synchronization Engine">
-              {isHost ? (
+            <div
+              className="room-sync-status-pill"
+              title={isEmbedServer ? "Third-party movie provider embed mode: Manual play per user. Switch to Server 8 for AI Auto-Sync." : "Real-time Synchronization Engine"}
+            >
+              {isEmbedServer ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8' }}>
+                  <Globe size={12} color="#38bdf8" /> Provider Embed Mode
+                </span>
+              ) : isHost ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                   <Crown size={12} color="#f59e0b" /> Host Authoritative
                 </span>
@@ -828,7 +837,7 @@ const WatchSpace = () => {
                   <span className="live-green-dot" /> {syncStatus}
                 </span>
               )}
-              {driftInfo.rttMs > 0 && <span style={{ opacity: 0.7, marginLeft: '4px' }}>({driftInfo.rttMs}ms RTT)</span>}
+              {!isEmbedServer && driftInfo.rttMs > 0 && <span style={{ opacity: 0.7, marginLeft: '4px' }}>({driftInfo.rttMs}ms RTT)</span>}
             </div>
 
             {/* Status badge */}
@@ -912,6 +921,36 @@ const WatchSpace = () => {
               }
             }}
           />
+
+          {/* Third-Party Embed Mode Provider Guidance Banner */}
+          {isEmbedServer && (
+            <div
+              className="embed-provider-notice-banner"
+              style={{
+                position: 'absolute',
+                bottom: '16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                color: '#e2e8f0',
+                padding: '6px 16px',
+                borderRadius: '20px',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                zIndex: 30,
+                pointerEvents: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+              }}
+            >
+              <Globe size={13} color="#38bdf8" />
+              <span>Click <strong>Play</strong> inside the provider player. (Switch to Server 8 for AI Auto-Sync)</span>
+            </div>
+          )}
         </div>
 
         {/* Authored Timeline Trivia Card Overlay */}
