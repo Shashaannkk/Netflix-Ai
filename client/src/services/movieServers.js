@@ -203,6 +203,23 @@ export const getYouTubeVideoId = (url) => {
 };
 
 /**
+ * Check if a URL is an obsolete or broken sample media URL (e.g. Google Cloud sample URLs)
+ */
+export const isObsoleteSampleUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('commondatastorage.googleapis.com') ||
+    lower.includes('gtv-videos-bucket') ||
+    lower.includes('tearsofsteel') ||
+    lower.includes('bigbuckbunny') ||
+    lower.includes('sintel') ||
+    lower.includes('elephantsdream') ||
+    lower.includes('forbiggerblazes')
+  );
+};
+
+/**
  * Classify stream source type: 'DIRECT_MEDIA' | 'YOUTUBE' | 'EMBED_PROVIDER' | 'INVALID'
  */
 export const classifySource = (url) => {
@@ -211,6 +228,11 @@ export const classifySource = (url) => {
   }
 
   const cleanUrl = url.trim();
+
+  // Reject obsolete broken Google Cloud sample URLs
+  if (isObsoleteSampleUrl(cleanUrl)) {
+    return 'INVALID';
+  }
 
   // Reject malformed internal tmdb-movie string
   if (cleanUrl.includes('tmdb-movie-') || cleanUrl.includes('tmdb=null') || cleanUrl.includes('tmdb=undefined')) {
@@ -232,8 +254,7 @@ export const classifySource = (url) => {
     cleanUrl.includes('.mp4?') ||
     cleanUrl.includes('.webm?') ||
     cleanUrl.includes('vjs.zencdn.net') ||
-    cleanUrl.includes('w3.org') ||
-    cleanUrl.includes('/sample/')
+    cleanUrl.includes('w3.org')
   ) {
     return 'DIRECT_MEDIA';
   }

@@ -48,7 +48,7 @@ import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
 import { fetchSeasonEpisodes } from '../services/tmdb';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
-import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId, classifySource, getPlayerMode, SERVER_8_CANONICAL_SOURCE } from '../services/movieServers';
+import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId, classifySource, getPlayerMode, SERVER_8_CANONICAL_SOURCE, isObsoleteSampleUrl } from '../services/movieServers';
 import {
   CINEMATIC_AVATARS,
   getStableAvatar,
@@ -770,12 +770,21 @@ const WatchSpace = () => {
   });
 
   // Backward compatibility fallback for old records without tmdbId:
-  // Use existing stored videoAssetUrl if targetTmdbId is missing and videoAssetUrl is valid
-  if (!videoSrc && !targetTmdbId && effectiveSpace?.titleId?.videoAssetUrl) {
+  // Use existing stored videoAssetUrl if targetTmdbId is missing and videoAssetUrl is valid & not an obsolete sample URL
+  if (!videoSrc && effectiveSpace?.titleId?.videoAssetUrl) {
     const existingUrl = effectiveSpace.titleId.videoAssetUrl;
-    if (typeof existingUrl === 'string' && (existingUrl.startsWith('http://') || existingUrl.startsWith('https://'))) {
+    if (
+      typeof existingUrl === 'string' &&
+      (existingUrl.startsWith('http://') || existingUrl.startsWith('https://')) &&
+      !isObsoleteSampleUrl(existingUrl)
+    ) {
       videoSrc = existingUrl;
     }
+  }
+
+  // Final safety net: If videoSrc is missing, invalid, or obsolete, default to SERVER_8_CANONICAL_SOURCE
+  if (!videoSrc || classifySource(videoSrc) === 'INVALID') {
+    videoSrc = SERVER_8_CANONICAL_SOURCE;
   }
 
   const isEmbedServer = getPlayerMode(videoSrc) === 'provider';
