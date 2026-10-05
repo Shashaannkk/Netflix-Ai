@@ -4,6 +4,8 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
+export const SERVER_8_CANONICAL_SOURCE = 'https://vjs.zencdn.net/v/oceans.mp4';
+
 export const MOVIE_SERVERS = [
   {
     id: 1,
@@ -71,9 +73,9 @@ export const MOVIE_SERVERS = [
   {
     id: 8,
     name: 'Server 8',
-    label: 'Server 8 (AI Auto-Sync Demo MP4)',
+    label: 'Server 8 — Native Sync Demo',
     provider: 'Direct HTML5 Demo Engine',
-    badge: 'AI Auto-Sync Test',
+    badge: 'Native Sync Demo',
     icon: '🎞️',
     bullets: ['HTML5 Direct MP4 Demo', 'AI Auto-Sync & Drift Engine', 'Direct Media Test Source']
   }
@@ -134,7 +136,7 @@ export const getServerStreamUrl = ({ tmdbId, isTv = false, season = 1, episode =
 
   // Server 8: Direct HTML5 test video — independent of TMDB ID
   if (num === 8) {
-    return `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4`;
+    return SERVER_8_CANONICAL_SOURCE;
   }
 
   const cleanId = cleanTmdbId(tmdbId);
@@ -223,14 +225,15 @@ export const classifySource = (url) => {
 
   // Direct HTML5 Media (.mp4, .webm, .m3u8, or Server 8 sample)
   if (
+    cleanUrl === SERVER_8_CANONICAL_SOURCE ||
     cleanUrl.endsWith('.mp4') ||
     cleanUrl.endsWith('.webm') ||
     cleanUrl.endsWith('.m3u8') ||
     cleanUrl.includes('.mp4?') ||
     cleanUrl.includes('.webm?') ||
-    cleanUrl.includes('/sample/TearsOfSteel.mp4') ||
-    cleanUrl.includes('/sample/BigBuckBunny.mp4') ||
-    cleanUrl.includes('/sample/Sintel.mp4')
+    cleanUrl.includes('vjs.zencdn.net') ||
+    cleanUrl.includes('w3.org') ||
+    cleanUrl.includes('/sample/')
   ) {
     return 'DIRECT_MEDIA';
   }
@@ -244,8 +247,19 @@ export const classifySource = (url) => {
 };
 
 /**
+ * Single authoritative player mode decision: 'native' | 'provider' | 'invalid'
+ */
+export const getPlayerMode = (url) => {
+  const type = classifySource(url);
+  if (type === 'DIRECT_MEDIA') return 'native';
+  if (type === 'EMBED_PROVIDER' || type === 'YOUTUBE') return 'provider';
+  return 'invalid';
+};
+
+/**
  * Helper to check if a URL is an iframe embed provider (Servers 1-7 or YouTube embeds)
  */
 export const isEmbedProviderUrl = (url) => {
-  return classifySource(url) === 'EMBED_PROVIDER' || classifySource(url) === 'YOUTUBE';
+  return getPlayerMode(url) === 'provider';
 };
+

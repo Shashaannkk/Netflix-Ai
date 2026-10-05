@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Play, Users, Star, Clock, Calendar, Sparkles, Film, ExternalLink, Share2, Heart, User, Server, Layers, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchTrailerKey, getImageUrl, fetchMediaCredits, fetchSimilarMedia, fetchSeasonEpisodes, fetchMediaDetails } from '../services/tmdb';
-import { MOVIE_SERVERS, getServerStreamUrl } from '../services/movieServers';
+import { MOVIE_SERVERS, getServerStreamUrl, SERVER_8_CANONICAL_SOURCE } from '../services/movieServers';
 
 export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const [currentMedia, setCurrentMedia] = useState(media);
@@ -144,7 +144,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
               <div className="cb-modal-iframe-wrapper">
                 {selectedServer === 8 ? (
                   <video
-                    src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+                    src={SERVER_8_CANONICAL_SOURCE}
                     controls
                     autoPlay
                     className="cb-modal-iframe"

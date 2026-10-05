@@ -1,3 +1,5 @@
+import { SERVER_8_CANONICAL_SOURCE } from './movieServers';
+
 const TMDB_API_KEYS = [
   import.meta.env.VITE_TMDB_API_KEY,
   '484366b7235bc8db84aba0f9e3b1bec6',
@@ -20,7 +22,7 @@ export const CURATED_MOVIES = [
     release_date: '1999-10-15',
     media_type: 'movie',
     trailer_key: 'qtRKDV93s2s',
-    videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
     genres: ['Drama', 'Thriller']
   },
   {
@@ -33,7 +35,7 @@ export const CURATED_MOVIES = [
     release_date: '2014-11-05',
     media_type: 'movie',
     trailer_key: 'zSWdZVtXT7E',
-    videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
     genres: ['Adventure', 'Drama', 'Science Fiction']
   },
   {
@@ -46,7 +48,7 @@ export const CURATED_MOVIES = [
     release_date: '2010-07-15',
     media_type: 'movie',
     trailer_key: 'YoHD9XEInc0',
-    videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
     genres: ['Action', 'Science Fiction', 'Adventure']
   },
   {
@@ -59,7 +61,7 @@ export const CURATED_MOVIES = [
     release_date: '2018-04-25',
     media_type: 'movie',
     trailer_key: '6ZfuNTqbHE8',
-    videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
     genres: ['Action', 'Adventure', 'Science Fiction']
   },
   {
@@ -72,7 +74,7 @@ export const CURATED_MOVIES = [
     release_date: '2008-07-16',
     media_type: 'movie',
     trailer_key: 'EXeTwQWrcwY',
-    videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
     genres: ['Drama', 'Action', 'Crime', 'Thriller']
   },
   {
@@ -85,7 +87,7 @@ export const CURATED_MOVIES = [
     release_date: '2001-11-16',
     media_type: 'movie',
     trailer_key: 'VyHV0BRmydw',
-    videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
     genres: ['Adventure', 'Fantasy']
   }
 ];

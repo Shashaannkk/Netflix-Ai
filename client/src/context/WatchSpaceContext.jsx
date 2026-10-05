@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { getSpace, updateSpaceStatus, leaveSpace, getSpaceMessages } from '../services/watchSpaceApi';
 import { getAccessToken } from '../services/api';
 import { useAuth } from './AuthContext';
+import { SERVER_8_CANONICAL_SOURCE } from '../services/movieServers';
 
 const getWatchSpaceSocketUrl = () => {
   const envUrl = import.meta.env.VITE_SOCKET_URL;
@@ -697,7 +698,7 @@ export const WatchSpaceProvider = ({ children }) => {
             ageRating: '16+',
             poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
             backdropUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop',
-            videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+            videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
           },
         };
         return fallbackSpace;

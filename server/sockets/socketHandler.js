@@ -20,6 +20,20 @@ import ChatMessage from '../models/ChatMessage.js';
 const roomsState = new Map();
 
 /**
+ * Helper to validate and coerce integer inputs within optional min/max bounds.
+ * Returns null if invalid (non-numeric, NaN, Infinity, decimal, out of bounds).
+ * Returns undefined if input is undefined or null (not provided).
+ */
+const parseBoundedInt = (val, min, max) => {
+  if (val === undefined || val === null) return undefined;
+  const num = Number(val);
+  if (!Number.isFinite(num) || !Number.isInteger(num)) return null;
+  if (min !== undefined && num < min) return null;
+  if (max !== undefined && num > max) return null;
+  return num;
+};
+
+/**
  * Standardized PRD event envelope helper.
  */
 const buildEnvelope = (event, watchSpaceId, payload) => ({
@@ -272,9 +286,9 @@ export const initSocketHandler = (io) => {
               positionSeconds: 0,
               changedAtServerMs: Date.now(),
               playbackRate: 1.0,
-              serverNum: 1,
-              season: 1,
-              episode: 1,
+              serverNum: space?.settings?.serverNum || 1,
+              season: space?.settings?.season || 1,
+              episode: space?.settings?.episode || 1,
             },
             version: 1,
             hostSocketId: isHost ? socket.id : null,
@@ -431,31 +445,68 @@ export const initSocketHandler = (io) => {
     });
 
     // ── 3b. Server & Season/Episode Change (Host Only) ────────────────────────
-    socket.on('room.server.change', (data) => {
+    socket.on('room.server.change', async (data) => {
       const { watchSpaceId, payload } = data || {};
       if (!user || !watchSpaceId || !payload) return;
 
       const room = roomsState.get(watchSpaceId);
       if (!room) return;
 
+      // Strict Host Authorization: Compare socket user.id with room.hostUserId
       if (user.id !== room.hostUserId && user.role !== 'admin') {
         socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Unauthorized: Only the host can change server or episode.' }));
         return;
       }
 
       const { serverNum, season, episode, positionSeconds } = payload;
+
+      // TASK 1: Strict input validation
+      const validServer = parseBoundedInt(serverNum, 1, 8);
+      const validSeason = parseBoundedInt(season, 1, undefined);
+      const validEpisode = parseBoundedInt(episode, 1, undefined);
+
+      if (serverNum !== undefined && validServer === null) {
+        socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Invalid server selection. Must be an integer between 1 and 8.' }));
+        return;
+      }
+      if (season !== undefined && validSeason === null) {
+        socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Invalid season selection. Must be a positive integer >= 1.' }));
+        return;
+      }
+      if (episode !== undefined && validEpisode === null) {
+        socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Invalid episode selection. Must be a positive integer >= 1.' }));
+        return;
+      }
+
       const nowMs = Date.now();
       room.version += 1;
 
-      if (typeof serverNum === 'number') room.playback.serverNum = serverNum;
-      if (typeof season === 'number') room.playback.season = season;
-      if (typeof episode === 'number') room.playback.episode = episode;
+      if (validServer !== undefined) room.playback.serverNum = validServer;
+      if (validSeason !== undefined) room.playback.season = validSeason;
+      if (validEpisode !== undefined) room.playback.episode = validEpisode;
 
-      if (typeof positionSeconds === 'number') {
+      if (typeof positionSeconds === 'number' && Number.isFinite(positionSeconds)) {
         room.playback.positionSeconds = Math.max(0, positionSeconds);
         room.playback.changedAtServerMs = nowMs;
       }
 
+      // TASK 3: Persist active source state to MongoDB WatchSpace document
+      if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
+        try {
+          const updateObj = {};
+          if (validServer !== undefined) updateObj['settings.serverNum'] = validServer;
+          if (validSeason !== undefined) updateObj['settings.season'] = validSeason;
+          if (validEpisode !== undefined) updateObj['settings.episode'] = validEpisode;
+
+          if (Object.keys(updateObj).length > 0) {
+            await WatchSpace.findByIdAndUpdate(watchSpaceId, updateObj);
+          }
+        } catch (dbErr) {
+          console.warn(`[Socket.IO] Could not persist source state for space ${watchSpaceId}:`, dbErr.message);
+        }
+      }
+
+      // TASK 7: Authoritative Broadcast to all room participants
       const envelope = buildEnvelope('room.playback.update', watchSpaceId, {
         action: 'server_change',
         state: room.playback.state,

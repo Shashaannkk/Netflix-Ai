@@ -75,6 +75,25 @@ const watchSpaceSettingsSchema = new mongoose.Schema(
       type: String,
       default: 'server_alpha',
     },
+    // Authoritative numeric server selection (1-8)
+    serverNum: {
+      type: Number,
+      min: 1,
+      max: 8,
+      default: 1,
+    },
+    // Authoritative TV season number
+    season: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+    // Authoritative TV episode number
+    episode: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
     // Explicit video stream URL selected by host on room creation
     videoAssetUrl: {
       type: String,

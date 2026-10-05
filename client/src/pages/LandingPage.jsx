@@ -366,8 +366,8 @@ export const LandingPage = ({ initialTab }) => {
               filter: 'brightness(0.68) contrast(1.15)'
             }}
           >
-            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4" type="video/mp4" />
-            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4" type="video/mp4" />
+            <source src="https://vjs.zencdn.net/v/oceans.mp4" type="video/mp4" />
+            <source src="https://media.w3.org/2010/05/sintel/trailer.mp4" type="video/mp4" />
           </video>
 
           {/* YouTube Trailer Layer for Stranger Things (Scaled 1.65x so ALL play/pause/forward buttons & headers are pushed off screen) */}

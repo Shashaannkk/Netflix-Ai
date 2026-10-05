@@ -97,7 +97,7 @@ export const recordUserInteraction = async (req, res) => {
           genres: Array.isArray(genres) ? genres : ['Movie'],
           poster: poster || null,
           backdropUrl: backdropUrl || null,
-          videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+          videoAssetUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
           isPublished: true,
         });
       }

@@ -48,7 +48,7 @@ import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
 import { fetchSeasonEpisodes } from '../services/tmdb';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
-import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId, classifySource } from '../services/movieServers';
+import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId, classifySource, getPlayerMode, SERVER_8_CANONICAL_SOURCE } from '../services/movieServers';
 import {
   CINEMATIC_AVATARS,
   getStableAvatar,
@@ -258,10 +258,10 @@ const WatchSpace = () => {
     }
   }, [playbackState.serverNum, playbackState.season, playbackState.episode]);
 
-  // Host Action Handlers
+  // Host Action Handlers (Authoritative Socket State Source of Truth)
   const handleSelectServer = (sNum) => {
-    setSelectedServer(sNum);
-    if (isHost && sendServerChange) {
+    if (!isHost) return;
+    if (sendServerChange) {
       sendServerChange({
         serverNum: sNum,
         season: selectedSeason,
@@ -272,9 +272,8 @@ const WatchSpace = () => {
   };
 
   const handleSelectSeason = (seasonNum) => {
-    setSelectedSeason(seasonNum);
-    setSelectedEpisode(1);
-    if (isHost && sendServerChange) {
+    if (!isHost) return;
+    if (sendServerChange) {
       sendServerChange({
         serverNum: selectedServer,
         season: seasonNum,
@@ -285,8 +284,8 @@ const WatchSpace = () => {
   };
 
   const handleSelectEpisode = (epNum) => {
-    setSelectedEpisode(epNum);
-    if (isHost && sendServerChange) {
+    if (!isHost) return;
+    if (sendServerChange) {
       sendServerChange({
         serverNum: selectedServer,
         season: selectedSeason,
@@ -721,7 +720,7 @@ const WatchSpace = () => {
       title: 'Tears of Steel (Netflix AI Feature)',
       poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
       backdropUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop',
-      videoAssetUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+      videoAssetUrl: SERVER_8_CANONICAL_SOURCE,
     }
   };
 
@@ -779,7 +778,7 @@ const WatchSpace = () => {
     }
   }
 
-  const isEmbedServer = selectedServer !== 8 && classifySource(videoSrc) === 'EMBED_PROVIDER';
+  const isEmbedServer = getPlayerMode(videoSrc) === 'provider';
 
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;
@@ -1215,7 +1214,9 @@ const WatchSpace = () => {
               {MOVIE_SERVERS.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => handleSelectServer(s.id)}
+                  onClick={() => isHost && handleSelectServer(s.id)}
+                  disabled={!isHost}
+                  title={isHost ? `Switch to ${s.label}` : "Server selection is controlled by the Host"}
                   style={{
                     background: selectedServer === s.id ? 'var(--netflix-red)' : 'rgba(255,255,255,0.08)',
                     color: '#fff',
@@ -1224,7 +1225,8 @@ const WatchSpace = () => {
                     padding: '0.5rem 0.75rem',
                     fontSize: '0.78rem',
                     fontWeight: selectedServer === s.id ? 800 : 600,
-                    cursor: 'pointer',
+                    cursor: isHost ? 'pointer' : 'not-allowed',
+                    opacity: isHost ? 1 : 0.65,
                     textAlign: 'left',
                     display: 'flex',
                     alignItems: 'center',
@@ -1252,7 +1254,9 @@ const WatchSpace = () => {
 
                   <select
                     value={selectedSeason}
-                    onChange={(e) => handleSelectSeason(Number(e.target.value))}
+                    disabled={!isHost}
+                    onChange={(e) => isHost && handleSelectSeason(Number(e.target.value))}
+                    title={isHost ? "Select season" : "Season selection is controlled by the Host"}
                     style={{
                       background: '#222',
                       color: '#fff',
@@ -1261,7 +1265,8 @@ const WatchSpace = () => {
                       padding: '0.35rem 0.75rem',
                       fontSize: '0.82rem',
                       fontWeight: 700,
-                      cursor: 'pointer',
+                      cursor: isHost ? 'pointer' : 'not-allowed',
+                      opacity: isHost ? 1 : 0.65,
                     }}
                   >
                     {[1, 2, 3, 4, 5, 6].map((sNum) => (
@@ -1278,13 +1283,15 @@ const WatchSpace = () => {
                     episodes.map((ep) => (
                       <div
                         key={ep.id || ep.episode_number}
-                        onClick={() => handleSelectEpisode(ep.episode_number)}
+                        onClick={() => isHost && handleSelectEpisode(ep.episode_number)}
+                        title={isHost ? `Select Episode ${ep.episode_number}` : "Episode selection is controlled by the Host"}
                         style={{
                           background: selectedEpisode === ep.episode_number ? 'rgba(229,9,20,0.25)' : '#222',
                           border: selectedEpisode === ep.episode_number ? '1px solid var(--netflix-red)' : '1px solid rgba(255,255,255,0.1)',
                           borderRadius: '6px',
                           padding: '0.5rem',
-                          cursor: 'pointer',
+                          cursor: isHost ? 'pointer' : 'not-allowed',
+                          opacity: isHost ? 1 : 0.65,
                           fontSize: '0.78rem',
                           fontWeight: selectedEpisode === ep.episode_number ? 800 : 500,
                         }}
@@ -1296,13 +1303,15 @@ const WatchSpace = () => {
                     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((epNum) => (
                       <div
                         key={epNum}
-                        onClick={() => handleSelectEpisode(epNum)}
+                        onClick={() => isHost && handleSelectEpisode(epNum)}
+                        title={isHost ? `Select Episode ${epNum}` : "Episode selection is controlled by the Host"}
                         style={{
                           background: selectedEpisode === epNum ? 'rgba(229,9,20,0.25)' : '#222',
                           border: selectedEpisode === epNum ? '1px solid var(--netflix-red)' : '1px solid rgba(255,255,255,0.1)',
                           borderRadius: '6px',
                           padding: '0.5rem',
-                          cursor: 'pointer',
+                          cursor: isHost ? 'pointer' : 'not-allowed',
+                          opacity: isHost ? 1 : 0.65,
                           fontSize: '0.78rem',
                           fontWeight: selectedEpisode === epNum ? 800 : 500,
                         }}
@@ -1366,13 +1375,14 @@ const WatchSpace = () => {
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
 
-              {/* Authoritative 8-Server Selector (Server 1 Vidsrc Default) */}
+              {/* Authoritative 8-Server Selector */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: 'rgba(229,9,20,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(229,9,20,0.5)' }}>
                 <Radio size={15} color="#e50914" />
                 <select
                   id="room-server-selector"
                   value={selectedServer}
-                  onChange={(e) => handleSelectServer(Number(e.target.value))}
+                  disabled={!isHost}
+                  onChange={(e) => isHost && handleSelectServer(Number(e.target.value))}
                   style={{
                     background: 'transparent',
                     color: '#fff',
@@ -1380,9 +1390,10 @@ const WatchSpace = () => {
                     outline: 'none',
                     fontSize: '0.75rem',
                     fontWeight: 'bold',
-                    cursor: 'pointer',
+                    cursor: isHost ? 'pointer' : 'not-allowed',
+                    opacity: isHost ? 1 : 0.75,
                   }}
-                  title="Select Streaming Server Mirror (Server 1 Vidsrc Default)"
+                  title={isHost ? "Select Streaming Server Mirror" : "Server selection is controlled by the Host"}
                 >
                   {MOVIE_SERVERS.map((s) => (
                     <option key={s.id} value={s.id} style={{ background: '#141414', color: '#fff' }}>
