@@ -73,7 +73,7 @@ const seedData = [
     releaseYear: 2025,
     poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
     backdropUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop',
-    videoAssetUrl: '/media/Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv',
+    videoAssetUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isPublished: true,
     timeline: sampleTimeline,
   },

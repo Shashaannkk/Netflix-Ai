@@ -4,37 +4,13 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const getBackendServerUrl = () => {
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    const protocol = window.location.protocol;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return `${protocol}//${host}:5000`;
-    }
-    const envUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL;
-    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
-      return envUrl.replace(/\/api\/?$/, '');
-    }
-    return window.location.origin;
-  }
-  return 'http://localhost:5000';
-};
-
-export const KANTARA_LOCAL_FILE_NAME = 'Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv';
-
-export const getKantaraAuthorizedSource = () => {
-  return `${getBackendServerUrl()}/media/${KANTARA_LOCAL_FILE_NAME}`;
-};
-
-export const SERVER_8_CANONICAL_SOURCE = getKantaraAuthorizedSource();
+export const SERVER_8_CANONICAL_SOURCE = 'https://vjs.zencdn.net/v/oceans.mp4';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
   movieIdentifier: 'kantara-chapter-1-demo',
   tmdbId: 964980,
-  get authorizedVideoSource() {
-    return getKantaraAuthorizedSource();
-  },
+  authorizedVideoSource: SERVER_8_CANONICAL_SOURCE,
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
     { code: 'en', label: 'English' },
