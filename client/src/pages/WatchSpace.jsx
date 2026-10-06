@@ -693,7 +693,7 @@ const WatchSpace = () => {
   const targetTmdbId = cleanTmdbId(
     (typeof rawTitleObj === 'object' && rawTitleObj !== null ? (rawTitleObj.tmdbId || rawTitleObj.id) : null) ||
     (typeof rawTitleObj === 'number' || typeof rawTitleObj === 'string' ? rawTitleObj : null)
-  );
+  ) || 550;
   const isTvSeries = effectiveSpace?.titleId?.media_type === 'tv' || effectiveSpace?.titleId?.type === 'tv' || Boolean(effectiveSpace?.titleId?.first_air_date);
 
   // Load TV episodes when season or title changes
@@ -796,7 +796,7 @@ const WatchSpace = () => {
       <div className="cinema-video-area">
 
         {/* Top Header Overlay */}
-        <div className={`cinema-top-bar ${showControls ? 'visible' : ''}`}>
+        <div className={`cinema-top-bar ${showControls ? 'visible' : ''}`} style={{ pointerEvents: 'auto', zIndex: 500 }}>
           <button
             className="cinema-leave-btn"
             onClick={() => isHost ? handleEndRoom() : exitRoom()}

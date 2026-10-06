@@ -141,13 +141,15 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
     if (currentScene) {
       const p = currentScene.payload;
       answerText = `At timestamp ${formatSec(currentTs)}, the current scene is **"${p.sceneName || 'Untitled Scene'}"** set in **${p.location || 'Unknown Location'}**. ${p.synopsis || p.description || ''}`;
+    } else if (matchedEvents.length === 0 && (!titleDoc?.timeline || titleDoc.timeline.length === 0)) {
+      answerText = 'The available timeline metadata does not contain enough information to answer this question.';
     } else if (titleDoc?.title && titleDoc?.description) {
       const genresStr = Array.isArray(titleDoc.genres) ? titleDoc.genres.join(', ') : (titleDoc.genres || '');
       answerText = `You are watching **${titleDoc.title}**${genresStr ? ` (${genresStr})` : ''} at timestamp ${formatSec(currentTs)}. ${titleDoc.description}`;
     } else if (titleDoc?.title) {
       answerText = `At timestamp ${formatSec(currentTs)} in **${titleDoc.title}**, the scene portrays key plot developments as recorded in the title context.`;
     } else {
-      answerText = 'The available room and movie data does not contain enough information to answer this question.';
+      answerText = 'The available timeline metadata does not contain enough information to answer this question.';
     }
   }
 

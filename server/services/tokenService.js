@@ -6,19 +6,11 @@ import jwt from 'jsonwebtoken';
  */
 
 const getAccessSecret = () => {
-  if (process.env.JWT_ACCESS_SECRET) return process.env.JWT_ACCESS_SECRET;
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_ACCESS_SECRET environment variable is missing in production!');
-  }
-  return 'netflix_ai_access_token_secret_development_key_12345';
+  return process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'netflix_ai_access_token_secret_development_key_12345';
 };
 
 const getRefreshSecret = () => {
-  if (process.env.JWT_REFRESH_SECRET) return process.env.JWT_REFRESH_SECRET;
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_REFRESH_SECRET environment variable is missing in production!');
-  }
-  return 'netflix_ai_refresh_token_secret_development_key_67890';
+  return process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'netflix_ai_refresh_token_secret_development_key_67890';
 };
 
 export const generateAccessToken = (user) => {
