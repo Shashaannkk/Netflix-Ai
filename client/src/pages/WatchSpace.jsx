@@ -239,8 +239,8 @@ const WatchSpace = () => {
   const [showControls, setShowControls] = useState(true);
   const [syncStatus, setSyncStatus]     = useState('Syncing…');
 
-  // Multi-server & Episode state (Default Server 6 = Working Default)
-  const [selectedServer, setSelectedServer]   = useState(playbackState?.serverNum || 6);
+  // Multi-server & Episode state (Default Server 9 = Watch Together Demo Engine)
+  const [selectedServer, setSelectedServer]   = useState(playbackState?.serverNum || 9);
   const [selectedSeason, setSelectedSeason]   = useState(playbackState?.season || 1);
   const [selectedEpisode, setSelectedEpisode] = useState(playbackState?.episode || 1);
   const [episodes, setEpisodes]               = useState([]);
