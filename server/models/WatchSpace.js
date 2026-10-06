@@ -80,7 +80,7 @@ const watchSpaceSettingsSchema = new mongoose.Schema(
       type: Number,
       min: 1,
       max: 9,
-      default: 1,
+      default: 9,
     },
     // Authoritative TV season number
     season: {

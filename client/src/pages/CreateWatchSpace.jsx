@@ -754,49 +754,7 @@ const CreateWatchSpace = () => {
                 </div>
               </div>
 
-              {/* Streaming Servers */}
-              {mediaChoice === 'movie' && (
-                <div className="cs-card">
-                  <div className="cs-card-header">
-                    <Server size={15} className="cs-header-icon" />
-                    <span>Select Streaming Server / Provider</span>
-                  </div>
-                  <div className="cs-servers-grid">
-                    {MOVIE_SERVERS.map((srv) => (
-                      <button
-                        key={srv.id}
-                        type="button"
-                        id={`server-${srv.id}-btn`}
-                        className={`cs-server-card ${selectedServer === srv.id ? 'active' : ''}`}
-                        onClick={() => setSelectedServer(srv.id)}
-                      >
-                        <div className="cs-server-top">
-                          <span className="cs-server-name">
-                            {srv.icon} {srv.name}
-                          </span>
-                          {srv.badge && (
-                            <span className="cs-recommended-tag">{srv.badge}</span>
-                          )}
-                          {selectedServer === srv.id && (
-                            <div className="cs-check-badge cs-check-badge-sm">
-                              <Check size={10} color="#fff" />
-                            </div>
-                          )}
-                        </div>
-                        <span className="cs-server-provider">{srv.provider}</span>
-                        <ul className="cs-server-bullets">
-                          {srv.bullets.map((b, idx) => (
-                            <li key={idx}>
-                              <Check size={11} className="cs-bullet-icon" />
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               {/* Room Settings */}
               <div className="cs-card">
