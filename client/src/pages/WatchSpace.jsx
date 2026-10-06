@@ -244,9 +244,9 @@ const WatchSpace = () => {
   const [episodes, setEpisodes]               = useState([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
-  // Sync state when incoming socket playback state updates
+  // Sync state when incoming socket playback state updates for viewers
   useEffect(() => {
-    if (playbackState.serverNum && playbackState.serverNum !== selectedServer) {
+    if (!isHost && playbackState.serverNum && playbackState.serverNum !== selectedServer) {
       console.log('[WATCHSPACE PARTICIPANT SYNC SERVER]', {
         prevServer: selectedServer,
         newServer: playbackState.serverNum,
@@ -342,6 +342,46 @@ const WatchSpace = () => {
     setShowDemoBanner(false);
     sessionStorage.setItem('dismissed_watch_together_demo_banner', 'true');
   };
+
+  // Host Screen Casting State
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenStream, setScreenStream]       = useState(null);
+  const screenVideoRef                        = useRef(null);
+
+  const startScreenCast = async () => {
+    if (!isHost) return;
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: true,
+      });
+      setScreenStream(stream);
+      setIsScreenSharing(true);
+
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        track.onended = () => {
+          stopScreenCast();
+        };
+      }
+    } catch (err) {
+      console.warn('[Screen Share] User cancelled or unsupported:', err);
+    }
+  };
+
+  const stopScreenCast = () => {
+    if (screenStream) {
+      screenStream.getTracks().forEach((t) => t.stop());
+    }
+    setScreenStream(null);
+    setIsScreenSharing(false);
+  };
+
+  useEffect(() => {
+    if (screenVideoRef.current && screenStream) {
+      screenVideoRef.current.srcObject = screenStream;
+    }
+  }, [screenStream, isScreenSharing]);
 
   useEffect(() => {
     setShowTriviaAnswer(false);
@@ -836,14 +876,32 @@ const WatchSpace = () => {
 
         {/* Top Header Overlay */}
         <div className={`cinema-top-bar ${showControls ? 'visible' : ''}`} style={{ pointerEvents: 'auto', zIndex: 500 }}>
-          <button
-            className="cinema-leave-btn"
-            onClick={() => isHost ? handleEndRoom() : exitRoom()}
-            title="Leave Watch Party"
-          >
-            <ArrowLeft size={16} color="#e50914" />
-            <span>Leave Watch Party</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              className="cinema-leave-btn"
+              onClick={() => isHost ? handleEndRoom() : exitRoom()}
+              title="Leave Watch Party"
+            >
+              <ArrowLeft size={16} color="#e50914" />
+              <span>Leave Watch Party</span>
+            </button>
+
+            {isHost && (
+              <button
+                className="cinema-leave-btn"
+                onClick={isScreenSharing ? stopScreenCast : startScreenCast}
+                style={{
+                  background: isScreenSharing ? 'rgba(239,68,68,0.25)' : 'rgba(56,189,248,0.2)',
+                  border: isScreenSharing ? '1px solid #ef4444' : '1px solid #38bdf8',
+                  color: isScreenSharing ? '#ef4444' : '#38bdf8',
+                }}
+                title={isScreenSharing ? "Stop Live Screen Stream" : "Capture & Cast Host Screen Live to Viewers"}
+              >
+                <Radio size={14} color={isScreenSharing ? '#ef4444' : '#38bdf8'} />
+                <span>{isScreenSharing ? 'Stop Screen Cast' : 'Stream Screen Live'}</span>
+              </button>
+            )}
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             {/* Authoritative Server Selector Dropdown (Header) */}
@@ -1019,25 +1077,42 @@ const WatchSpace = () => {
         )}
 
         {/* Video Canvas / Netflix AI Custom Player */}
+        {/* Video Canvas / Netflix AI Custom Player / Screen Share Stream */}
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-          <NetflixVideoPlayer
-            key={`player_s${selectedServer}_${videoSrc}`}
-            ref={videoRef}
-            src={videoSrc}
-            poster={videoPoster}
-            title={titleName}
-            isHost={isHost}
-            serverNum={selectedServer}
-            duration={duration}
-            syncTime={playbackState.positionSeconds ?? playbackState.currentTime}
-            syncIsPlaying={playbackState.state === 'playing' || playbackState.isPlaying}
-            onTimeUpdate={(t) => setCurrentTime(t)}
-            onPlaybackChange={(data) => {
-              if (isHost) {
-                sendPlaybackUpdate(data);
-              }
-            }}
-          />
+          {isScreenSharing ? (
+            <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }}>
+              <video
+                ref={screenVideoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+              <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(229,9,20,0.95)', color: '#fff', padding: '6px 14px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.7)', zIndex: 30 }}>
+                <span className="live-green-dot" style={{ background: '#fff' }} /> 🔴 HOST LIVE SCREEN CASTING ACTIVE
+              </div>
+            </div>
+          ) : (
+            <NetflixVideoPlayer
+              key={`player_s${selectedServer}_${videoSrc}`}
+              ref={videoRef}
+              src={videoSrc}
+              poster={videoPoster}
+              title={titleName}
+              isHost={isHost}
+              serverNum={selectedServer}
+              duration={duration}
+              syncTime={playbackState.positionSeconds ?? playbackState.currentTime}
+              syncIsPlaying={playbackState.state === 'playing' || playbackState.isPlaying}
+              hideDefaultControls={true}
+              onTimeUpdate={(t) => setCurrentTime(t)}
+              onPlaybackChange={(data) => {
+                if (isHost) {
+                  sendPlaybackUpdate(data);
+                }
+              }}
+            />
+          )}
         </div>
 
         {/* Authored Timeline Trivia Card Overlay */}
