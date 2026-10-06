@@ -185,6 +185,14 @@ export const WatchSpaceProvider = ({ children }) => {
       const { payload } = envelope || {};
       if (!payload) return;
 
+      console.log('[WATCHSPACE PARTICIPANT UPDATE]', {
+        serverNum: payload.serverNum,
+        season: payload.season,
+        episode: payload.episode,
+        version: payload.version,
+        action: payload.action,
+      });
+
       const now = Date.now();
       const estimatedServerNow = now + clockOffsetMsRef.current;
       const isPlaying = payload.state === 'playing' || !!payload.isPlaying;
@@ -196,22 +204,30 @@ export const WatchSpaceProvider = ({ children }) => {
         ? Math.max(0, basePos + elapsedSec * (payload.playbackRate || 1.0))
         : Math.max(0, basePos);
 
-      setPlaybackState((prev) => ({
-        ...prev,
-        state: isPlaying ? 'playing' : 'paused',
-        positionSeconds: projectedPos,
-        currentTime: projectedPos,
-        isPlaying,
-        playbackRate: payload.playbackRate || 1.0,
-        serverNum: payload.serverNum ?? prev.serverNum ?? 1,
-        season: payload.season ?? prev.season ?? 1,
-        episode: payload.episode ?? prev.episode ?? 1,
-        version: payload.version || 1,
-        hostConnected: payload.hostConnected !== false,
-        changedAtServerMs: payload.changedAtServerMs || now,
-        lastUpdatedTs: now,
-        action: payload.action || 'update',
-      }));
+      setPlaybackState((prev) => {
+        // Version check: Ignore stale server responses
+        if (payload.version && prev.version && payload.version < prev.version) {
+          console.warn('[WATCHSPACE PARTICIPANT UPDATE DISCARDED] Stale version:', payload.version, '< prev version:', prev.version);
+          return prev;
+        }
+
+        return {
+          ...prev,
+          state: isPlaying ? 'playing' : 'paused',
+          positionSeconds: projectedPos,
+          currentTime: projectedPos,
+          isPlaying,
+          playbackRate: payload.playbackRate || 1.0,
+          serverNum: payload.serverNum ?? prev.serverNum ?? 1,
+          season: payload.season ?? prev.season ?? 1,
+          episode: payload.episode ?? prev.episode ?? 1,
+          version: payload.version || prev.version || 1,
+          hostConnected: payload.hostConnected !== false,
+          changedAtServerMs: payload.changedAtServerMs || now,
+          lastUpdatedTs: now,
+          action: payload.action || 'update',
+        };
+      });
     });
 
     // ── PRD Event: room.host.disconnected ──────────────────────────────────
@@ -641,6 +657,15 @@ export const WatchSpaceProvider = ({ children }) => {
       const res = await getSpace(spaceId);
       const space = res.data.space;
       setCurrentSpace(space);
+
+      if (space?.settings) {
+        setPlaybackState((prev) => ({
+          ...prev,
+          serverNum: space.settings.serverNum || prev.serverNum || 1,
+          season: space.settings.season || prev.season || 1,
+          episode: space.settings.episode || prev.episode || 1,
+        }));
+      }
 
       try {
         const msgRes = await getSpaceMessages(spaceId);

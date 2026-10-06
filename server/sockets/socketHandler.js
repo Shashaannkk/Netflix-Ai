@@ -217,6 +217,34 @@ export const initSocketHandler = (io) => {
       timestamp: new Date().toISOString(),
     });
 
+    // Helper to find existing room by any valid identifier (spaceId, canonicalId, or inviteCode)
+    const findRoom = (id) => {
+      if (!id) return null;
+      const idStr = id.toString();
+      if (roomsState.has(idStr)) return roomsState.get(idStr);
+      for (const r of roomsState.values()) {
+        if (r && (r.watchSpaceId === idStr || r.canonicalId === idStr || r.inviteCode === idStr)) {
+          return r;
+        }
+      }
+      return null;
+    };
+
+    // Helper to broadcast event to all room aliases
+    const emitRoomBroadcast = (event, room, payloadData) => {
+      if (!room) return;
+      const targetWatchSpaceId = room.canonicalId || room.watchSpaceId;
+      const envelope = buildEnvelope(event, targetWatchSpaceId, payloadData);
+
+      io.to(`space:${targetWatchSpaceId}`).emit(event, envelope);
+      if (room.inviteCode && room.inviteCode !== targetWatchSpaceId) {
+        io.to(`space:${room.inviteCode}`).emit(event, envelope);
+      }
+      if (room.watchSpaceId && room.watchSpaceId !== targetWatchSpaceId && room.watchSpaceId !== room.inviteCode) {
+        io.to(`space:${room.watchSpaceId}`).emit(event, envelope);
+      }
+    };
+
     // ── 2. Room Join & Presence Initialization ──────────────────────────────
     socket.on('space:join', async ({ spaceId } = {}) => {
       const currentUser = socket.data.user || {
@@ -232,7 +260,6 @@ export const initSocketHandler = (io) => {
       }
 
       console.log(`[WATCH_SOCKET] room join requested: ${spaceId}`);
-      const roomKey = `space:${spaceId}`;
 
       try {
         let space = null;
@@ -259,22 +286,27 @@ export const initSocketHandler = (io) => {
           return;
         }
 
+        const canonicalId = space ? space._id.toString() : spaceId;
+        const inviteCode = space ? space.inviteCode : null;
         const hostUserIdStr = space ? space.hostUserId.toString() : null;
-        let isHost = hostUserIdStr ? (currentUser.id === hostUserIdStr) : false;
+        const currentUserId = (currentUser.id || currentUser._id || socket.id).toString();
+        let isHost = hostUserIdStr ? (currentUserId === hostUserIdStr) : false;
 
-        // Initialize or fetch in-memory room state
-        let room = roomsState.get(spaceId);
+        // Initialize or fetch in-memory room state (lookup by spaceId, canonicalId, or inviteCode)
+        let room = findRoom(spaceId) || findRoom(canonicalId) || (inviteCode ? findRoom(inviteCode) : null);
+
         if (!room) {
-          // If no existing room and space exists in DB, use space host. Otherwise first user joining becomes host.
-          const effectiveHost = hostUserIdStr || currentUser.id;
-          isHost = (currentUser.id === effectiveHost);
+          const effectiveHost = hostUserIdStr || currentUserId;
+          isHost = (currentUserId === effectiveHost);
 
           const initialMuted = space?.settings?.mutedUserIds
             ? new Set(space.settings.mutedUserIds.map((id) => id.toString()))
             : new Set();
 
           room = {
-            watchSpaceId: spaceId,
+            watchSpaceId: canonicalId,
+            canonicalId,
+            inviteCode,
             mediaId: space?.mediaId ? space.mediaId.toString() : null,
             hostUserId: effectiveHost,
             isLocked: !!space?.settings?.isLocked,
@@ -296,14 +328,24 @@ export const initSocketHandler = (io) => {
             connections: new Map(),
             members: new Map(),
           };
-          roomsState.set(spaceId, room);
+
+          roomsState.set(canonicalId, room);
+          if (inviteCode) roomsState.set(inviteCode, room);
+          if (spaceId !== canonicalId) roomsState.set(spaceId, room);
         } else {
+          // Link room aliases so both inviteCode and ObjectId point to the same state
+          if (canonicalId) room.canonicalId = canonicalId;
+          if (inviteCode) room.inviteCode = inviteCode;
+          roomsState.set(canonicalId, room);
+          if (inviteCode) roomsState.set(inviteCode, room);
+          if (spaceId !== canonicalId) roomsState.set(spaceId, room);
+
           if (space?.titleId?.timeline && (!room.timeline || room.timeline.length === 0)) {
             room.timeline = space.titleId.timeline;
           }
           if (!room.triggeredTrivia) room.triggeredTrivia = new Set();
 
-          if (currentUser.id === room.hostUserId) {
+          if (currentUserId === room.hostUserId) {
             isHost = true;
             room.hostSocketId = socket.id;
             room.hostConnected = true;
@@ -315,7 +357,7 @@ export const initSocketHandler = (io) => {
 
         // Register socket connection presence (connection-aware)
         room.connections.set(socket.id, {
-          userId: currentUser.id,
+          userId: currentUserId,
           socketId: socket.id,
           displayName: currentUser.displayName,
           isHost,
@@ -323,14 +365,18 @@ export const initSocketHandler = (io) => {
         });
 
         // Maintain user level presence map
-        room.members.set(currentUser.id, {
+        room.members.set(currentUserId, {
           socketId: socket.id,
           displayName: currentUser.displayName,
           isHost,
         });
 
-        socket.join(roomKey);
-        console.log(`[WATCH_SOCKET] room join success: ${spaceId} | User: ${currentUser.displayName} (${socket.id})`);
+        // Join socket channels for all aliases
+        socket.join(`space:${canonicalId}`);
+        if (inviteCode) socket.join(`space:${inviteCode}`);
+        if (spaceId !== canonicalId) socket.join(`space:${spaceId}`);
+
+        console.log(`[WATCH_SOCKET] room join success: ${canonicalId} (alias: ${spaceId}) | User: ${currentUser.displayName} (${socket.id})`);
 
         const nowMs = Date.now();
         const currentProjectedPos = getAuthoritativePosition(room, nowMs);
@@ -338,7 +384,7 @@ export const initSocketHandler = (io) => {
         // Emit initial playback state snapshot to newly joined participant
         socket.emit(
           'room.playback.update',
-          buildEnvelope('room.playback.update', spaceId, {
+          buildEnvelope('room.playback.update', canonicalId, {
             action: 'sync',
             state: room.playback.state,
             positionSeconds: currentProjectedPos,
@@ -348,6 +394,11 @@ export const initSocketHandler = (io) => {
             season: room.playback.season || 1,
             episode: room.playback.episode || 1,
             version: room.version,
+            isHost,
+            hostConnected: room.hostConnected,
+            serverTs: nowMs,
+          })
+        );
             isHost,
             hostConnected: room.hostConnected,
             serverTs: nowMs,
@@ -381,13 +432,21 @@ export const initSocketHandler = (io) => {
     // ── 3. Playback Synchronization Updates (Host Only) ──────────────────────
     socket.on('room.playback.update', (data) => {
       const { watchSpaceId, payload } = data || {};
-      if (!user || !watchSpaceId || !payload) return;
+      if (!watchSpaceId || !payload) return;
 
-      const room = roomsState.get(watchSpaceId);
+      const room = findRoom(watchSpaceId);
       if (!room) return;
 
-      // Strict Host Authorization: Compare socket.user.id with room.hostUserId
-      if (user.id !== room.hostUserId && user.role !== 'admin') {
+      const currentUser = socket.data.user || {
+        id: socket.id,
+        _id: socket.id,
+        role: 'viewer'
+      };
+      const currentUserId = (currentUser.id || currentUser._id || socket.id).toString();
+      const hostUserIdStr = room.hostUserId ? room.hostUserId.toString() : null;
+
+      // Strict Host Authorization: Compare socket user id with room.hostUserId
+      if (currentUserId !== hostUserIdStr && currentUser.role !== 'admin') {
         socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Unauthorized: Only the host can update playback state.' }));
         return;
       }
@@ -416,7 +475,7 @@ export const initSocketHandler = (io) => {
       room.hostConnected = true;
       room.hostSocketId = socket.id;
 
-      const envelope = buildEnvelope('room.playback.update', watchSpaceId, {
+      emitRoomBroadcast('room.playback.update', room, {
         action: action || 'update',
         state: room.playback.state,
         positionSeconds: room.playback.positionSeconds,
@@ -430,8 +489,6 @@ export const initSocketHandler = (io) => {
         hostConnected: true,
         serverTs: nowMs,
       });
-
-      io.to(`space:${watchSpaceId}`).emit('room.playback.update', envelope);
 
       // Check for authored timeline trivia around current timestamp
       if (typeof positionSeconds === 'number' && room.triggeredTrivia) {
@@ -447,20 +504,28 @@ export const initSocketHandler = (io) => {
     // ── 3b. Server & Season/Episode Change (Host Only) ────────────────────────
     socket.on('room.server.change', async (data) => {
       const { watchSpaceId, payload } = data || {};
-      if (!user || !watchSpaceId || !payload) return;
+      if (!watchSpaceId || !payload) return;
 
-      const room = roomsState.get(watchSpaceId);
+      const room = findRoom(watchSpaceId);
       if (!room) return;
 
-      // Strict Host Authorization: Compare socket user.id with room.hostUserId
-      if (user.id !== room.hostUserId && user.role !== 'admin') {
+      const currentUser = socket.data.user || {
+        id: socket.id,
+        _id: socket.id,
+        role: 'viewer'
+      };
+      const currentUserId = (currentUser.id || currentUser._id || socket.id).toString();
+      const hostUserIdStr = room.hostUserId ? room.hostUserId.toString() : null;
+
+      // Strict Host Authorization: Compare socket user id with room.hostUserId
+      if (currentUserId !== hostUserIdStr && currentUser.role !== 'admin') {
         socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Unauthorized: Only the host can change server or episode.' }));
         return;
       }
 
       const { serverNum, season, episode, positionSeconds } = payload;
 
-      // TASK 1: Strict input validation
+      // Strict input validation
       const validServer = parseBoundedInt(serverNum, 1, 8);
       const validSeason = parseBoundedInt(season, 1, undefined);
       const validEpisode = parseBoundedInt(episode, 1, undefined);
@@ -490,8 +555,10 @@ export const initSocketHandler = (io) => {
         room.playback.changedAtServerMs = nowMs;
       }
 
-      // TASK 3: Persist active source state to MongoDB WatchSpace document
-      if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
+      console.log(`[WATCHSPACE SOCKET SERVER CHANGE] Space: ${watchSpaceId} | ServerNum: ${validServer} | Version: ${room.version} | Host: ${currentUserId}`);
+
+      // Persist active source state to MongoDB WatchSpace document
+      if (mongoose.connection.readyState === 1) {
         try {
           const updateObj = {};
           if (validServer !== undefined) updateObj['settings.serverNum'] = validServer;
@@ -499,15 +566,20 @@ export const initSocketHandler = (io) => {
           if (validEpisode !== undefined) updateObj['settings.episode'] = validEpisode;
 
           if (Object.keys(updateObj).length > 0) {
-            await WatchSpace.findByIdAndUpdate(watchSpaceId, updateObj);
+            const targetDbId = room.canonicalId || watchSpaceId;
+            if (mongoose.Types.ObjectId.isValid(targetDbId)) {
+              await WatchSpace.findByIdAndUpdate(targetDbId, updateObj);
+            } else if (room.inviteCode) {
+              await WatchSpace.findOneAndUpdate({ inviteCode: room.inviteCode }, updateObj);
+            }
           }
         } catch (dbErr) {
           console.warn(`[Socket.IO] Could not persist source state for space ${watchSpaceId}:`, dbErr.message);
         }
       }
 
-      // TASK 7: Authoritative Broadcast to all room participants
-      const envelope = buildEnvelope('room.playback.update', watchSpaceId, {
+      // Authoritative Broadcast to all room participants across all channel aliases
+      emitRoomBroadcast('room.playback.update', room, {
         action: 'server_change',
         state: room.playback.state,
         positionSeconds: room.playback.positionSeconds,
@@ -521,14 +593,12 @@ export const initSocketHandler = (io) => {
         hostConnected: true,
         serverTs: nowMs,
       });
-
-      io.to(`space:${watchSpaceId}`).emit('room.playback.update', envelope);
     });
 
     // ── 4. Drift Measurement Ping/Pong ──────────────────────────────────────
     socket.on('room.sync.ping', (data) => {
       const { watchSpaceId, payload } = data || {};
-      const room = watchSpaceId ? roomsState.get(watchSpaceId) : null;
+      const room = watchSpaceId ? findRoom(watchSpaceId) : null;
       const nowMs = Date.now();
 
       const currentProjectedPos = room ? getAuthoritativePosition(room, nowMs) : 0;

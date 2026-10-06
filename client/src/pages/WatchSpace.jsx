@@ -248,18 +248,38 @@ const WatchSpace = () => {
   // Sync state when incoming socket playback state updates
   useEffect(() => {
     if (playbackState.serverNum && playbackState.serverNum !== selectedServer) {
+      console.log('[WATCHSPACE PARTICIPANT SYNC SERVER]', {
+        prevServer: selectedServer,
+        newServer: playbackState.serverNum,
+        isHost,
+      });
       setSelectedServer(playbackState.serverNum);
     }
+  }, [playbackState.serverNum, selectedServer, isHost]);
+
+  useEffect(() => {
     if (playbackState.season && playbackState.season !== selectedSeason) {
+      console.log('[WATCHSPACE PARTICIPANT SYNC SEASON]', {
+        prevSeason: selectedSeason,
+        newSeason: playbackState.season,
+      });
       setSelectedSeason(playbackState.season);
     }
+  }, [playbackState.season, selectedSeason]);
+
+  useEffect(() => {
     if (playbackState.episode && playbackState.episode !== selectedEpisode) {
+      console.log('[WATCHSPACE PARTICIPANT SYNC EPISODE]', {
+        prevEpisode: selectedEpisode,
+        newEpisode: playbackState.episode,
+      });
       setSelectedEpisode(playbackState.episode);
     }
-  }, [playbackState.serverNum, playbackState.season, playbackState.episode]);
+  }, [playbackState.episode, selectedEpisode]);
 
   // Host Action Handlers (Authoritative Socket State Source of Truth)
   const handleSelectServer = (sNum) => {
+    console.log('[WATCHSPACE HOST SELECT SERVER]', { sNum, isHost, currentSpaceId: currentSpace?._id });
     if (!isHost) return;
     if (sendServerChange) {
       sendServerChange({
@@ -788,6 +808,15 @@ const WatchSpace = () => {
   }
 
   const isEmbedServer = getPlayerMode(videoSrc) === 'provider';
+
+  console.log('[WATCHSPACE SOURCE]', {
+    serverNum: selectedServer,
+    season: selectedSeason,
+    episode: selectedEpisode,
+    tmdbId: targetTmdbId,
+    videoSrc,
+    playerMode: isEmbedServer ? 'provider' : 'native',
+  });
 
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;
