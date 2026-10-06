@@ -516,75 +516,20 @@ const WatchSpace = () => {
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, []);
 
-  // ── Participant Gentle Drift Correction Loop ────────────────────────────────
+  // ── Sync Status Pill State ──────────────────────────────────────────────────
   useEffect(() => {
-    if (isHost) return;
+    if (isHost) {
+      setSyncStatus('Host Authoritative');
+      return;
+    }
 
-    const checkDrift = () => {
-      const player = videoRef.current;
-      if (!player) return;
+    if (playbackState.hostConnected === false) {
+      setSyncStatus('Host Disconnected (Paused)');
+      return;
+    }
 
-      const isMediaReady = player.isReady ? player.isReady() : false;
-      if (!isMediaReady) {
-        setSyncStatus('Waiting for Media Metadata…');
-        return;
-      }
-
-      if (playbackState.hostConnected === false) {
-        if (player.getState() === 'playing') player.pause();
-        setIsPlaying(false);
-        setSyncStatus('Host Disconnected (Paused)');
-        return;
-      }
-
-      const elapsed = (Date.now() - (playbackState.lastUpdatedTs || Date.now())) / 1000;
-      const targetTime = (playbackState.positionSeconds ?? 0) + (playbackState.isPlaying ? elapsed * (playbackState.playbackRate || 1.0) : 0);
-      const localTime = player.getCurrentTime();
-      const drift = targetTime - localTime;
-
-      if (!playbackState.isPlaying) {
-        if (player.getState() === 'playing') player.pause();
-        setIsPlaying(false);
-        if (Math.abs(drift) > 0.3) {
-          player.seek(targetTime);
-        }
-        setSyncStatus('Paused (Synced to Host)');
-        return;
-      }
-
-      // Participant sync when host is playing
-      if (Math.abs(drift) > 1.2) {
-        // Hard seek for large drift
-        player.seek(targetTime);
-        player.setPlaybackRate(1.0);
-        if (player.getState() !== 'playing') player.play();
-        setIsPlaying(true);
-        setSyncStatus(`Hard Seek (Drift ${Math.round(drift * 1000)}ms)`);
-      } else if (drift > 0.25) {
-        // Gentle catch up (1.05x)
-        player.setPlaybackRate(1.05);
-        if (player.getState() !== 'playing') player.play();
-        setIsPlaying(true);
-        setSyncStatus(`Catching Up 1.05x (+${Math.round(drift * 1000)}ms)`);
-      } else if (drift < -0.25) {
-        // Gentle slow down (0.95x)
-        player.setPlaybackRate(0.95);
-        if (player.getState() !== 'playing') player.play();
-        setIsPlaying(true);
-        setSyncStatus(`Slowing Down 0.95x (${Math.round(drift * 1000)}ms)`);
-      } else {
-        // Target sync reached (< 250ms)
-        player.setPlaybackRate(1.0);
-        if (player.getState() !== 'playing') player.play();
-        setIsPlaying(true);
-        setSyncStatus('🟢 In Sync (< 250ms)');
-      }
-    };
-
-    checkDrift();
-    const interval = setInterval(checkDrift, 1000);
-    return () => clearInterval(interval);
-  }, [playbackState, isHost]);
+    setSyncStatus('🟢 In Sync');
+  }, [isHost, playbackState.hostConnected, playbackState.lastUpdatedTs]);
 
   // ── Video callbacks & Host Emission ─────────────────────────────────────────
   const togglePlay = () => {
@@ -941,43 +886,12 @@ const WatchSpace = () => {
             syncTime={playbackState.positionSeconds ?? playbackState.currentTime}
             syncIsPlaying={playbackState.state === 'playing' || playbackState.isPlaying}
             onTimeUpdate={(t) => setCurrentTime(t)}
-            hideDefaultControls={true}
             onPlaybackChange={(data) => {
               if (isHost) {
                 sendPlaybackUpdate(data);
               }
             }}
           />
-
-          {/* Third-Party Embed Mode Provider Guidance Banner */}
-          {isEmbedServer && (
-            <div
-              className="embed-provider-notice-banner"
-              style={{
-                position: 'absolute',
-                bottom: '16px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(56, 189, 248, 0.4)',
-                color: '#e2e8f0',
-                padding: '6px 16px',
-                borderRadius: '20px',
-                fontSize: '0.8rem',
-                fontWeight: 500,
-                zIndex: 30,
-                pointerEvents: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-              }}
-            >
-              <Globe size={13} color="#38bdf8" />
-              <span>Click <strong>Play</strong> inside the provider player. (Switch to Server 8 for AI Auto-Sync)</span>
-            </div>
-          )}
         </div>
 
         {/* Authored Timeline Trivia Card Overlay */}

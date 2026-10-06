@@ -799,40 +799,20 @@ export const NetflixVideoPlayer = React.forwardRef(({
         </div>
       ) : isProvider ? (
         /*
-         * MODE A — PROVIDER EMBED (Servers 1-7)
-         * Renders edge-to-edge clean provider iframe without fake HTML5 transport controls.
+         * PROVIDER EMBED NOTICE (Servers 1-7 without direct HTML5 media)
+         * Cross-origin iframe embeds cannot support frame-accurate HTML5 socket synchronization.
          */
-        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-          <iframe
-            ref={iframeRef}
-            src={buildEmbedSource(currentSource)}
-            title={title}
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; clipboard-write"
-            allowFullScreen
-            referrerPolicy="origin-when-cross-origin"
-            onLoad={() => {
-              setMediaState('READY');
-            }}
-            onError={() => {
-              setMediaState('ERROR');
-              setMediaError({
-                code: 'PROVIDER_ERROR',
-                message: 'The selected movie server embed stream could not be loaded.',
-              });
-            }}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-            }}
-          />
-
-          {/* Provider Embed Mode Notice */}
-          <div className="provider-mode-overlay-notice">
-            <Globe size={14} color="#38bdf8" />
-            <span>
-              Provider Embed Mode — Controls provided by streaming provider. Native sync available on Server 8.
-            </span>
+        <div className="netflix-player-error-card" style={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+          <AlertTriangle size={48} color="#f59e0b" />
+          <h3 style={{ color: '#f59e0b', marginTop: '0.75rem', fontSize: '1.2rem' }}>Selected Server Unavailable for Watch Together Sync</h3>
+          <p style={{ color: '#cbd5e1', maxWidth: '480px', margin: '0.5rem auto', lineHeight: '1.5', fontSize: '0.9rem' }}>
+            The selected streaming provider offers a third-party iframe embed which cannot be synchronized across multiple browsers.
+          </p>
+          <p style={{ color: '#38bdf8', fontWeight: 600, fontSize: '0.95rem', marginTop: '0.5rem' }}>
+            Please select <strong>Server 8 (Direct HTML5 Sync)</strong> for real-time co-watching.
+          </p>
+          <div className="netflix-source-label" style={{ marginTop: '1rem', opacity: 0.7 }}>
+            {title} • Provider Embed Mode (Server 1–7)
           </div>
         </div>
       ) : (
