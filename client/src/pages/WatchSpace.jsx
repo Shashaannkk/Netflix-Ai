@@ -293,6 +293,8 @@ const WatchSpace = () => {
 
   const handleSelectSeason = (seasonNum) => {
     if (!isHost) return;
+    setSelectedSeason(seasonNum);
+    setSelectedEpisode(1);
     if (sendServerChange) {
       sendServerChange({
         serverNum: selectedServer,
@@ -305,6 +307,7 @@ const WatchSpace = () => {
 
   const handleSelectEpisode = (epNum) => {
     if (!isHost) return;
+    setSelectedEpisode(epNum);
     if (sendServerChange) {
       sendServerChange({
         serverNum: selectedServer,

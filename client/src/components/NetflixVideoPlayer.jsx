@@ -800,65 +800,48 @@ export const NetflixVideoPlayer = React.forwardRef(({
         </div>
       ) : isProvider ? (
         /*
-         * PROVIDER EMBED NOTICE (Servers 1-7 without direct HTML5 media)
-         * Non-blocking notice for embed servers so Host can select Server 8.
+         * PROVIDER EMBED MODE (Servers 1-7 or External YouTube Embeds)
+         * Live provider stream iframe with Netflix AI Watch Together overlays.
          */
-        <div
-          className="netflix-provider-notice-container"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 5,
-            pointerEvents: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'radial-gradient(circle at center, #1a1a24 0%, #0a0a0d 100%)',
-            padding: '1.5rem',
-          }}
-        >
-          {poster && (
-            <img
-              src={poster}
-              alt=""
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                opacity: 0.15,
-                filter: 'blur(8px)',
-                pointerEvents: 'none',
-              }}
-            />
-          )}
-          <div
-            className="netflix-provider-notice-card"
+        <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
+          <iframe
+            ref={iframeRef}
+            src={buildEmbedSource(currentSource)}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="origin-when-cross-origin"
             style={{
-              position: 'relative',
-              zIndex: 6,
+              width: '100%',
+              height: '100%',
+              border: 0,
+              display: 'block',
+            }}
+          />
+          <div
+            className="provider-mode-overlay-notice"
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(56, 189, 248, 0.5)',
+              color: '#38bdf8',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              zIndex: 30,
               pointerEvents: 'none',
-              background: 'rgba(15, 23, 42, 0.88)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              borderRadius: '12px',
-              padding: '1.25rem 1.75rem',
-              maxWidth: '520px',
-              textAlign: 'center',
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#f59e0b', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-              <AlertTriangle size={20} color="#f59e0b" />
-              <span>Watch Together Notice</span>
-            </div>
-            <p style={{ color: '#e2e8f0', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.5rem 0' }}>
-              Server {serverNum} is unavailable for Watch Together sync. Select Server 8 for synchronized playback.
-            </p>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.4rem' }}>
-              {title} • Provider Embed Mode (Servers 1–7)
-            </div>
+            <Globe size={14} color="#38bdf8" />
+            <span>Server {serverNum} Stream</span>
           </div>
         </div>
       ) : (
