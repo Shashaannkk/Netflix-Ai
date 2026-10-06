@@ -75,11 +75,11 @@ const watchSpaceSettingsSchema = new mongoose.Schema(
       type: String,
       default: 'server_alpha',
     },
-    // Authoritative numeric server selection (1-8)
+    // Authoritative numeric server selection (1-9)
     serverNum: {
       type: Number,
       min: 1,
-      max: 8,
+      max: 9,
       default: 1,
     },
     // Authoritative TV season number

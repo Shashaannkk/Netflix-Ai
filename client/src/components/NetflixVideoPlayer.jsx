@@ -37,6 +37,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
   isHost = true,
   syncTime,
   syncIsPlaying,
+  syncPlaybackRate = 1,
   onPlaybackChange,
   hideDefaultControls = false,
   serverNum = 1,
@@ -89,6 +90,12 @@ export const NetflixVideoPlayer = React.forwardRef(({
     }
   }, []);
 
+  useEffect(() => {
+    if (isNative && videoRef.current && typeof syncPlaybackRate === 'number' && syncPlaybackRate > 0) {
+      videoRef.current.playbackRate = syncPlaybackRate;
+    }
+  }, [syncPlaybackRate, isNative]);
+
   useImperativeHandle(forwardedRef, () => ({
     play: () => {
       setIsPlaying(true);
@@ -134,6 +141,11 @@ export const NetflixVideoPlayer = React.forwardRef(({
     setMuted: (m) => {
       setIsMuted(m);
       if (videoRef.current) videoRef.current.muted = m;
+    },
+    setPlaybackRate: (rate) => {
+      if (isNative && videoRef.current && typeof rate === 'number' && rate > 0) {
+        videoRef.current.playbackRate = rate;
+      }
     }
   }), [isNative, isPlaying, currentTime, duration, postIframeCommand]);
 

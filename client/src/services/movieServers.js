@@ -6,6 +6,28 @@
 
 export const SERVER_8_CANONICAL_SOURCE = 'https://vjs.zencdn.net/v/oceans.mp4';
 
+export const WATCH_TOGETHER_DEMO_CONFIG = {
+  title: 'Kantara: Chapter 1 — Watch Together Demo',
+  movieIdentifier: 'kantara-chapter-1-demo',
+  authorizedVideoSource: SERVER_8_CANONICAL_SOURCE,
+  availableAudioLanguages: [
+    { code: 'hi', label: 'Hindi (Default)' },
+    { code: 'en', label: 'English' },
+    { code: 'kn', label: 'Kannada (Original)' }
+  ],
+  availableSubtitles: [
+    { code: 'off', label: 'Off' },
+    { code: 'hi', label: 'Hindi Subtitles' },
+    { code: 'en', label: 'English Subtitles' }
+  ],
+  availableQualities: ['Auto (1080p)', '1080p', '720p', '480p'],
+  availableRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+  defaultLanguage: 'hi',
+  defaultSubtitle: 'off',
+  defaultQuality: 'Auto (1080p)',
+  defaultSpeed: 1,
+};
+
 export const MOVIE_SERVERS = [
   {
     id: 1,
@@ -78,6 +100,15 @@ export const MOVIE_SERVERS = [
     badge: 'Native Sync Demo',
     icon: '🎞️',
     bullets: ['HTML5 Direct MP4 Demo', 'AI Auto-Sync & Drift Engine', 'Direct Media Test Source']
+  },
+  {
+    id: 9,
+    name: 'Server 9',
+    label: 'Server 9 — Watch Together Demo',
+    provider: 'Watch Together Synchronized Demo Engine',
+    badge: 'SYNC DEMO',
+    icon: '✨',
+    bullets: ['Full Watch Together Synchronization', 'Host Authoritative Control', 'Multi-Audio & Subtitles', 'Drift Correction']
   }
 ];
 
@@ -134,9 +165,9 @@ export const cleanTmdbId = (rawId) => {
 export const getServerStreamUrl = ({ tmdbId, isTv = false, season = 1, episode = 1, serverNum = 1 }) => {
   const num = Number(serverNum) || 1;
 
-  // Server 8: Direct HTML5 test video — independent of TMDB ID
-  if (num === 8) {
-    return SERVER_8_CANONICAL_SOURCE;
+  // Server 8 & Server 9: Direct HTML5 Media Sources
+  if (num === 8 || num === 9) {
+    return WATCH_TOGETHER_DEMO_CONFIG.authorizedVideoSource;
   }
 
   const cleanId = cleanTmdbId(tmdbId);

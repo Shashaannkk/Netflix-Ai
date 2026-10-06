@@ -1,4 +1,4 @@
-import { SERVER_8_CANONICAL_SOURCE, getServerStreamUrl, classifySource, getPlayerMode } from '../../client/src/services/movieServers.js';
+import { SERVER_8_CANONICAL_SOURCE, WATCH_TOGETHER_DEMO_CONFIG, getServerStreamUrl, classifySource, getPlayerMode } from '../../client/src/services/movieServers.js';
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ const runPhase2Suite = async () => {
     const { serverNum, season, episode, positionSeconds } = payload || {};
 
     // 2. Strict Input Validation
-    const validServer = parseBoundedInt(serverNum, 1, 8);
+    const validServer = parseBoundedInt(serverNum, 1, 9);
     const validSeason = parseBoundedInt(season, 1, undefined);
     const validEpisode = parseBoundedInt(episode, 1, undefined);
 
@@ -197,6 +197,9 @@ const runPhase2Suite = async () => {
   const server8Url = getServerStreamUrl({ tmdbId: 550, isTv: false, serverNum: 8 });
   assert(server8Url === SERVER_8_CANONICAL_SOURCE, 'Server 8 returns SERVER_8_CANONICAL_SOURCE');
 
+  const server9Url = getServerStreamUrl({ tmdbId: 550, isTv: false, serverNum: 9 });
+  assert(server9Url === WATCH_TOGETHER_DEMO_CONFIG.authorizedVideoSource, 'Server 9 returns WATCH_TOGETHER_DEMO_CONFIG.authorizedVideoSource');
+
   // ── TEST 16 & 17: Player Mode Transitions ──────────────────────────────────
   console.log('\n── 16 & 17. Player Mode Transitions ──');
   const modeServer1 = getPlayerMode(movieUrl);
@@ -204,6 +207,9 @@ const runPhase2Suite = async () => {
 
   const modeServer8 = getPlayerMode(server8Url);
   assert(modeServer8 === 'native', 'Server 8 URL maps to playerMode = native');
+
+  const modeServer9 = getPlayerMode(server9Url);
+  assert(modeServer9 === 'native', 'Server 9 URL maps to playerMode = native');
 
   console.log('\n================================================================');
   console.log(`📊 PHASE 2 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);

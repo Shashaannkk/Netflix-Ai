@@ -521,12 +521,12 @@ export const initSocketHandler = (io) => {
       const { serverNum, season, episode, positionSeconds } = payload;
 
       // Strict input validation
-      const validServer = parseBoundedInt(serverNum, 1, 8);
+      const validServer = parseBoundedInt(serverNum, 1, 9);
       const validSeason = parseBoundedInt(season, 1, undefined);
       const validEpisode = parseBoundedInt(episode, 1, undefined);
 
       if (serverNum !== undefined && validServer === null) {
-        socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Invalid server selection. Must be an integer between 1 and 8.' }));
+        socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Invalid server selection. Must be an integer between 1 and 9.' }));
         return;
       }
       if (season !== undefined && validSeason === null) {

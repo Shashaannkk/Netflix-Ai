@@ -48,7 +48,7 @@ import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
 import { fetchSeasonEpisodes, fetchMediaDetails } from '../services/tmdb';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
-import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId, classifySource, getPlayerMode, SERVER_8_CANONICAL_SOURCE, isObsoleteSampleUrl } from '../services/movieServers';
+import { MOVIE_SERVERS, WATCH_TOGETHER_DEMO_CONFIG, getServerStreamUrl, cleanTmdbId, classifySource, getPlayerMode, SERVER_8_CANONICAL_SOURCE, isObsoleteSampleUrl } from '../services/movieServers';
 import {
   CINEMATIC_AVATARS,
   getStableAvatar,
@@ -329,6 +329,19 @@ const WatchSpace = () => {
   const [showTriviaAnswer, setShowTriviaAnswer] = useState(false);
   const [remainingSec, setRemainingSec] = useState(0);
 
+  // Server 9 Watch Together Demo State & Preferences
+  const [showDemoBanner, setShowDemoBanner] = useState(() => {
+    return !sessionStorage.getItem('dismissed_watch_together_demo_banner');
+  });
+  const [selectedAudioLang, setSelectedAudioLang] = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultLanguage);
+  const [selectedDemoSub, setSelectedDemoSub]   = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultSubtitle);
+  const [selectedDemoQuality, setSelectedDemoQuality] = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultQuality);
+
+  const handleDismissDemoBanner = () => {
+    setShowDemoBanner(false);
+    sessionStorage.setItem('dismissed_watch_together_demo_banner', 'true');
+  };
+
   useEffect(() => {
     setShowTriviaAnswer(false);
   }, [currentTrivia]);
@@ -579,6 +592,22 @@ const WatchSpace = () => {
     }
   };
 
+  const handleSpeedChange = (newSpeed) => {
+    const rate = parseFloat(newSpeed);
+    if (Number.isNaN(rate) || rate <= 0) return;
+    if (videoRef.current?.setPlaybackRate) {
+      videoRef.current.setPlaybackRate(rate);
+    }
+    if (isHost && sendPlaybackUpdate) {
+      sendPlaybackUpdate({
+        action: 'rateChange',
+        playbackRate: rate,
+        currentTime: videoRef.current?.getCurrentTime ? videoRef.current.getCurrentTime() : currentTime,
+        isPlaying,
+      });
+    }
+  };
+
   const handleTimeUpdate = (val) => {
     const cur = typeof val === 'number' ? val : (videoRef.current?.getCurrentTime() || 0);
     setCurrentTime(cur);
@@ -741,14 +770,22 @@ const WatchSpace = () => {
     );
   }
 
-  // Compute stream URL using 8-Server Architecture (Server 1 Vidsrc default)
-  let videoSrc = getServerStreamUrl({
-    tmdbId: targetTmdbId,
-    isTv: isTvSeries,
-    season: selectedSeason,
-    episode: selectedEpisode,
-    serverNum: selectedServer,
-  });
+  // Compute stream URL using 9-Server Architecture (Server 9 = Watch Together Demo, Servers 1-8 = Normal Movies)
+  let videoSrc = null;
+  let titleName = effectiveSpace?.titleId?.title || 'Netflix AI Watch Space';
+
+  if (selectedServer === 9) {
+    videoSrc = WATCH_TOGETHER_DEMO_CONFIG.authorizedVideoSource;
+    titleName = WATCH_TOGETHER_DEMO_CONFIG.title;
+  } else {
+    videoSrc = getServerStreamUrl({
+      tmdbId: targetTmdbId,
+      isTv: isTvSeries,
+      season: selectedSeason,
+      episode: selectedEpisode,
+      serverNum: selectedServer,
+    });
+  }
 
   // Backward compatibility fallback for old records without tmdbId:
   // Use existing stored videoAssetUrl if targetTmdbId is missing and videoAssetUrl is valid & not an obsolete sample URL
@@ -781,7 +818,6 @@ const WatchSpace = () => {
 
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;
-  const titleName = effectiveSpace?.titleId?.title || 'Netflix AI Watch Space';
   const roomCode  = effectiveSpace?.inviteCode || roomId || 'NX-0000';
 
   const progressPct = duration ? (currentTime / duration) * 100 : 0;
@@ -866,6 +902,55 @@ const WatchSpace = () => {
             </div>
           </div>
         </div>
+
+        {/* Informational Watch Together Demo Banner Toast (Dismissible) */}
+        {showDemoBanner && (
+          <div
+            className="watch-together-demo-toast"
+            style={{
+              position: 'absolute',
+              top: '70px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 600,
+              backgroundColor: 'rgba(20, 20, 20, 0.95)',
+              color: '#fff',
+              padding: '0.65rem 1.25rem',
+              borderRadius: '8px',
+              border: '1px solid rgba(229, 9, 20, 0.6)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              maxWidth: '90%',
+              fontSize: '0.85rem',
+              backdropFilter: 'blur(8px)',
+              pointerEvents: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <Sparkles size={16} color="#e50914" />
+              <div>
+                <strong style={{ color: '#e50914' }}>Watch Together Demo:</strong> For the synchronized Watch Together demonstration, select <strong style={{ color: '#fff' }}>Server 9 — Watch Together Demo</strong>. Servers 1–8 use original movie-provider players.
+              </div>
+            </div>
+            <button
+              onClick={handleDismissDemoBanner}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#aaa',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '2px',
+              }}
+              title="Close banner"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Fullscreen Floating Chat Overlay Stack (Shows temporary message bubbles in Fullscreen or Collapsed mode) */}
         {(isFullscreenMode || !isSidebarOpen) && fullscreenFloatingItems.length > 0 && (
@@ -1164,8 +1249,8 @@ const WatchSpace = () => {
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
 
-              {/* Authoritative 8-Server Selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: 'rgba(229,9,20,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(229,9,20,0.5)', pointerEvents: 'auto', position: 'relative', zIndex: 100 }}>
+              {/* Authoritative Server Selector (Servers 1-8 Normal Movies, Server 9 Watch Together Demo) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: selectedServer === 9 ? 'rgba(229,9,20,0.35)' : 'rgba(229,9,20,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: selectedServer === 9 ? '1px solid #e50914' : '1px solid rgba(229,9,20,0.5)', pointerEvents: 'auto', position: 'relative', zIndex: 100 }}>
                 <Radio size={15} color="#e50914" />
                 <select
                   id="room-server-selector"
@@ -1197,40 +1282,73 @@ const WatchSpace = () => {
                     </option>
                   ))}
                 </select>
+
+                {selectedServer === 9 && (
+                  <span style={{ background: '#e50914', color: '#fff', fontSize: '0.6rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', marginLeft: '4px', letterSpacing: '0.5px' }}>
+                    SYNC DEMO
+                  </span>
+                )}
               </div>
 
-              {/* Part 8: Subtitle & Localization Variant Selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                <Globe size={15} color="#aaa" />
-                <select
-                  id="locale-selector"
-                  value={selectedLocale}
-                  onChange={(e) => {
-                    const loc = e.target.value;
-                    const map = {
-                      'en-US': 'English (v1.2 Approved)',
-                      'es-ES': 'Spanish (v2.0 Approved)',
-                      'ja-JP': 'Japanese (v1.0 Approved)',
-                      'director_cut': "Director's Take (v1.1 Approved)",
-                    };
-                    updateLocalization({ locale: loc, subtitleTrack: map[loc] });
-                  }}
-                  style={{
-                    background: 'transparent',
-                    color: '#fff',
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                  }}
-                  title="Select Subtitle & Localization Variant"
-                >
-                  <option value="en-US" style={{ background: '#141414', color: '#fff' }}>EN - English (Standard v1.2)</option>
-                  <option value="es-ES" style={{ background: '#141414', color: '#fff' }}>ES - Spanish (LatAm v2.0)</option>
-                  <option value="ja-JP" style={{ background: '#141414', color: '#fff' }}>JA - Japanese (Subbed v1.0)</option>
-                  <option value="director_cut" style={{ background: '#141414', color: '#fff' }}>Director's Cut (v1.1)</option>
-                </select>
-              </div>
+              {/* Server 9 Dedicated Controls: Audio Language & Subtitles */}
+              {selectedServer === 9 && (
+                <>
+                  {/* Audio Language */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <Globe size={13} color="#38bdf8" />
+                    <select
+                      id="demo-audio-selector"
+                      value={selectedAudioLang}
+                      onChange={(e) => setSelectedAudioLang(e.target.value)}
+                      style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
+                      title="Available Audio Track"
+                    >
+                      {WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.map((l) => (
+                        <option key={l.code} value={l.code} style={{ background: '#141414', color: '#fff' }}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Captions / Subtitles */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <MessageSquare size={13} color="#aaa" />
+                    <select
+                      id="demo-sub-selector"
+                      value={selectedDemoSub}
+                      onChange={(e) => setSelectedDemoSub(e.target.value)}
+                      style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
+                      title="Captions / Subtitles"
+                    >
+                      {WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.map((sub) => (
+                        <option key={sub.code} value={sub.code} style={{ background: '#141414', color: '#fff' }}>
+                          Subtitles: {sub.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Playback Speed (Host Authoritative Sync) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <Clock size={13} color="#f59e0b" />
+                    <select
+                      id="demo-speed-selector"
+                      value={playbackState.playbackRate || 1}
+                      disabled={!isHost}
+                      onChange={(e) => handleSpeedChange(e.target.value)}
+                      style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
+                      title={isHost ? "Authoritative Playback Speed (Room Synchronized)" : "Playback speed is controlled by the Host"}
+                    >
+                      {WATCH_TOGETHER_DEMO_CONFIG.availableRates.map((rate) => (
+                        <option key={rate} value={rate} style={{ background: '#141414', color: '#fff' }}>
+                          Speed: {rate}x
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Right side */}
