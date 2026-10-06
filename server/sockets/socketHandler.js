@@ -399,11 +399,6 @@ export const initSocketHandler = (io) => {
             serverTs: nowMs,
           })
         );
-            isHost,
-            hostConnected: room.hostConnected,
-            serverTs: nowMs,
-          })
-        );
 
         // Broadcast presence update to room
         io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', spaceId, buildPresencePayload(room)));
