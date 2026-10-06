@@ -4,7 +4,7 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const KANTARA_LOCAL_FILE_PATH = 'http://localhost:5000/media/Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv';
+export const KANTARA_LOCAL_FILE_PATH = '/media/Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv';
 
 export const SERVER_8_CANONICAL_SOURCE = KANTARA_LOCAL_FILE_PATH;
 
