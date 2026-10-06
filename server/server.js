@@ -58,7 +58,15 @@ const __dirname = path.dirname(__filename);
 
 // 3. Mount REST API Routes & Static Local Media Stream Endpoint
 app.use('/api', apiRouter);
-app.use('/media', express.static(path.join(__dirname, '..')));
+app.use('/media', express.static(path.join(__dirname, '..'), {
+  acceptRanges: true,
+  setHeaders: (res, filePath) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (filePath.endsWith('.mkv')) {
+      res.setHeader('Content-Type', 'video/mp4');
+    }
+  }
+}));
 
 // Root route greeting
 app.get('/', (req, res) => {

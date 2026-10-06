@@ -4,15 +4,37 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const KANTARA_LOCAL_FILE_PATH = '/media/Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv';
+export const getBackendServerUrl = () => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return `${protocol}//${host}:5000`;
+    }
+    const envUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL;
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl.replace(/\/api\/?$/, '');
+    }
+    return window.location.origin;
+  }
+  return 'http://localhost:5000';
+};
 
-export const SERVER_8_CANONICAL_SOURCE = KANTARA_LOCAL_FILE_PATH;
+export const KANTARA_LOCAL_FILE_NAME = 'Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv';
+
+export const getKantaraAuthorizedSource = () => {
+  return `${getBackendServerUrl()}/media/${KANTARA_LOCAL_FILE_NAME}`;
+};
+
+export const SERVER_8_CANONICAL_SOURCE = getKantaraAuthorizedSource();
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
   movieIdentifier: 'kantara-chapter-1-demo',
   tmdbId: 964980,
-  authorizedVideoSource: KANTARA_LOCAL_FILE_PATH,
+  get authorizedVideoSource() {
+    return getKantaraAuthorizedSource();
+  },
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
     { code: 'en', label: 'English' },
