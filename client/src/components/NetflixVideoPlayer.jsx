@@ -444,6 +444,36 @@ export const NetflixVideoPlayer = React.forwardRef(({
   ]);
 
   /*
+   * Provider Mode Timer Ticker for smooth scrubber & playback progression
+   */
+  useEffect(() => {
+    if (!isProvider || !isPlaying) return;
+
+    const interval = setInterval(() => {
+      setCurrentTime((prev) => {
+        const maxDur = duration || 7200;
+        return Math.min(maxDur, (prev || 0) + 1);
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isProvider, isPlaying, duration]);
+
+  /*
+   * Sync playback state for participants in Provider mode
+   */
+  useEffect(() => {
+    if (isProvider && !isHost) {
+      if (typeof syncTime === 'number') {
+        setCurrentTime(syncTime);
+      }
+      if (typeof syncIsPlaying === 'boolean') {
+        setIsPlaying(syncIsPlaying);
+      }
+    }
+  }, [isProvider, isHost, syncTime, syncIsPlaying]);
+
+  /*
    * Intro Screen completion.
    */
   const handleIntroComplete = useCallback(() => {
@@ -481,64 +511,58 @@ export const NetflixVideoPlayer = React.forwardRef(({
   ]);
 
   /*
-   * Play/Pause Toggle (Native Media only).
+   * Play/Pause Toggle (Unified for Native Media & Provider Streams).
    */
   const togglePlay = useCallback(() => {
-    if (!isHost || !isNative) {
-      return;
-    }
-
-    if (!isMediaReady()) {
-      return;
-    }
-
-    const adapter = getAdapter();
-    if (!adapter) {
+    if (!isHost) {
       return;
     }
 
     const next = !isPlaying;
 
-    if (next) {
-      adapter.play();
-    } else {
-      adapter.pause();
+    if (isNative && isMediaReady()) {
+      const adapter = getAdapter();
+      if (adapter) {
+        if (next) adapter.play();
+        else adapter.pause();
+      }
     }
 
     setIsPlaying(next);
 
+    const curTime = currentTime || (videoRef.current?.currentTime || 0);
     notifyPlayback(
       next ? 'play' : 'pause',
-      adapter.getCurrentTime(),
+      curTime,
       next
     );
   }, [
     isHost,
     isNative,
     isPlaying,
+    currentTime,
     notifyPlayback,
     isMediaReady,
     getAdapter,
   ]);
 
   /*
-   * Seek by relative seconds (Native Media only).
+   * Seek by relative seconds (Unified for Native & Provider modes).
    */
   const seekBy = useCallback(
     (seconds) => {
-      if (!isHost || !isNative || !isMediaReady()) {
+      if (!isHost) {
         return;
       }
 
-      const adapter = getAdapter();
-      if (!adapter) {
-        return;
+      const curTime = currentTime || (videoRef.current?.currentTime || 0);
+      const max = duration || (videoRef.current?.duration || 7200);
+      const next = Math.max(0, Math.min(max, curTime + seconds));
+
+      if (isNative && isMediaReady()) {
+        getAdapter()?.seek(next);
       }
 
-      const max = duration || adapter.getDuration() || 0;
-      const next = Math.max(0, Math.min(max, adapter.getCurrentTime() + seconds));
-
-      adapter.seek(next);
       setCurrentTime(next);
 
       notifyPlayback('seek', next, isPlaying);
@@ -548,6 +572,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
       isNative,
       isMediaReady,
       getAdapter,
+      currentTime,
       duration,
       notifyPlayback,
       isPlaying,
@@ -561,7 +586,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     (e) => {
       resetControlsTimer();
 
-      if (!isHost || !isNative) {
+      if (!isHost) {
         return;
       }
 
@@ -622,20 +647,15 @@ export const NetflixVideoPlayer = React.forwardRef(({
   }, [speedBoost, getAdapter]);
 
   /*
-   * Scrubber Click Handler (Native Media only).
+   * Scrubber Click Handler (Unified for Native & Provider modes).
    */
   const handleScrubberClick = useCallback(
     (e) => {
-      if (!isHost || !isNative || !isMediaReady()) {
+      if (!isHost) {
         return;
       }
 
-      const adapter = getAdapter();
-      if (!adapter) {
-        return;
-      }
-
-      const dur = duration || adapter.getDuration() || 0;
+      const dur = duration || (videoRef.current?.duration || 7200);
       if (!dur) {
         return;
       }
@@ -644,7 +664,10 @@ export const NetflixVideoPlayer = React.forwardRef(({
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const next = pct * dur;
 
-      adapter.seek(next);
+      if (isNative && isMediaReady()) {
+        getAdapter()?.seek(next);
+      }
+
       setCurrentTime(next);
 
       notifyPlayback('seek', next, isPlaying);
@@ -738,7 +761,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
   const progressPct = (duration && currentTime)
     ? Math.min(100, (currentTime / duration) * 100)
-    : 0;
+    : (currentTime ? Math.min(100, (currentTime / (duration || 7200)) * 100) : 0);
 
   return (
     <div
@@ -803,47 +826,21 @@ export const NetflixVideoPlayer = React.forwardRef(({
          * PROVIDER EMBED MODE (Servers 1-7 or External YouTube Embeds)
          * Live provider stream iframe with Netflix AI Watch Together overlays.
          */
-        <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
-          <iframe
-            ref={iframeRef}
-            src={buildEmbedSource(currentSource)}
-            title={title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="origin-when-cross-origin"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 0,
-              display: 'block',
-            }}
-          />
-          <div
-            className="provider-mode-overlay-notice"
-            style={{
-              position: 'absolute',
-              top: '16px',
-              right: '16px',
-              background: 'rgba(15, 23, 42, 0.85)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(56, 189, 248, 0.5)',
-              color: '#38bdf8',
-              padding: '6px 14px',
-              borderRadius: '20px',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              zIndex: 30,
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            }}
-          >
-            <Globe size={14} color="#38bdf8" />
-            <span>Server {serverNum} Stream</span>
-          </div>
-        </div>
+        <iframe
+          ref={iframeRef}
+          src={buildEmbedSource(currentSource)}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          referrerPolicy="origin-when-cross-origin"
+          className="netflix-video-element"
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 0,
+            display: 'block',
+          }}
+        />
       ) : (
         /*
          * MODE B — NATIVE DIRECT MEDIA (Server 8)
@@ -936,8 +933,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
         </div>
       )}
 
-      {/* HTML5 Custom Transport Controls Overlay — ONLY FOR NATIVE MODE */}
-      {isNative && !hideDefaultControls && (
+      {/* Custom Transport Controls Overlay — UNIFIED FOR ALL MODES */}
+      {!hideDefaultControls && (
         <div className={`netflix-controls-overlay ${showControls ? 'visible' : ''}`}>
           <div className="netflix-controls-top">
             <span className="netflix-player-title">{title}</span>
