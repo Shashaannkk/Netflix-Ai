@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useImperativeHandle } from 'react';
 import {
   Play,
   Pause,
@@ -88,6 +88,54 @@ export const NetflixVideoPlayer = React.forwardRef(({
       console.warn('[Iframe postMessage Warning]:', err?.message);
     }
   }, []);
+
+  useImperativeHandle(forwardedRef, () => ({
+    play: () => {
+      setIsPlaying(true);
+      if (isNative && videoRef.current) {
+        videoRef.current.play?.().catch(() => {});
+      } else {
+        postIframeCommand('playVideo');
+      }
+    },
+    pause: () => {
+      setIsPlaying(false);
+      if (isNative && videoRef.current) {
+        videoRef.current.pause?.();
+      } else {
+        postIframeCommand('pauseVideo');
+      }
+    },
+    togglePlay: () => {
+      const next = !isPlaying;
+      setIsPlaying(next);
+      if (isNative && videoRef.current) {
+        if (next) videoRef.current.play?.().catch(() => {});
+        else videoRef.current.pause?.();
+      } else {
+        postIframeCommand(next ? 'playVideo' : 'pauseVideo');
+      }
+    },
+    seek: (time) => {
+      setCurrentTime(time);
+      if (isNative && videoRef.current) {
+        videoRef.current.currentTime = time;
+      } else {
+        postIframeCommand('seekTo', time);
+      }
+    },
+    isReady: () => true,
+    getCurrentTime: () => currentTime || (videoRef.current?.currentTime || 0),
+    getDuration: () => duration || (videoRef.current?.duration || 0),
+    setVolume: (v) => {
+      setVolume(v);
+      if (videoRef.current) videoRef.current.volume = v;
+    },
+    setMuted: (m) => {
+      setIsMuted(m);
+      if (videoRef.current) videoRef.current.muted = m;
+    }
+  }), [isNative, isPlaying, currentTime, duration, postIframeCommand]);
 
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);

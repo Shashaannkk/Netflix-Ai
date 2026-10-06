@@ -276,12 +276,10 @@ const WatchSpace = () => {
     }
   }, [playbackState.episode, selectedEpisode]);
 
-  // Host Action Handlers (Authoritative Socket State Source of Truth)
   const handleSelectServer = (sNum) => {
-    console.log('[WATCHSPACE HOST SELECT SERVER]', { sNum, isHost, currentSpaceId: currentSpace?._id });
-    if (!isHost) return;
+    console.log('[WATCHSPACE SELECT SERVER]', { sNum, isHost, currentSpaceId: currentSpace?._id });
     setSelectedServer(sNum);
-    if (sendServerChange) {
+    if (sendServerChange && isHost) {
       sendServerChange({
         serverNum: sNum,
         season: selectedSeason,
@@ -539,49 +537,46 @@ const WatchSpace = () => {
   // ── Video callbacks & Host Emission ─────────────────────────────────────────
   const togglePlay = () => {
     const player = videoRef.current;
-    if (!player) return;
-    if (!isHost) return;
-
-    if (player.isReady && !player.isReady()) {
-      console.warn('[WatchSpace] Cannot toggle play: Media metadata is not ready.');
-      return;
-    }
-
     const nextState = !isPlaying;
-    if (nextState) {
-      player.play();
-    } else {
-      player.pause();
+
+    if (player) {
+      if (player.togglePlay) {
+        player.togglePlay();
+      } else if (nextState) {
+        player.play?.();
+      } else {
+        player.pause?.();
+      }
     }
     setIsPlaying(nextState);
 
-    sendPlaybackUpdate({
-      action: nextState ? 'play' : 'pause',
-      currentTime: player.getCurrentTime(),
-      isPlaying: nextState,
-    });
+    if (isHost && sendPlaybackUpdate) {
+      sendPlaybackUpdate({
+        action: nextState ? 'play' : 'pause',
+        currentTime: player?.getCurrentTime ? player.getCurrentTime() : currentTime,
+        isPlaying: nextState,
+      });
+    }
   };
 
   const skip = (secs) => {
     const player = videoRef.current;
-    if (!player) return;
-    if (!isHost) return;
+    const currentDur = duration || (player?.getDuration ? player.getDuration() : 0) || 7200;
+    const curTime = player?.getCurrentTime ? player.getCurrentTime() : currentTime;
+    const newTime = Math.max(0, Math.min(currentDur, curTime + secs));
 
-    if (player.isReady && !player.isReady()) {
-      console.warn('[WatchSpace] Cannot skip: Media metadata is not ready.');
-      return;
+    if (player?.seek) {
+      player.seek(newTime);
     }
-
-    const currentDur = duration || player.getDuration() || 0;
-    const newTime = Math.max(0, Math.min(currentDur, player.getCurrentTime() + secs));
-    player.seek(newTime);
     setCurrentTime(newTime);
 
-    sendPlaybackUpdate({
-      action: 'seek',
-      currentTime: newTime,
-      isPlaying,
-    });
+    if (isHost && sendPlaybackUpdate) {
+      sendPlaybackUpdate({
+        action: 'seek',
+        currentTime: newTime,
+        isPlaying,
+      });
+    }
   };
 
   const handleTimeUpdate = (val) => {
