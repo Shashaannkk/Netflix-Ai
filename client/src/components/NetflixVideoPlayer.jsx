@@ -38,6 +38,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
   syncIsPlaying,
   onPlaybackChange,
   hideDefaultControls = false,
+  serverNum = 1,
 }, forwardedRef) => {
   const videoRef = useRef(null);
   const iframeRef = useRef(null);
@@ -800,19 +801,64 @@ export const NetflixVideoPlayer = React.forwardRef(({
       ) : isProvider ? (
         /*
          * PROVIDER EMBED NOTICE (Servers 1-7 without direct HTML5 media)
-         * Cross-origin iframe embeds cannot support frame-accurate HTML5 socket synchronization.
+         * Non-blocking notice for embed servers so Host can select Server 8.
          */
-        <div className="netflix-player-error-card" style={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
-          <AlertTriangle size={48} color="#f59e0b" />
-          <h3 style={{ color: '#f59e0b', marginTop: '0.75rem', fontSize: '1.2rem' }}>Selected Server Unavailable for Watch Together Sync</h3>
-          <p style={{ color: '#cbd5e1', maxWidth: '480px', margin: '0.5rem auto', lineHeight: '1.5', fontSize: '0.9rem' }}>
-            The selected streaming provider offers a third-party iframe embed which cannot be synchronized across multiple browsers.
-          </p>
-          <p style={{ color: '#38bdf8', fontWeight: 600, fontSize: '0.95rem', marginTop: '0.5rem' }}>
-            Please select <strong>Server 8 (Direct HTML5 Sync)</strong> for real-time co-watching.
-          </p>
-          <div className="netflix-source-label" style={{ marginTop: '1rem', opacity: 0.7 }}>
-            {title} • Provider Embed Mode (Server 1–7)
+        <div
+          className="netflix-provider-notice-container"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 5,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'radial-gradient(circle at center, #1a1a24 0%, #0a0a0d 100%)',
+            padding: '1.5rem',
+          }}
+        >
+          {poster && (
+            <img
+              src={poster}
+              alt=""
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                opacity: 0.15,
+                filter: 'blur(8px)',
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+          <div
+            className="netflix-provider-notice-card"
+            style={{
+              position: 'relative',
+              zIndex: 6,
+              pointerEvents: 'auto',
+              background: 'rgba(15, 23, 42, 0.88)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              borderRadius: '12px',
+              padding: '1.25rem 1.75rem',
+              maxWidth: '520px',
+              textAlign: 'center',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.7)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#f59e0b', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+              <AlertTriangle size={20} color="#f59e0b" />
+              <span>Watch Together Notice</span>
+            </div>
+            <p style={{ color: '#e2e8f0', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.5rem 0' }}>
+              Server {serverNum} is unavailable for Watch Together sync. Select Server 8 for synchronized playback.
+            </p>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.4rem' }}>
+              {title} • Provider Embed Mode (Servers 1–7)
+            </div>
           </div>
         </div>
       ) : (
@@ -1118,7 +1164,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
         .netflix-player-error-card {
           position: absolute;
           inset: 0;
-          z-index: 60;
+          z-index: 5;
+          pointer-events: none;
           background: #0a0a0a;
           color: #fff;
           display: flex;

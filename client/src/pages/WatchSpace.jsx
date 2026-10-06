@@ -509,7 +509,9 @@ const WatchSpace = () => {
   const resetControlsTimer = () => {
     setShowControls(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 3000);
+    if (isPlaying && selectedServer === 8) {
+      controlsTimer.current = setTimeout(() => setShowControls(false), 3500);
+    }
   };
 
   useEffect(() => {
@@ -883,6 +885,7 @@ const WatchSpace = () => {
             poster={videoPoster}
             title={titleName}
             isHost={isHost}
+            serverNum={selectedServer}
             syncTime={playbackState.positionSeconds ?? playbackState.currentTime}
             syncIsPlaying={playbackState.state === 'playing' || playbackState.isPlaying}
             onTimeUpdate={(t) => setCurrentTime(t)}
