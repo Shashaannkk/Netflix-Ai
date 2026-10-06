@@ -859,21 +859,7 @@ const WatchSpace = () => {
               <span>Leave Watch Party</span>
             </button>
 
-            {isHost && (
-              <button
-                className="cinema-leave-btn"
-                onClick={isScreenSharing ? stopScreenCast : startScreenCast}
-                style={{
-                  background: isScreenSharing ? 'rgba(239,68,68,0.25)' : 'rgba(56,189,248,0.2)',
-                  border: isScreenSharing ? '1px solid #ef4444' : '1px solid #38bdf8',
-                  color: isScreenSharing ? '#ef4444' : '#38bdf8',
-                }}
-                title={isScreenSharing ? "Stop Live Screen Stream" : "Capture & Cast Host Screen Live to Viewers"}
-              >
-                <Radio size={14} color={isScreenSharing ? '#ef4444' : '#38bdf8'} />
-                <span>{isScreenSharing ? 'Stop Screen Cast' : 'Stream Screen Live'}</span>
-              </button>
-            )}
+
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
