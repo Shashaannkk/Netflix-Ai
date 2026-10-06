@@ -850,17 +850,17 @@ export const NetflixVideoPlayer = React.forwardRef(({
       key={`${playerMode}_${currentSource}`}
       className="netflix-video-player-container"
       onMouseMove={resetControlsTimer}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onTouchStart={handleMouseDown}
-      onTouchEnd={handleMouseUp}
+      onMouseDown={!isProvider ? handleMouseDown : undefined}
+      onMouseUp={!isProvider ? handleMouseUp : undefined}
+      onTouchStart={!isProvider ? handleMouseDown : undefined}
+      onTouchEnd={!isProvider ? handleMouseUp : undefined}
       style={{
         position: 'relative',
         width: '100%',
         height: '100%',
         background: '#000',
         overflow: 'hidden',
-        userSelect: 'none',
+        userSelect: isProvider ? 'auto' : 'none',
       }}
     >
       {/* Intro Screen for native media */}
@@ -1015,8 +1015,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
         </div>
       )}
 
-      {/* Custom Transport Controls Overlay — UNIFIED FOR ALL MODES */}
-      {!hideDefaultControls && (
+      {/* Custom Transport Controls Overlay — ONLY FOR NATIVE MEDIA (Servers 8 & 9) */}
+      {!hideDefaultControls && !isProvider && (
         <div className={`netflix-controls-overlay ${showControls ? 'visible' : ''}`}>
           <div className="netflix-controls-top">
             <span className="netflix-player-title">{title}</span>

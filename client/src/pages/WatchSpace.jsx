@@ -843,10 +843,49 @@ const WatchSpace = () => {
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            {/* Authoritative Server Selector Dropdown (Header) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: selectedServer === 9 ? 'rgba(229,9,20,0.35)' : 'rgba(255,255,255,0.12)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: selectedServer === 9 ? '1px solid #e50914' : '1px solid rgba(255,255,255,0.2)', pointerEvents: 'auto' }}>
+              <Radio size={14} color="#e50914" />
+              <select
+                id="header-room-server-selector"
+                value={selectedServer}
+                disabled={!isHost}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  console.log('[WATCHSPACE HOST CHANGED SERVER]', val);
+                  if (isHost) handleSelectServer(val);
+                }}
+                style={{
+                  background: '#141414',
+                  color: '#fff',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  cursor: isHost ? 'pointer' : 'not-allowed',
+                  opacity: isHost ? 1 : 0.75,
+                  pointerEvents: 'auto',
+                }}
+                title={isHost ? "Select Streaming Server Mirror (1-9)" : "Server selection is controlled by the Host"}
+              >
+                {MOVIE_SERVERS.map((s) => (
+                  <option key={s.id} value={s.id} style={{ background: '#141414', color: '#fff' }}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+
+              {selectedServer === 9 && (
+                <span style={{ background: '#e50914', color: '#fff', fontSize: '0.6rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', letterSpacing: '0.5px' }}>
+                  SYNC DEMO
+                </span>
+              )}
+            </div>
+
             {/* Live Sync Status Pill */}
             <div
               className="room-sync-status-pill"
-              title={isEmbedServer ? "Third-party movie provider embed mode: Manual play per user. Switch to Server 8 for AI Auto-Sync." : "Real-time Synchronization Engine"}
+              title={isEmbedServer ? "Third-party movie provider embed mode: Manual play per user. Switch to Server 8 or 9 for AI Auto-Sync." : "Real-time Synchronization Engine"}
             >
               {isEmbedServer ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8' }}>
@@ -1200,204 +1239,183 @@ const WatchSpace = () => {
           ))}
         </div>
 
-        {/* ── Controls Bar ── */}
-        <div className={`cinema-controls-bar ${showControls ? 'visible' : ''}`}>
-          {/* Scrubber */}
-          <div
-            className="netflix-scrubber-track"
-            onClick={handleScrubberClick}
-            title="Seek"
-          >
+        {/* ── Controls Bar — ONLY FOR NATIVE MEDIA (Servers 8 & 9) ── */}
+        {!isEmbedServer && (
+          <div className={`cinema-controls-bar ${showControls ? 'visible' : ''}`}>
+            {/* Scrubber */}
             <div
-              className="netflix-scrubber-progress"
-              style={{ width: `${progressPct}%` }}
+              className="netflix-scrubber-track"
+              onClick={handleScrubberClick}
+              title="Seek"
             >
-              <div className="netflix-scrubber-thumb" />
-            </div>
-          </div>
-
-          <div className="cinema-control-buttons">
-            {/* Left side */}
-            <div className="controls-left">
-              <button id="room-play-btn" className="player-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
-                {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" />}
-              </button>
-
-              <button id="room-back10-btn" className="player-btn" onClick={() => skip(-10)} title="Back 10s">
-                <RotateCcw size={22} />
-              </button>
-
-              <button id="room-fwd10-btn" className="player-btn" onClick={() => skip(10)} title="Forward 10s">
-                <RotateCw size={22} />
-              </button>
-
-              {/* Volume cluster */}
-              <div className="room-volume-cluster">
-                <button id="room-mute-btn" className="player-btn" onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
-                  {isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
-                </button>
-                <input
-                  type="range"
-                  className="room-volume-slider"
-                  min={0} max={1} step={0.05}
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                />
+              <div
+                className="netflix-scrubber-progress"
+                style={{ width: `${progressPct}%` }}
+              >
+                <div className="netflix-scrubber-thumb" />
               </div>
+            </div>
 
-              <span className="room-time-display">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
+            <div className="cinema-control-buttons">
+              {/* Left side */}
+              <div className="controls-left">
+                <button id="room-play-btn" className="player-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
+                  {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" />}
+                </button>
 
-              {/* Authoritative Server Selector (Servers 1-8 Normal Movies, Server 9 Watch Together Demo) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: selectedServer === 9 ? 'rgba(229,9,20,0.35)' : 'rgba(229,9,20,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: selectedServer === 9 ? '1px solid #e50914' : '1px solid rgba(229,9,20,0.5)', pointerEvents: 'auto', position: 'relative', zIndex: 100 }}>
-                <Radio size={15} color="#e50914" />
-                <select
-                  id="room-server-selector"
-                  value={selectedServer}
-                  disabled={!isHost}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    console.log('[WATCHSPACE HOST CHANGED SERVER]', val);
-                    if (isHost) handleSelectServer(val);
-                  }}
-                  style={{
-                    background: '#141414',
-                    color: '#fff',
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: '0.75rem',
-                    fontWeight: 'bold',
-                    cursor: isHost ? 'pointer' : 'not-allowed',
-                    opacity: isHost ? 1 : 0.75,
-                    pointerEvents: 'auto',
-                    position: 'relative',
-                    zIndex: 101,
-                  }}
-                  title={isHost ? "Select Streaming Server Mirror" : "Server selection is controlled by the Host"}
-                >
-                  {MOVIE_SERVERS.map((s) => (
-                    <option key={s.id} value={s.id} style={{ background: '#141414', color: '#fff' }}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
+                <button id="room-back10-btn" className="player-btn" onClick={() => skip(-10)} title="Back 10s">
+                  <RotateCcw size={22} />
+                </button>
 
+                <button id="room-fwd10-btn" className="player-btn" onClick={() => skip(10)} title="Forward 10s">
+                  <RotateCw size={22} />
+                </button>
+
+                {/* Volume cluster */}
+                <div className="room-volume-cluster">
+                  <button id="room-mute-btn" className="player-btn" onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
+                    {isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+                  </button>
+                  <input
+                    type="range"
+                    className="room-volume-slider"
+                    min={0} max={1} step={0.05}
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                  />
+                </div>
+
+                <span className="room-time-display">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
+
+                {/* Server 9 Dedicated Controls: Audio Language, Subtitles, Quality & Speed */}
                 {selectedServer === 9 && (
-                  <span style={{ background: '#e50914', color: '#fff', fontSize: '0.6rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', marginLeft: '4px', letterSpacing: '0.5px' }}>
-                    SYNC DEMO
-                  </span>
+                  <>
+                    {/* Audio Language */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                      <Globe size={13} color="#38bdf8" />
+                      <select
+                        id="demo-audio-selector"
+                        value={selectedAudioLang}
+                        onChange={(e) => setSelectedAudioLang(e.target.value)}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
+                        title="Available Audio Track"
+                      >
+                        {WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.map((l) => (
+                          <option key={l.code} value={l.code} style={{ background: '#141414', color: '#fff' }}>
+                            {l.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Captions / Subtitles */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                      <MessageSquare size={13} color="#aaa" />
+                      <select
+                        id="demo-sub-selector"
+                        value={selectedDemoSub}
+                        onChange={(e) => setSelectedDemoSub(e.target.value)}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
+                        title="Captions / Subtitles"
+                      >
+                        {WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.map((sub) => (
+                          <option key={sub.code} value={sub.code} style={{ background: '#141414', color: '#fff' }}>
+                            Subtitles: {sub.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Video Quality */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                      <Film size={13} color="#e50914" />
+                      <select
+                        id="demo-quality-selector"
+                        value={selectedDemoQuality}
+                        onChange={(e) => setSelectedDemoQuality(e.target.value)}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
+                        title="Video Stream Quality"
+                      >
+                        {WATCH_TOGETHER_DEMO_CONFIG.availableQualities.map((q) => (
+                          <option key={q} value={q} style={{ background: '#141414', color: '#fff' }}>
+                            {q}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Playback Speed (Host Authoritative Sync) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                      <Clock size={13} color="#f59e0b" />
+                      <select
+                        id="demo-speed-selector"
+                        value={playbackState.playbackRate || 1}
+                        disabled={!isHost}
+                        onChange={(e) => handleSpeedChange(e.target.value)}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
+                        title={isHost ? "Authoritative Playback Speed (Room Synchronized)" : "Playback speed is controlled by the Host"}
+                      >
+                        {WATCH_TOGETHER_DEMO_CONFIG.availableRates.map((rate) => (
+                          <option key={rate} value={rate} style={{ background: '#141414', color: '#fff' }}>
+                            Speed: {rate}x
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
                 )}
               </div>
 
-              {/* Server 9 Dedicated Controls: Audio Language & Subtitles */}
-              {selectedServer === 9 && (
-                <>
-                  {/* Audio Language */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                    <Globe size={13} color="#38bdf8" />
-                    <select
-                      id="demo-audio-selector"
-                      value={selectedAudioLang}
-                      onChange={(e) => setSelectedAudioLang(e.target.value)}
-                      style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
-                      title="Available Audio Track"
-                    >
-                      {WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.map((l) => (
-                        <option key={l.code} value={l.code} style={{ background: '#141414', color: '#fff' }}>
-                          {l.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {/* Right side */}
+              <div className="controls-right">
+                {/* Host: Go Live / End Room buttons */}
+                {isHost && currentSpace?.status === 'scheduled' && (
+                  <button
+                    id="go-live-btn"
+                    className="room-control-btn room-go-live-btn"
+                    onClick={handleGoLive}
+                    disabled={isGoingLive}
+                  >
+                    {isGoingLive ? <Loader size={14} className="spin-icon" /> : <SquareActivity size={14} />}
+                    Go Live
+                  </button>
+                )}
 
-                  {/* Captions / Subtitles */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                    <MessageSquare size={13} color="#aaa" />
-                    <select
-                      id="demo-sub-selector"
-                      value={selectedDemoSub}
-                      onChange={(e) => setSelectedDemoSub(e.target.value)}
-                      style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
-                      title="Captions / Subtitles"
-                    >
-                      {WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.map((sub) => (
-                        <option key={sub.code} value={sub.code} style={{ background: '#141414', color: '#fff' }}>
-                          Subtitles: {sub.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {isHost && currentSpace?.status === 'live' && (
+                  <button
+                    id="end-room-btn"
+                    className={`room-control-btn room-end-btn ${confirmEnd ? 'confirm' : ''}`}
+                    onClick={handleEndRoom}
+                    disabled={isEnding}
+                  >
+                    {isEnding ? <Loader size={14} className="spin-icon" /> : <StopCircle size={14} />}
+                    {confirmEnd ? 'Click again to end' : 'End Room'}
+                  </button>
+                )}
 
-                  {/* Playback Speed (Host Authoritative Sync) */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                    <Clock size={13} color="#f59e0b" />
-                    <select
-                      id="demo-speed-selector"
-                      value={playbackState.playbackRate || 1}
-                      disabled={!isHost}
-                      onChange={(e) => handleSpeedChange(e.target.value)}
-                      style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
-                      title={isHost ? "Authoritative Playback Speed (Room Synchronized)" : "Playback speed is controlled by the Host"}
-                    >
-                      {WATCH_TOGETHER_DEMO_CONFIG.availableRates.map((rate) => (
-                        <option key={rate} value={rate} style={{ background: '#141414', color: '#fff' }}>
-                          Speed: {rate}x
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Right side */}
-            <div className="controls-right">
-              {/* Host: Go Live / End Room buttons */}
-              {isHost && currentSpace?.status === 'scheduled' && (
+                {/* Toggle sidebar */}
                 <button
-                  id="go-live-btn"
-                  className="room-control-btn room-go-live-btn"
-                  onClick={handleGoLive}
-                  disabled={isGoingLive}
+                  id="toggle-sidebar-btn"
+                  className="circle-icon-btn"
+                  style={{
+                    backgroundColor: isSidebarOpen ? 'var(--netflix-red)' : 'rgba(42,42,42,0.6)',
+                    borderColor: isSidebarOpen ? 'var(--netflix-red)' : 'rgba(255,255,255,0.3)',
+                  }}
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  title="Toggle AI Panel"
                 >
-                  {isGoingLive ? <Loader size={14} className="spin-icon" /> : <SquareActivity size={14} />}
-                  Go Live
+                  <Sparkles size={15} />
                 </button>
-              )}
 
-              {isHost && currentSpace?.status === 'live' && (
-                <button
-                  id="end-room-btn"
-                  className={`room-control-btn room-end-btn ${confirmEnd ? 'confirm' : ''}`}
-                  onClick={handleEndRoom}
-                  disabled={isEnding}
-                >
-                  {isEnding ? <Loader size={14} className="spin-icon" /> : <StopCircle size={14} />}
-                  {confirmEnd ? 'Click again to end' : 'End Room'}
+                <button id="room-fullscreen-btn" className="player-btn" onClick={toggleFullscreen} title="Full Screen">
+                  <Maximize size={22} />
                 </button>
-              )}
-
-              {/* Toggle sidebar */}
-              <button
-                id="toggle-sidebar-btn"
-                className="circle-icon-btn"
-                style={{
-                  backgroundColor: isSidebarOpen ? 'var(--netflix-red)' : 'rgba(42,42,42,0.6)',
-                  borderColor: isSidebarOpen ? 'var(--netflix-red)' : 'rgba(255,255,255,0.3)',
-                }}
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                title="Toggle AI Panel"
-              >
-                <Sparkles size={15} />
-              </button>
-
-              <button id="room-fullscreen-btn" className="player-btn" onClick={toggleFullscreen} title="Full Screen">
-                <Maximize size={22} />
-              </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ══ 2. CINEMA SIDEBAR ════════════════════════════════════════════════ */}

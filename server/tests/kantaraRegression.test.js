@@ -6,6 +6,7 @@ import {
   getPlayerMode,
   isObsoleteSampleUrl,
   SERVER_8_CANONICAL_SOURCE,
+  WATCH_TOGETHER_DEMO_CONFIG,
 } from '../../client/src/services/movieServers.js';
 
 describe('Kantara A Legend: Chapter 1 — Source Resolution Regression Audit', () => {
@@ -109,5 +110,27 @@ describe('Kantara A Legend: Chapter 1 — Source Resolution Regression Audit', (
     }
 
     assert.strictEqual(videoSrc, customAssetUrl);
+  });
+
+  it('8. Server 9 Watch Together Demo defaults to Hindi audio with multi-language, subtitle, and quality support', () => {
+    assert.strictEqual(WATCH_TOGETHER_DEMO_CONFIG.defaultLanguage, 'hi');
+    assert.strictEqual(WATCH_TOGETHER_DEMO_CONFIG.tmdbId, 964980);
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'hi'));
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'kn'));
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'te'));
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.some(s => s.code === 'hi'));
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableQualities.includes('Auto (1080p)'));
+  });
+
+  it('9. getPlayerMode identifies Servers 1-7 as provider embeds and Server 8/9 as native media', () => {
+    const kantaraTmdb = 964980;
+    for (let s = 1; s <= 7; s++) {
+      const url = getServerStreamUrl({ tmdbId: kantaraTmdb, serverNum: s });
+      assert.strictEqual(getPlayerMode(url), 'provider', `Server ${s} should resolve to provider player mode`);
+    }
+    const server8Url = getServerStreamUrl({ tmdbId: kantaraTmdb, serverNum: 8 });
+    const server9Url = getServerStreamUrl({ tmdbId: kantaraTmdb, serverNum: 9 });
+    assert.strictEqual(getPlayerMode(server8Url), 'native');
+    assert.strictEqual(getPlayerMode(server9Url), 'native');
   });
 });

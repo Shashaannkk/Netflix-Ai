@@ -62,6 +62,22 @@ const sampleTimeline = [
 // ── Expanded Seed Titles Array (10 Netflix-Quality Titles) ───────────────────
 const seedData = [
   {
+    title: 'Kantara A Legend: Chapter 1',
+    tmdbId: 964980,
+    description:
+      'When tragic secrets unfold, a young champion must embrace divine guardianship and battle dark forces threatening his ancestral village.',
+    durationSeconds: 9000,
+    genres: ['Action', 'Drama', 'Fantasy', 'Mythology'],
+    ageRating: 'U/A 16+',
+    language: 'Hindi',
+    releaseYear: 2025,
+    poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
+    backdropUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop',
+    videoAssetUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+    isPublished: true,
+    timeline: sampleTimeline,
+  },
+  {
     title: 'Tears of Steel',
     description:
       'In a bleak future, a group of warriors and scientists take refuge in an Amsterdam laboratory. Using experimental technology, they attempt to turn back the clock and save the world from a robotic takeover.',

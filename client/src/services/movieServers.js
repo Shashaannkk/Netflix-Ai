@@ -9,18 +9,26 @@ export const SERVER_8_CANONICAL_SOURCE = 'https://vjs.zencdn.net/v/oceans.mp4';
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara: Chapter 1 — Watch Together Demo',
   movieIdentifier: 'kantara-chapter-1-demo',
+  tmdbId: 964980,
   authorizedVideoSource: SERVER_8_CANONICAL_SOURCE,
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
     { code: 'en', label: 'English' },
-    { code: 'kn', label: 'Kannada (Original)' }
+    { code: 'kn', label: 'Kannada (Original)' },
+    { code: 'te', label: 'Telugu' },
+    { code: 'ta', label: 'Tamil' },
+    { code: 'ml', label: 'Malayalam' }
   ],
   availableSubtitles: [
     { code: 'off', label: 'Off' },
     { code: 'hi', label: 'Hindi Subtitles' },
-    { code: 'en', label: 'English Subtitles' }
+    { code: 'en', label: 'English Subtitles' },
+    { code: 'kn', label: 'Kannada Subtitles' },
+    { code: 'te', label: 'Telugu Subtitles' },
+    { code: 'ta', label: 'Tamil Subtitles' },
+    { code: 'ml', label: 'Malayalam Subtitles' }
   ],
-  availableQualities: ['Auto (1080p)', '1080p', '720p', '480p'],
+  availableQualities: ['Auto (1080p)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '360p'],
   availableRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
   defaultLanguage: 'hi',
   defaultSubtitle: 'off',
