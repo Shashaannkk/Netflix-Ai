@@ -200,15 +200,9 @@ export const WatchSpaceProvider = ({ children }) => {
       });
 
       const now = Date.now();
-      const estimatedServerNow = now + clockOffsetMsRef.current;
       const isPlaying = payload.state === 'playing' || !!payload.isPlaying;
-      const elapsedSec = (isPlaying && payload.changedAtServerMs)
-        ? Math.max(0, (estimatedServerNow - payload.changedAtServerMs) / 1000)
-        : 0;
       const basePos = payload.positionSeconds ?? payload.currentTime ?? 0;
-      const projectedPos = isPlaying
-        ? Math.max(0, basePos + elapsedSec * (payload.playbackRate || 1.0))
-        : Math.max(0, basePos);
+      const projectedPos = Math.max(0, basePos);
 
       setPlaybackState((prev) => {
         // Version check: Ignore stale server responses
@@ -278,13 +272,8 @@ export const WatchSpaceProvider = ({ children }) => {
 
       const estimatedServerNow = now + estimatedClockOffsetMs;
       const isPlaying = payload.state === 'playing' || !!payload.isPlaying;
-      const elapsedSec = (isPlaying && payload.changedAtServerMs)
-        ? Math.max(0, (estimatedServerNow - payload.changedAtServerMs) / 1000)
-        : 0;
       const basePos = payload.positionSeconds ?? payload.currentTime ?? 0;
-      const projectedPos = isPlaying
-        ? Math.max(0, basePos + elapsedSec * (payload.playbackRate || 1.0))
-        : Math.max(0, basePos);
+      const projectedPos = Math.max(0, basePos);
 
       setPlaybackState((prev) => {
         // Version check: Ignore stale server responses

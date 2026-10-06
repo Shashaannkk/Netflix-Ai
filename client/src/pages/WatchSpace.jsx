@@ -354,45 +354,7 @@ const WatchSpace = () => {
     sessionStorage.setItem('dismissed_watch_together_demo_banner', 'true');
   };
 
-  // Host Screen Casting State
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [screenStream, setScreenStream]       = useState(null);
-  const screenVideoRef                        = useRef(null);
 
-  const startScreenCast = async () => {
-    if (!isHost) return;
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always' },
-        audio: true,
-      });
-      setScreenStream(stream);
-      setIsScreenSharing(true);
-
-      const track = stream.getVideoTracks()[0];
-      if (track) {
-        track.onended = () => {
-          stopScreenCast();
-        };
-      }
-    } catch (err) {
-      console.warn('[Screen Share] User cancelled or unsupported:', err);
-    }
-  };
-
-  const stopScreenCast = () => {
-    if (screenStream) {
-      screenStream.getTracks().forEach((t) => t.stop());
-    }
-    setScreenStream(null);
-    setIsScreenSharing(false);
-  };
-
-  useEffect(() => {
-    if (screenVideoRef.current && screenStream) {
-      screenVideoRef.current.srcObject = screenStream;
-    }
-  }, [screenStream, isScreenSharing]);
 
   useEffect(() => {
     setShowTriviaAnswer(false);
@@ -1088,42 +1050,26 @@ const WatchSpace = () => {
         )}
 
         {/* Video Canvas / Netflix AI Custom Player */}
-        {/* Video Canvas / Netflix AI Custom Player / Screen Share Stream */}
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-          {isScreenSharing ? (
-            <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }}>
-              <video
-                ref={screenVideoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              />
-              <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(229,9,20,0.95)', color: '#fff', padding: '6px 14px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.7)', zIndex: 30 }}>
-                <span className="live-green-dot" style={{ background: '#fff' }} /> 🔴 HOST LIVE SCREEN CASTING ACTIVE
-              </div>
-            </div>
-          ) : (
-            <NetflixVideoPlayer
-              key={`player_s${selectedServer}_${videoSrc}`}
-              ref={videoRef}
-              src={videoSrc}
-              poster={videoPoster}
-              title={titleName}
-              isHost={isHost}
-              serverNum={selectedServer}
-              duration={duration}
-              syncTime={playbackState.positionSeconds ?? playbackState.currentTime}
-              syncIsPlaying={playbackState.state === 'playing' || playbackState.isPlaying}
-              hideDefaultControls={true}
-              onTimeUpdate={(t) => setCurrentTime(t)}
-              onPlaybackChange={(data) => {
-                if (isHost) {
-                  sendPlaybackUpdate(data);
-                }
-              }}
-            />
-          )}
+          <NetflixVideoPlayer
+            key={`player_s${selectedServer}_${videoSrc}`}
+            ref={videoRef}
+            src={videoSrc}
+            poster={videoPoster}
+            title={titleName}
+            isHost={isHost}
+            serverNum={selectedServer}
+            duration={duration}
+            syncTime={playbackState.positionSeconds ?? playbackState.currentTime}
+            syncIsPlaying={playbackState.state === 'playing' || playbackState.isPlaying}
+            hideDefaultControls={true}
+            onTimeUpdate={(t) => setCurrentTime(t)}
+            onPlaybackChange={(data) => {
+              if (isHost) {
+                sendPlaybackUpdate(data);
+              }
+            }}
+          />
         </div>
 
         {/* Authored Timeline Trivia Card Overlay */}

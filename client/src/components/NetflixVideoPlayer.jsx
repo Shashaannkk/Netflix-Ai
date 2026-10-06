@@ -25,7 +25,7 @@ import {
   getPlayerMode,
 } from '../services/movieServers';
 
-const SYNC_HARD_CORRECTION_THRESHOLD = 0.25;
+const SYNC_HARD_CORRECTION_THRESHOLD = 0.05;
 
 export const NetflixVideoPlayer = React.forwardRef(({
   src,
@@ -495,7 +495,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     } else {
       const localTime = adapter.getCurrentTime();
       const drift = Math.abs(localTime - syncTime);
-      const hardCorrectionThreshold = (!syncIsPlaying || !isPlaying) ? 0.25 : SYNC_HARD_CORRECTION_THRESHOLD;
+      const hardCorrectionThreshold = (!syncIsPlaying || !isPlaying) ? 0.05 : SYNC_HARD_CORRECTION_THRESHOLD;
 
       if (drift > hardCorrectionThreshold) {
         adapter.seek(syncTime);

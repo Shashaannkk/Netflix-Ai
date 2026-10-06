@@ -4,13 +4,13 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = 'https://vjs.zencdn.net/v/oceans.mp4';
+export const SERVER_8_CANONICAL_SOURCE = 'https://www.youtube.com/embed/Frp0zC4643U';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
-  title: 'Kantara: Chapter 1 — Watch Together Demo',
+  title: 'Kantara A Legend: Chapter 1',
   movieIdentifier: 'kantara-chapter-1-demo',
   tmdbId: 964980,
-  authorizedVideoSource: SERVER_8_CANONICAL_SOURCE,
+  authorizedVideoSource: 'https://www.youtube.com/embed/Frp0zC4643U',
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
     { code: 'en', label: 'English' },
