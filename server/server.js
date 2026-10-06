@@ -50,8 +50,15 @@ app.use(cookieParser(process.env.COOKIE_SECRET || 'netflix-secret'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 3. Mount REST API Routes
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 3. Mount REST API Routes & Static Local Media Stream Endpoint
 app.use('/api', apiRouter);
+app.use('/media', express.static(path.join(__dirname, '..')));
 
 // Root route greeting
 app.get('/', (req, res) => {
