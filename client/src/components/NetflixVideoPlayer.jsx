@@ -31,6 +31,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
   src,
   poster,
   title = 'Movie',
+  duration: propDuration,
   onTimeUpdate,
   onEnded,
   isHost = true,
@@ -64,8 +65,29 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
   // State initialization based on mode contract
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(isNative ? 0 : null);
-  const [duration, setDuration] = useState(null);
+  const [currentTime, setCurrentTime] = useState(isNative ? 0 : 0);
+  const [duration, setDuration] = useState(propDuration || null);
+
+  useEffect(() => {
+    if (typeof propDuration === 'number' && propDuration > 0) {
+      setDuration(propDuration);
+    }
+  }, [propDuration]);
+
+  /*
+   * Helper to send iframe postMessage commands to embedded player if supported
+   */
+  const postIframeCommand = useCallback((cmd, args = '') => {
+    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+    try {
+      const win = iframeRef.current.contentWindow;
+      win.postMessage(JSON.stringify({ event: 'command', func: cmd, args: args }), '*');
+      win.postMessage(JSON.stringify({ method: cmd === 'playVideo' ? 'play' : 'pause' }), '*');
+      win.postMessage(JSON.stringify({ action: cmd === 'playVideo' ? 'play' : 'pause' }), '*');
+    } catch (err) {
+      console.warn('[Iframe postMessage Warning]:', err?.message);
+    }
+  }, []);
 
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);

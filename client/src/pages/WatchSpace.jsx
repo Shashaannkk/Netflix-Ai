@@ -720,6 +720,22 @@ const WatchSpace = () => {
     return () => { isMounted = false; };
   }, [targetTmdbId, selectedSeason, isTvSeries]);
 
+  // Load actual movie/TV runtime duration in seconds from TMDB
+  useEffect(() => {
+    if (!targetTmdbId) return;
+    let isMounted = true;
+    fetchMediaDetails(targetTmdbId, isTvSeries ? 'tv' : 'movie').then((details) => {
+      if (isMounted && details) {
+        const mins = details.runtime || (details.episode_run_time && details.episode_run_time[0]) || 120;
+        const secs = mins * 60;
+        if (secs > 0) setDuration(secs);
+      }
+    }).catch((err) => {
+      console.warn('[WatchSpace] Could not load media duration from TMDB:', err);
+    });
+    return () => { isMounted = false; };
+  }, [targetTmdbId, isTvSeries]);
+
   // ── Loading / Error states ──────────────────────────────────────────────────
   if (spaceLoading && !currentSpace) {
     return (
@@ -889,6 +905,7 @@ const WatchSpace = () => {
             title={titleName}
             isHost={isHost}
             serverNum={selectedServer}
+            duration={duration}
             syncTime={playbackState.positionSeconds ?? playbackState.currentTime}
             syncIsPlaying={playbackState.state === 'playing' || playbackState.isPlaying}
             onTimeUpdate={(t) => setCurrentTime(t)}
@@ -967,34 +984,6 @@ const WatchSpace = () => {
                 Reveal Answer
               </button>
             )}
-          </div>
-        )}
-
-        {/* Part 8: Subtitle Line Overlay (Pre-authored localized variants) */}
-        {activeSubLine && (
-          <div
-            className="room-subtitle-overlay"
-            style={{
-              position: 'absolute',
-              bottom: '95px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: '#fff',
-              padding: '0.45rem 1.1rem',
-              borderRadius: '6px',
-              fontSize: '1.05rem',
-              fontWeight: 600,
-              textShadow: '0 2px 4px rgba(0,0,0,0.9)',
-              zIndex: 25,
-              maxWidth: '85%',
-              textAlign: 'center',
-              border: '1px solid rgba(255,255,255,0.18)',
-              backdropFilter: 'blur(6px)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
-            }}
-          >
-            {activeSubLine.text}
           </div>
         )}
 
@@ -1181,15 +1170,19 @@ const WatchSpace = () => {
               </span>
 
               {/* Authoritative 8-Server Selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: 'rgba(229,9,20,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(229,9,20,0.5)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', background: 'rgba(229,9,20,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(229,9,20,0.5)', pointerEvents: 'auto', position: 'relative', zIndex: 100 }}>
                 <Radio size={15} color="#e50914" />
                 <select
                   id="room-server-selector"
                   value={selectedServer}
                   disabled={!isHost}
-                  onChange={(e) => isHost && handleSelectServer(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    console.log('[WATCHSPACE HOST CHANGED SERVER]', val);
+                    if (isHost) handleSelectServer(val);
+                  }}
                   style={{
-                    background: 'transparent',
+                    background: '#141414',
                     color: '#fff',
                     border: 'none',
                     outline: 'none',
@@ -1197,6 +1190,9 @@ const WatchSpace = () => {
                     fontWeight: 'bold',
                     cursor: isHost ? 'pointer' : 'not-allowed',
                     opacity: isHost ? 1 : 0.75,
+                    pointerEvents: 'auto',
+                    position: 'relative',
+                    zIndex: 101,
                   }}
                   title={isHost ? "Select Streaming Server Mirror" : "Server selection is controlled by the Host"}
                 >
