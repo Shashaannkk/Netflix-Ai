@@ -846,42 +846,41 @@ const WatchSpace = () => {
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {/* Authoritative Server Selector Dropdown & Chips (Header) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: selectedServer === 9 ? 'rgba(229,9,20,0.35)' : 'rgba(255,255,255,0.12)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: selectedServer === 9 ? '1px solid #e50914' : '1px solid rgba(255,255,255,0.2)', pointerEvents: 'auto' }}>
+            {/* Authoritative Server Selector Dropdown (Header) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: selectedServer === 9 ? 'rgba(229,9,20,0.35)' : 'rgba(255,255,255,0.12)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: selectedServer === 9 ? '1px solid #e50914' : '1px solid rgba(255,255,255,0.2)', pointerEvents: 'auto' }}>
               <Radio size={14} color="#e50914" />
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {MOVIE_SERVERS.map((s) => {
-                  const isActive = selectedServer === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      disabled={!isHost}
-                      onClick={() => handleSelectServer(s.id)}
-                      style={{
-                        background: isActive ? '#e50914' : 'rgba(0,0,0,0.6)',
-                        color: '#fff',
-                        border: isActive ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '4px',
-                        padding: '0.15rem 0.45rem',
-                        fontSize: '0.72rem',
-                        fontWeight: isActive ? 800 : 600,
-                        cursor: isHost ? 'pointer' : 'not-allowed',
-                        opacity: isHost ? (isActive ? 1 : 0.8) : (isActive ? 1 : 0.5),
-                        transition: 'all 0.15s ease',
-                      }}
-                      title={!isHost ? `Server ${s.id} — Controlled live by Host (Default: Server 9)` : `Click to switch to ${s.label}`}
-                    >
-                      S{s.id}{s.id === 9 ? ' ✨' : ''}
-                    </button>
-                  );
-                })}
-              </div>
+              <select
+                id="header-room-server-selector"
+                value={selectedServer}
+                disabled={!isHost}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  console.log('[WATCHSPACE HOST CHANGED SERVER]', val);
+                  if (isHost) handleSelectServer(val);
+                }}
+                style={{
+                  background: '#141414',
+                  color: '#fff',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  cursor: isHost ? 'pointer' : 'not-allowed',
+                  opacity: isHost ? 1 : 0.75,
+                  pointerEvents: 'auto',
+                }}
+                title={isHost ? "Select Streaming Server Mirror (1-9)" : "Server selection is controlled by the Host"}
+              >
+                {MOVIE_SERVERS.map((s) => (
+                  <option key={s.id} value={s.id} style={{ background: '#141414', color: '#fff' }}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
 
               {selectedServer === 9 && (
                 <span style={{ background: '#e50914', color: '#fff', fontSize: '0.6rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', letterSpacing: '0.5px' }}>
-                  KANTARA DEMO (HINDI DEFAULT)
+                  SYNC DEMO
                 </span>
               )}
             </div>
@@ -1022,6 +1021,7 @@ const WatchSpace = () => {
         {/* Video Canvas / Netflix AI Custom Player */}
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
           <NetflixVideoPlayer
+            key={`player_s${selectedServer}_${videoSrc}`}
             ref={videoRef}
             src={videoSrc}
             poster={videoPoster}

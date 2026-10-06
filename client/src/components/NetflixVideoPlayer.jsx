@@ -161,7 +161,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     message: null,
   });
 
-  const [showIntro, setShowIntro] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [speedBoost, setSpeedBoost] = useState(false);
   const [seekRipple, setSeekRipple] = useState(null);
 
@@ -355,7 +355,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     setCurrentSource(nextSource);
     setMediaState('LOADING');
     setMediaError({ code: null, message: null });
-    setShowIntro(true);
+    setShowIntro(false);
     hasAppliedInitialSyncRef.current = false;
 
     // Reset timestamp and duration state according to mode contract
