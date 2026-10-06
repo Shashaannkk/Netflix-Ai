@@ -322,6 +322,11 @@ export const initSocketHandler = (io) => {
               season: space?.settings?.season || 1,
               episode: space?.settings?.episode || 1,
             },
+            mediaConfig: {
+              audioLang: space?.settings?.audioLang || 'hi',
+              subTrack: space?.settings?.subTrack || 'off',
+              quality: space?.settings?.quality || 'Auto (1080p)',
+            },
             version: 1,
             hostSocketId: isHost ? socket.id : null,
             hostConnected: isHost,
@@ -393,6 +398,7 @@ export const initSocketHandler = (io) => {
             serverNum: room.playback.serverNum || 9,
             season: room.playback.season || 1,
             episode: room.playback.episode || 1,
+            mediaConfig: room.mediaConfig || { audioLang: 'hi', subTrack: 'off', quality: 'Auto (1080p)' },
             version: room.version,
             isHost,
             hostConnected: room.hostConnected,
@@ -583,10 +589,43 @@ export const initSocketHandler = (io) => {
         serverNum: room.playback.serverNum || 1,
         season: room.playback.season || 1,
         episode: room.playback.episode || 1,
+        mediaConfig: room.mediaConfig,
         version: room.version,
         isHost: true,
         hostConnected: true,
         serverTs: nowMs,
+      });
+    });
+
+    // ── 3c. Host Audio, Subtitle & Quality Broadcast ────────────────────────
+    socket.on('room.media.config', (data) => {
+      const { watchSpaceId, payload } = data || {};
+      if (!watchSpaceId || !payload) return;
+
+      const room = findRoom(watchSpaceId);
+      if (!room) return;
+
+      const currentUser = socket.data.user || { id: socket.id, _id: socket.id, role: 'viewer' };
+      const currentUserId = (currentUser.id || currentUser._id || socket.id).toString();
+      const hostUserIdStr = room.hostUserId ? room.hostUserId.toString() : null;
+
+      if (currentUserId !== hostUserIdStr && currentUser.role !== 'admin') {
+        socket.emit('room.error', buildEnvelope('room.error', watchSpaceId, { message: 'Unauthorized: Only the host can update audio/subtitle/quality settings.' }));
+        return;
+      }
+
+      const { audioLang, subTrack, quality } = payload;
+      room.mediaConfig = {
+        audioLang: audioLang || room.mediaConfig?.audioLang || 'hi',
+        subTrack: subTrack || room.mediaConfig?.subTrack || 'off',
+        quality: quality || room.mediaConfig?.quality || 'Auto (1080p)',
+      };
+
+      console.log(`[WATCHSPACE MEDIA CONFIG] Space: ${watchSpaceId} | Audio: ${room.mediaConfig.audioLang} | Sub: ${room.mediaConfig.subTrack} | Quality: ${room.mediaConfig.quality}`);
+
+      emitRoomBroadcast('room.media.config', room, {
+        mediaConfig: room.mediaConfig,
+        hostUserId: currentUserId,
       });
     });
 

@@ -91,6 +91,12 @@ export const WatchSpaceProvider = ({ children }) => {
   const [selectedLocale, setSelectedLocale]     = useState('en-US');
   const [selectedSubtitle, setSelectedSubtitle] = useState('English (v1.2 Approved)');
 
+  const [mediaConfigState, setMediaConfigState] = useState({
+    audioLang: 'hi',
+    subTrack: 'off',
+    quality: 'Auto (1080p)',
+  });
+
   // ── Socket.IO ref & state ───────────────────────────────────────────────────
   const socketRef = useRef(null);
   const currentSpaceIdRef = useRef(null);
@@ -211,6 +217,10 @@ export const WatchSpaceProvider = ({ children }) => {
           return prev;
         }
 
+        if (payload.mediaConfig) {
+          setMediaConfigState(payload.mediaConfig);
+        }
+
         return {
           ...prev,
           state: isPlaying ? 'playing' : 'paused',
@@ -228,6 +238,14 @@ export const WatchSpaceProvider = ({ children }) => {
           action: payload.action || 'update',
         };
       });
+    });
+
+    // ── PRD Event: room.media.config ───────────────────────────────────────
+    socket.on('room.media.config', (envelope) => {
+      const { payload } = envelope || {};
+      if (payload?.mediaConfig) {
+        setMediaConfigState(payload.mediaConfig);
+      }
     });
 
     // ── PRD Event: room.host.disconnected ──────────────────────────────────
@@ -649,6 +667,26 @@ export const WatchSpaceProvider = ({ children }) => {
     [currentSpace]
   );
 
+  const sendMediaConfigChange = useCallback(
+    ({ audioLang, subTrack, quality }) => {
+      if (!socketRef.current?.connected || !currentSpace) return;
+      const nextConfig = {
+        audioLang: audioLang || mediaConfigState.audioLang,
+        subTrack: subTrack || mediaConfigState.subTrack,
+        quality: quality || mediaConfigState.quality,
+      };
+      setMediaConfigState(nextConfig);
+
+      socketRef.current.emit('room.media.config', {
+        event: 'room.media.config',
+        watchSpaceId: currentSpace._id,
+        payload: { mediaConfig: nextConfig },
+        ts: Date.now(),
+      });
+    },
+    [currentSpace, mediaConfigState]
+  );
+
   // ── Load space by ID & prefetch chat history ──────────────────────────────
   const loadSpace = useCallback(async (spaceId) => {
     setSpaceLoading(true);
@@ -837,6 +875,8 @@ export const WatchSpaceProvider = ({ children }) => {
     // Playback Actions
     sendPlaybackUpdate,
     sendServerChange,
+    mediaConfigState,
+    sendMediaConfigChange,
 
     // Room Actions
     loadSpace,

@@ -25,7 +25,7 @@ import {
   getPlayerMode,
 } from '../services/movieServers';
 
-const SYNC_HARD_CORRECTION_THRESHOLD = 1.2;
+const SYNC_HARD_CORRECTION_THRESHOLD = 0.25;
 
 export const NetflixVideoPlayer = React.forwardRef(({
   src,

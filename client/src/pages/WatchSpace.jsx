@@ -197,6 +197,8 @@ const WatchSpace = () => {
     playbackState,
     sendPlaybackUpdate,
     sendServerChange,
+    mediaConfigState,
+    sendMediaConfigChange,
     driftInfo,
     presenceState,
     chatMessages,
@@ -337,6 +339,15 @@ const WatchSpace = () => {
   const [selectedAudioLang, setSelectedAudioLang] = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultLanguage);
   const [selectedDemoSub, setSelectedDemoSub]   = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultSubtitle);
   const [selectedDemoQuality, setSelectedDemoQuality] = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultQuality);
+
+  // Sync Server 9 audio, subtitles & quality from host mediaConfigState broadcast
+  useEffect(() => {
+    if (mediaConfigState) {
+      if (mediaConfigState.audioLang) setSelectedAudioLang(mediaConfigState.audioLang);
+      if (mediaConfigState.subTrack) setSelectedDemoSub(mediaConfigState.subTrack);
+      if (mediaConfigState.quality) setSelectedDemoQuality(mediaConfigState.quality);
+    }
+  }, [mediaConfigState]);
 
   const handleDismissDemoBanner = () => {
     setShowDemoBanner(false);
@@ -1399,9 +1410,16 @@ const WatchSpace = () => {
                       <select
                         id="demo-audio-selector"
                         value={selectedAudioLang}
-                        onChange={(e) => setSelectedAudioLang(e.target.value)}
-                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
-                        title="Available Audio Track"
+                        disabled={!isHost}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedAudioLang(val);
+                          if (isHost && sendMediaConfigChange) {
+                            sendMediaConfigChange({ audioLang: val });
+                          }
+                        }}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
+                        title={isHost ? "Available Audio Track (Host Controlled)" : "Audio track controlled by Host"}
                       >
                         {WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.map((l) => (
                           <option key={l.code} value={l.code} style={{ background: '#141414', color: '#fff' }}>
@@ -1417,9 +1435,16 @@ const WatchSpace = () => {
                       <select
                         id="demo-sub-selector"
                         value={selectedDemoSub}
-                        onChange={(e) => setSelectedDemoSub(e.target.value)}
-                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
-                        title="Captions / Subtitles"
+                        disabled={!isHost}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedDemoSub(val);
+                          if (isHost && sendMediaConfigChange) {
+                            sendMediaConfigChange({ subTrack: val });
+                          }
+                        }}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
+                        title={isHost ? "Captions / Subtitles (Host Controlled)" : "Subtitles controlled by Host"}
                       >
                         {WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.map((sub) => (
                           <option key={sub.code} value={sub.code} style={{ background: '#141414', color: '#fff' }}>
@@ -1435,9 +1460,16 @@ const WatchSpace = () => {
                       <select
                         id="demo-quality-selector"
                         value={selectedDemoQuality}
-                        onChange={(e) => setSelectedDemoQuality(e.target.value)}
-                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: 'pointer' }}
-                        title="Video Stream Quality"
+                        disabled={!isHost}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedDemoQuality(val);
+                          if (isHost && sendMediaConfigChange) {
+                            sendMediaConfigChange({ quality: val });
+                          }
+                        }}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
+                        title={isHost ? "Video Stream Quality (Host Controlled)" : "Stream quality controlled by Host"}
                       >
                         {WATCH_TOGETHER_DEMO_CONFIG.availableQualities.map((q) => (
                           <option key={q} value={q} style={{ background: '#141414', color: '#fff' }}>
