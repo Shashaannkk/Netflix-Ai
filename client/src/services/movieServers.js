@@ -73,7 +73,7 @@ export const MOVIE_SERVERS = [
   {
     id: 8,
     name: 'Server 8',
-    label: 'Server 8 — Native Sync Demo',
+    label: 'Server 8 (Direct HTML5 Sync)',
     provider: 'Direct HTML5 Demo Engine',
     badge: 'Native Sync Demo',
     icon: '🎞️',

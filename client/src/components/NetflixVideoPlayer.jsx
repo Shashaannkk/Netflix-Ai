@@ -838,7 +838,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
             style={{
               position: 'relative',
               zIndex: 6,
-              pointerEvents: 'auto',
+              pointerEvents: 'none',
               background: 'rgba(15, 23, 42, 0.88)',
               backdropFilter: 'blur(12px)',
               border: '1px solid rgba(245, 158, 11, 0.4)',

@@ -243,7 +243,6 @@ const WatchSpace = () => {
   const [selectedEpisode, setSelectedEpisode] = useState(playbackState?.episode || 1);
   const [episodes, setEpisodes]               = useState([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
-  const [showServerPanel, setShowServerPanel] = useState(false);
 
   // Sync state when incoming socket playback state updates
   useEffect(() => {
@@ -281,6 +280,7 @@ const WatchSpace = () => {
   const handleSelectServer = (sNum) => {
     console.log('[WATCHSPACE HOST SELECT SERVER]', { sNum, isHost, currentSpaceId: currentSpace?._id });
     if (!isHost) return;
+    setSelectedServer(sNum);
     if (sendServerChange) {
       sendServerChange({
         serverNum: sNum,
@@ -1128,159 +1128,6 @@ const WatchSpace = () => {
           ))}
         </div>
 
-        {/* Authoritative 8-Server Selector & TV Episode Panel Overlay */}
-        {showServerPanel && (
-          <div
-            className="room-server-panel-overlay"
-            style={{
-              position: 'absolute',
-              bottom: '90px',
-              left: '20px',
-              right: '20px',
-              backgroundColor: 'rgba(18, 18, 18, 0.95)',
-              border: '1px solid rgba(229, 9, 20, 0.5)',
-              borderRadius: '12px',
-              padding: '1.2rem',
-              zIndex: 40,
-              boxShadow: '0 12px 30px rgba(0,0,0,0.85), 0 0 20px rgba(229,9,20,0.25)',
-              backdropFilter: 'blur(12px)',
-              color: '#fff',
-              maxHeight: '380px',
-              overflowY: 'auto',
-            }}
-          >
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#e50914', fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.5px' }}>
-                <Server size={18} />
-                <span>SELECT STREAMING SERVER SOURCE (8 HD MIRRORS):</span>
-              </div>
-              <button
-                onClick={() => setShowServerPanel(false)}
-                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '2px', display: 'flex' }}
-                title="Close server menu"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* 8 Server Selector Buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.5rem', marginBottom: isTvSeries ? '1rem' : '0' }}>
-              {MOVIE_SERVERS.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => isHost && handleSelectServer(s.id)}
-                  disabled={!isHost}
-                  title={isHost ? `Switch to ${s.label}` : "Server selection is controlled by the Host"}
-                  style={{
-                    background: selectedServer === s.id ? 'var(--netflix-red)' : 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    border: selectedServer === s.id ? '1px solid #ff3b30' : '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    padding: '0.5rem 0.75rem',
-                    fontSize: '0.78rem',
-                    fontWeight: selectedServer === s.id ? 800 : 600,
-                    cursor: isHost ? 'pointer' : 'not-allowed',
-                    opacity: isHost ? 1 : 0.65,
-                    textAlign: 'left',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <span style={{ fontSize: '1.1rem' }}>{s.icon}</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{s.label}</span>
-                    <span style={{ fontSize: '0.68rem', opacity: 0.7 }}>{s.provider}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* TV Seasons & Episode Picker (when title is TV Series) */}
-            {isTvSeries && (
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.9rem', color: '#fff' }}>
-                    <Layers size={18} color="var(--netflix-red)" />
-                    <span>Seasons & Episodes</span>
-                  </div>
-
-                  <select
-                    value={selectedSeason}
-                    disabled={!isHost}
-                    onChange={(e) => isHost && handleSelectSeason(Number(e.target.value))}
-                    title={isHost ? "Select season" : "Season selection is controlled by the Host"}
-                    style={{
-                      background: '#222',
-                      color: '#fff',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '6px',
-                      padding: '0.35rem 0.75rem',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      cursor: isHost ? 'pointer' : 'not-allowed',
-                      opacity: isHost ? 1 : 0.65,
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((sNum) => (
-                      <option key={sNum} value={sNum}>Season {sNum}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Episode List */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
-                  {loadingEpisodes ? (
-                    <div style={{ color: '#aaa', padding: '1rem', fontSize: '0.85rem' }}>Loading season episodes...</div>
-                  ) : episodes.length > 0 ? (
-                    episodes.map((ep) => (
-                      <div
-                        key={ep.id || ep.episode_number}
-                        onClick={() => isHost && handleSelectEpisode(ep.episode_number)}
-                        title={isHost ? `Select Episode ${ep.episode_number}` : "Episode selection is controlled by the Host"}
-                        style={{
-                          background: selectedEpisode === ep.episode_number ? 'rgba(229,9,20,0.25)' : '#222',
-                          border: selectedEpisode === ep.episode_number ? '1px solid var(--netflix-red)' : '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '6px',
-                          padding: '0.5rem',
-                          cursor: isHost ? 'pointer' : 'not-allowed',
-                          opacity: isHost ? 1 : 0.65,
-                          fontSize: '0.78rem',
-                          fontWeight: selectedEpisode === ep.episode_number ? 800 : 500,
-                        }}
-                      >
-                        <div style={{ color: '#fff', fontWeight: 700 }}>Ep {ep.episode_number}: {ep.name || `Episode ${ep.episode_number}`}</div>
-                      </div>
-                    ))
-                  ) : (
-                    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((epNum) => (
-                      <div
-                        key={epNum}
-                        onClick={() => isHost && handleSelectEpisode(epNum)}
-                        title={isHost ? `Select Episode ${epNum}` : "Episode selection is controlled by the Host"}
-                        style={{
-                          background: selectedEpisode === epNum ? 'rgba(229,9,20,0.25)' : '#222',
-                          border: selectedEpisode === epNum ? '1px solid var(--netflix-red)' : '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '6px',
-                          padding: '0.5rem',
-                          cursor: isHost ? 'pointer' : 'not-allowed',
-                          opacity: isHost ? 1 : 0.65,
-                          fontSize: '0.78rem',
-                          fontWeight: selectedEpisode === epNum ? 800 : 500,
-                        }}
-                      >
-                        <div style={{ color: '#fff', fontWeight: 700 }}>Episode {epNum}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* ── Controls Bar ── */}
         <div className={`cinema-controls-bar ${showControls ? 'visible' : ''}`}>
           {/* Scrubber */}
@@ -1356,22 +1203,6 @@ const WatchSpace = () => {
                     </option>
                   ))}
                 </select>
-                <button
-                  onClick={() => setShowServerPanel(!showServerPanel)}
-                  style={{
-                    background: showServerPanel ? 'var(--netflix-red)' : 'rgba(255,255,255,0.1)',
-                    border: 'none',
-                    borderRadius: '3px',
-                    color: '#fff',
-                    padding: '1px 5px',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer',
-                    marginLeft: '2px',
-                  }}
-                  title="Open full 8-Server & Episode Menu"
-                >
-                  <Server size={12} />
-                </button>
               </div>
 
               {/* Part 8: Subtitle & Localization Variant Selector */}
