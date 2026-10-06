@@ -46,7 +46,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useWatchSpace } from '../context/WatchSpaceContext';
 import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
-import { fetchSeasonEpisodes } from '../services/tmdb';
+import { fetchSeasonEpisodes, fetchMediaDetails } from '../services/tmdb';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
 import { MOVIE_SERVERS, getServerStreamUrl, cleanTmdbId, classifySource, getPlayerMode, SERVER_8_CANONICAL_SOURCE, isObsoleteSampleUrl } from '../services/movieServers';
 import {
