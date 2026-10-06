@@ -4,13 +4,13 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
+export const SERVER_8_CANONICAL_SOURCE = '/assets/videos/kantara_chapter_1.mp4';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
   movieIdentifier: 'kantara-chapter-1-demo',
   tmdbId: 964980,
-  authorizedVideoSource: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+  authorizedVideoSource: '/assets/videos/kantara_chapter_1.mp4',
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
     { code: 'en', label: 'English' },
@@ -270,9 +270,11 @@ export const classifySource = (url) => {
     return ytId ? 'YOUTUBE' : 'INVALID';
   }
 
-  // Direct HTML5 Media (.mp4, .webm, .m3u8, or Server 8/9 native source)
+  // Direct HTML5 Media (.mp4, .webm, .m3u8, or local asset source)
   if (
     cleanUrl === SERVER_8_CANONICAL_SOURCE ||
+    cleanUrl.includes('kantara') ||
+    cleanUrl.includes('/assets/') ||
     cleanUrl.endsWith('.mp4') ||
     cleanUrl.includes('.mp4?') ||
     cleanUrl.endsWith('.webm') ||

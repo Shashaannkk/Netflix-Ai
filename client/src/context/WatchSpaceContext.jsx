@@ -52,7 +52,7 @@ export const WatchSpaceProvider = ({ children }) => {
     positionSeconds: 0,
     isPlaying: false,
     playbackRate: 1.0,
-    serverNum: 9,
+    serverNum: 6,
     season: 1,
     episode: 1,
     hostConnected: true,

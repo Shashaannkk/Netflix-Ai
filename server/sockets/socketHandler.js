@@ -318,7 +318,7 @@ export const initSocketHandler = (io) => {
               positionSeconds: 0,
               changedAtServerMs: Date.now(),
               playbackRate: 1.0,
-              serverNum: space?.settings?.serverNum || space?.settings?.selectedServer || 9,
+              serverNum: space?.settings?.serverNum || space?.settings?.selectedServer || 6,
               season: space?.settings?.season || 1,
               episode: space?.settings?.episode || 1,
             },

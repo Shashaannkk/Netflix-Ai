@@ -239,24 +239,24 @@ const WatchSpace = () => {
   const [showControls, setShowControls] = useState(true);
   const [syncStatus, setSyncStatus]     = useState('Syncing…');
 
-  // Multi-server & Episode state (Default Server 9 = Watch Together Demo)
-  const [selectedServer, setSelectedServer]   = useState(playbackState?.serverNum || 9);
+  // Multi-server & Episode state (Default Server 6 = Working Default)
+  const [selectedServer, setSelectedServer]   = useState(playbackState?.serverNum || 6);
   const [selectedSeason, setSelectedSeason]   = useState(playbackState?.season || 1);
   const [selectedEpisode, setSelectedEpisode] = useState(playbackState?.episode || 1);
   const [episodes, setEpisodes]               = useState([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
-  // Sync state when incoming socket playback state updates for viewers
+  // Live Server Sync: Instantly reflect server changes on viewer UI without page refresh
   useEffect(() => {
-    if (!isHost && playbackState.serverNum && playbackState.serverNum !== selectedServer) {
-      console.log('[WATCHSPACE PARTICIPANT SYNC SERVER]', {
+    if (!isHost && playbackState?.serverNum !== undefined && playbackState.serverNum !== selectedServer) {
+      console.log('[WATCHSPACE REACTIVE SERVER SYNC]', {
         prevServer: selectedServer,
         newServer: playbackState.serverNum,
         isHost,
       });
       setSelectedServer(playbackState.serverNum);
     }
-  }, [playbackState.serverNum, selectedServer, isHost]);
+  }, [playbackState?.serverNum, selectedServer, isHost]);
 
   useEffect(() => {
     if (playbackState.season && playbackState.season !== selectedSeason) {
