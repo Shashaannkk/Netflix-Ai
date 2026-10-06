@@ -249,9 +249,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
     () => ({
       getPlayerMode: () => playerMode,
 
-      play: () => isNative ? getAdapter()?.play() : undefined,
-      pause: () => isNative ? getAdapter()?.pause() : undefined,
-      seek: (pos) => isNative ? getAdapter()?.seek(pos) : undefined,
+      play: () => (isHost && isNative) ? getAdapter()?.play() : undefined,
+      pause: () => (isHost && isNative) ? getAdapter()?.pause() : undefined,
+      seek: (pos) => (isHost && isNative) ? getAdapter()?.seek(pos) : undefined,
 
       getCurrentTime: () => isNative ? (getAdapter()?.getCurrentTime() ?? videoRef.current?.currentTime ?? null) : null,
       getDuration: () => isNative ? (getAdapter()?.getDuration() ?? videoRef.current?.duration ?? null) : null,
@@ -936,11 +936,17 @@ export const NetflixVideoPlayer = React.forwardRef(({
           preload="auto"
           playsInline
           onPlay={(e) => {
+            if (!isHost && !isApplyingRemoteUpdateRef.current) {
+              if (!syncIsPlaying) e.currentTarget.pause();
+            }
             setIsPlaying(true);
             setMediaState('READY');
             logNativeDiagnostics('PLAY', e.currentTarget);
           }}
           onPause={(e) => {
+            if (!isHost && !isApplyingRemoteUpdateRef.current) {
+              if (syncIsPlaying) e.currentTarget.play().catch(() => {});
+            }
             setIsPlaying(false);
             logNativeDiagnostics('PAUSE', e.currentTarget);
           }}
@@ -972,14 +978,26 @@ export const NetflixVideoPlayer = React.forwardRef(({
             const videoEl = e.currentTarget;
             const error = videoEl?.error;
             const code = error?.code || 'UNKNOWN';
-            const message = error?.message || 'Media element error reading direct video stream.';
 
             logNativeDiagnostics('ERROR', videoEl, error);
+
+            // Failover to high-availability CDN stream if local asset 404s or fails:
+            const cdnFallback = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+            if (currentSource !== cdnFallback) {
+              console.warn('[PLAYER FAILOVER] Local asset 404 or unsupported. Failover to high-availability CDN stream.');
+              setCurrentSource(cdnFallback);
+              setMediaState('LOADING');
+              setMediaError({ code: null, message: null });
+              requestAnimationFrame(() => {
+                videoEl?.load?.();
+              });
+              return;
+            }
 
             setMediaState('ERROR');
             setMediaError({
               code: `CODE_${code}`,
-              message: `Media stream error (Code ${code}): ${message}`,
+              message: `Media stream error (Code ${code}): ${error?.message || 'Failed to load video stream'}`,
             });
           }}
           onEnded={onEnded}

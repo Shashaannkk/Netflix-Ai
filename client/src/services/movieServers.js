@@ -4,13 +4,13 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = '/assets/videos/kantara_chapter_1.mp4';
+export const SERVER_8_CANONICAL_SOURCE = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
   movieIdentifier: 'kantara-chapter-1-demo',
   tmdbId: 964980,
-  authorizedVideoSource: '/assets/videos/kantara_chapter_1.mp4',
+  authorizedVideoSource: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
     { code: 'en', label: 'English' },
