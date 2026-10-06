@@ -4,13 +4,13 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = 'https://www.youtube.com/embed/Frp0zC4643U';
+export const SERVER_8_CANONICAL_SOURCE = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
   movieIdentifier: 'kantara-chapter-1-demo',
   tmdbId: 964980,
-  authorizedVideoSource: 'https://www.youtube.com/embed/Frp0zC4643U',
+  authorizedVideoSource: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
     { code: 'en', label: 'English' },
@@ -246,16 +246,7 @@ export const getYouTubeVideoId = (url) => {
  */
 export const isObsoleteSampleUrl = (url) => {
   if (!url || typeof url !== 'string') return false;
-  const lower = url.toLowerCase();
-  return (
-    lower.includes('commondatastorage.googleapis.com') ||
-    lower.includes('gtv-videos-bucket') ||
-    lower.includes('tearsofsteel') ||
-    lower.includes('bigbuckbunny') ||
-    lower.includes('sintel') ||
-    lower.includes('elephantsdream') ||
-    lower.includes('forbiggerblazes')
-  );
+  return false;
 };
 
 /**
@@ -268,11 +259,6 @@ export const classifySource = (url) => {
 
   const cleanUrl = url.trim();
 
-  // Reject obsolete broken Google Cloud sample URLs
-  if (isObsoleteSampleUrl(cleanUrl)) {
-    return 'INVALID';
-  }
-
   // Reject malformed internal tmdb-movie string
   if (cleanUrl.includes('tmdb-movie-') || cleanUrl.includes('tmdb=null') || cleanUrl.includes('tmdb=undefined')) {
     return 'INVALID';
@@ -284,15 +270,15 @@ export const classifySource = (url) => {
     return ytId ? 'YOUTUBE' : 'INVALID';
   }
 
-  // Direct HTML5 Media (.mp4, .webm, .m3u8, or Server 8 sample)
+  // Direct HTML5 Media (.mp4, .webm, .m3u8, or Server 8/9 native source)
   if (
     cleanUrl === SERVER_8_CANONICAL_SOURCE ||
     cleanUrl.endsWith('.mp4') ||
+    cleanUrl.includes('.mp4?') ||
     cleanUrl.endsWith('.webm') ||
     cleanUrl.endsWith('.m3u8') ||
-    cleanUrl.includes('.mp4?') ||
-    cleanUrl.includes('.webm?') ||
     cleanUrl.includes('vjs.zencdn.net') ||
+    cleanUrl.includes('googleapis.com') ||
     cleanUrl.includes('w3.org')
   ) {
     return 'DIRECT_MEDIA';
