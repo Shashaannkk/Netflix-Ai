@@ -237,8 +237,8 @@ const WatchSpace = () => {
   const [showControls, setShowControls] = useState(true);
   const [syncStatus, setSyncStatus]     = useState('Syncing…');
 
-  // Multi-server & Episode state (Default Server 1 = Vidsrc.me)
-  const [selectedServer, setSelectedServer]   = useState(playbackState?.serverNum || 1);
+  // Multi-server & Episode state (Default Server 9 = Watch Together Demo)
+  const [selectedServer, setSelectedServer]   = useState(playbackState?.serverNum || 9);
   const [selectedSeason, setSelectedSeason]   = useState(playbackState?.season || 1);
   const [selectedEpisode, setSelectedEpisode] = useState(playbackState?.episode || 1);
   const [episodes, setEpisodes]               = useState([]);
@@ -277,9 +277,10 @@ const WatchSpace = () => {
   }, [playbackState.episode, selectedEpisode]);
 
   const handleSelectServer = (sNum) => {
+    if (!isHost) return;
     console.log('[WATCHSPACE SELECT SERVER]', { sNum, isHost, currentSpaceId: currentSpace?._id });
     setSelectedServer(sNum);
-    if (sendServerChange && isHost) {
+    if (sendServerChange) {
       sendServerChange({
         serverNum: sNum,
         season: selectedSeason,
@@ -549,6 +550,7 @@ const WatchSpace = () => {
 
   // ── Video callbacks & Host Emission ─────────────────────────────────────────
   const togglePlay = () => {
+    if (!isHost) return;
     const player = videoRef.current;
     const nextState = !isPlaying;
 
@@ -563,7 +565,7 @@ const WatchSpace = () => {
     }
     setIsPlaying(nextState);
 
-    if (isHost && sendPlaybackUpdate) {
+    if (sendPlaybackUpdate) {
       sendPlaybackUpdate({
         action: nextState ? 'play' : 'pause',
         currentTime: player?.getCurrentTime ? player.getCurrentTime() : currentTime,
@@ -573,6 +575,7 @@ const WatchSpace = () => {
   };
 
   const skip = (secs) => {
+    if (!isHost) return;
     const player = videoRef.current;
     const currentDur = duration || (player?.getDuration ? player.getDuration() : 0) || 7200;
     const curTime = player?.getCurrentTime ? player.getCurrentTime() : currentTime;
@@ -583,7 +586,7 @@ const WatchSpace = () => {
     }
     setCurrentTime(newTime);
 
-    if (isHost && sendPlaybackUpdate) {
+    if (sendPlaybackUpdate) {
       sendPlaybackUpdate({
         action: 'seek',
         currentTime: newTime,
@@ -843,41 +846,42 @@ const WatchSpace = () => {
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {/* Authoritative Server Selector Dropdown (Header) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: selectedServer === 9 ? 'rgba(229,9,20,0.35)' : 'rgba(255,255,255,0.12)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: selectedServer === 9 ? '1px solid #e50914' : '1px solid rgba(255,255,255,0.2)', pointerEvents: 'auto' }}>
+            {/* Authoritative Server Selector Dropdown & Chips (Header) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: selectedServer === 9 ? 'rgba(229,9,20,0.35)' : 'rgba(255,255,255,0.12)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: selectedServer === 9 ? '1px solid #e50914' : '1px solid rgba(255,255,255,0.2)', pointerEvents: 'auto' }}>
               <Radio size={14} color="#e50914" />
-              <select
-                id="header-room-server-selector"
-                value={selectedServer}
-                disabled={!isHost}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  console.log('[WATCHSPACE HOST CHANGED SERVER]', val);
-                  if (isHost) handleSelectServer(val);
-                }}
-                style={{
-                  background: '#141414',
-                  color: '#fff',
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '0.75rem',
-                  fontWeight: 'bold',
-                  cursor: isHost ? 'pointer' : 'not-allowed',
-                  opacity: isHost ? 1 : 0.75,
-                  pointerEvents: 'auto',
-                }}
-                title={isHost ? "Select Streaming Server Mirror (1-9)" : "Server selection is controlled by the Host"}
-              >
-                {MOVIE_SERVERS.map((s) => (
-                  <option key={s.id} value={s.id} style={{ background: '#141414', color: '#fff' }}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {MOVIE_SERVERS.map((s) => {
+                  const isActive = selectedServer === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={!isHost}
+                      onClick={() => handleSelectServer(s.id)}
+                      style={{
+                        background: isActive ? '#e50914' : 'rgba(0,0,0,0.6)',
+                        color: '#fff',
+                        border: isActive ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.15)',
+                        borderRadius: '4px',
+                        padding: '0.15rem 0.45rem',
+                        fontSize: '0.72rem',
+                        fontWeight: isActive ? 800 : 600,
+                        cursor: isHost ? 'pointer' : 'not-allowed',
+                        opacity: isHost ? (isActive ? 1 : 0.8) : (isActive ? 1 : 0.5),
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={!isHost ? `Server ${s.id} — Controlled live by Host (Default: Server 9)` : `Click to switch to ${s.label}`}
+                    >
+                      S{s.id}{s.id === 9 ? ' ✨' : ''}
+                    </button>
+                  );
+                })}
+              </div>
 
               {selectedServer === 9 && (
                 <span style={{ background: '#e50914', color: '#fff', fontSize: '0.6rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', letterSpacing: '0.5px' }}>
-                  SYNC DEMO
+                  KANTARA DEMO (HINDI DEFAULT)
                 </span>
               )}
             </div>
@@ -1246,7 +1250,8 @@ const WatchSpace = () => {
             <div
               className="netflix-scrubber-track"
               onClick={handleScrubberClick}
-              title="Seek"
+              style={{ cursor: isHost ? 'pointer' : 'not-allowed' }}
+              title={!isHost ? "Seeking is controlled live by Host (Viewer Mode)" : "Seek"}
             >
               <div
                 className="netflix-scrubber-progress"
@@ -1259,15 +1264,36 @@ const WatchSpace = () => {
             <div className="cinema-control-buttons">
               {/* Left side */}
               <div className="controls-left">
-                <button id="room-play-btn" className="player-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
+                <button
+                  id="room-play-btn"
+                  className="player-btn"
+                  onClick={togglePlay}
+                  disabled={!isHost}
+                  style={{ opacity: isHost ? 1 : 0.45, cursor: isHost ? 'pointer' : 'not-allowed' }}
+                  title={!isHost ? 'Playback is controlled live by Host (Viewer Mode)' : (isPlaying ? 'Pause' : 'Play')}
+                >
                   {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" />}
                 </button>
 
-                <button id="room-back10-btn" className="player-btn" onClick={() => skip(-10)} title="Back 10s">
+                <button
+                  id="room-back10-btn"
+                  className="player-btn"
+                  onClick={() => skip(-10)}
+                  disabled={!isHost}
+                  style={{ opacity: isHost ? 1 : 0.45, cursor: isHost ? 'pointer' : 'not-allowed' }}
+                  title={!isHost ? 'Playback is controlled live by Host (Viewer Mode)' : 'Back 10s'}
+                >
                   <RotateCcw size={22} />
                 </button>
 
-                <button id="room-fwd10-btn" className="player-btn" onClick={() => skip(10)} title="Forward 10s">
+                <button
+                  id="room-fwd10-btn"
+                  className="player-btn"
+                  onClick={() => skip(10)}
+                  disabled={!isHost}
+                  style={{ opacity: isHost ? 1 : 0.45, cursor: isHost ? 'pointer' : 'not-allowed' }}
+                  title={!isHost ? 'Playback is controlled live by Host (Viewer Mode)' : 'Forward 10s'}
+                >
                   <RotateCw size={22} />
                 </button>
 

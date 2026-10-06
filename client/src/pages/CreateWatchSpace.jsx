@@ -168,7 +168,7 @@ const CreateWatchSpace = () => {
   const [aiVerbosity, setAiVerbosity]         = useState('moderate');
   const [votingEnabled, setVotingEnabled]     = useState(true);
   const [mediaChoice, setMediaChoice]         = useState('movie'); // 'movie' | 'trailer'
-  const [selectedServer, setSelectedServer]   = useState(1); // Server 1 (Vidsrc.pro) default
+  const [selectedServer, setSelectedServer]   = useState(9); // Server 9 (Watch Together Demo) default
 
   // ── Launch state (Step 3) ──────────────────────────────────────────────────
   const [createdSpace, setCreatedSpace] = useState(null);

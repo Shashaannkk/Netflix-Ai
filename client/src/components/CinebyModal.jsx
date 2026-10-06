@@ -142,7 +142,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
           <div className="cb-modal-media-stage">
             {activeTab === 'movie' ? (
               <div className="cb-modal-iframe-wrapper">
-                {selectedServer === 8 ? (
+                {selectedServer === 8 || selectedServer === 9 ? (
                   <video
                     src={SERVER_8_CANONICAL_SOURCE}
                     controls

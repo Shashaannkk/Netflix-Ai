@@ -94,7 +94,7 @@ export const createWatchSpace = async (req, res) => {
         aiVerbosity: settings.aiVerbosity ?? 'moderate',
         votingEnabled: settings.votingEnabled ?? true,
         mediaChoice: settings.mediaChoice || 'movie',
-        selectedServer: settings.selectedServer || 'server_alpha',
+        selectedServer: settings.selectedServer || 9,
         videoAssetUrl: videoAssetUrl || targetTitle.videoAssetUrl,
       },
     });

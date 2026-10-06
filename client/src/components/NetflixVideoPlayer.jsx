@@ -1023,7 +1023,12 @@ export const NetflixVideoPlayer = React.forwardRef(({
           </div>
 
           <div className="netflix-controls-bottom">
-            <div className="netflix-scrubber-wrapper" onClick={handleScrubberClick}>
+            <div
+              className="netflix-scrubber-wrapper"
+              onClick={handleScrubberClick}
+              style={{ cursor: isHost ? 'pointer' : 'not-allowed' }}
+              title={!isHost ? 'Timeline seeking controlled live by Host (Viewer Mode)' : 'Seek'}
+            >
               <div className="netflix-scrubber-track">
                 <div
                   className="netflix-scrubber-fill"
@@ -1039,7 +1044,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
                 <button
                   className="netflix-ctrl-btn"
                   onClick={togglePlay}
-                  title={isPlaying ? 'Pause' : 'Play'}
+                  disabled={!isHost}
+                  style={{ opacity: isHost ? 1 : 0.45, cursor: isHost ? 'pointer' : 'not-allowed' }}
+                  title={!isHost ? 'Playback is controlled live by Host (Viewer Mode)' : (isPlaying ? 'Pause' : 'Play')}
                 >
                   {isPlaying ? (
                     <Pause size={24} fill="currentColor" />
@@ -1051,7 +1058,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
                 <button
                   className="netflix-ctrl-btn"
                   onClick={() => seekBy(-10)}
-                  title="Rewind 10s"
+                  disabled={!isHost}
+                  style={{ opacity: isHost ? 1 : 0.45, cursor: isHost ? 'pointer' : 'not-allowed' }}
+                  title={!isHost ? 'Playback is controlled live by Host (Viewer Mode)' : 'Rewind 10s'}
                 >
                   <RotateCcw size={20} />
                 </button>
@@ -1059,7 +1068,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
                 <button
                   className="netflix-ctrl-btn"
                   onClick={() => seekBy(10)}
-                  title="Forward 10s"
+                  disabled={!isHost}
+                  style={{ opacity: isHost ? 1 : 0.45, cursor: isHost ? 'pointer' : 'not-allowed' }}
+                  title={!isHost ? 'Playback is controlled live by Host (Viewer Mode)' : 'Forward 10s'}
                 >
                   <RotateCw size={20} />
                 </button>

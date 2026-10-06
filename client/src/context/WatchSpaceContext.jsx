@@ -52,7 +52,7 @@ export const WatchSpaceProvider = ({ children }) => {
     positionSeconds: 0,
     isPlaying: false,
     playbackRate: 1.0,
-    serverNum: 1,
+    serverNum: 9,
     season: 1,
     episode: 1,
     hostConnected: true,
@@ -218,7 +218,7 @@ export const WatchSpaceProvider = ({ children }) => {
           currentTime: projectedPos,
           isPlaying,
           playbackRate: payload.playbackRate || 1.0,
-          serverNum: payload.serverNum ?? prev.serverNum ?? 1,
+          serverNum: payload.serverNum ?? prev.serverNum ?? 9,
           season: payload.season ?? prev.season ?? 1,
           episode: payload.episode ?? prev.episode ?? 1,
           version: payload.version || prev.version || 1,
@@ -280,7 +280,7 @@ export const WatchSpaceProvider = ({ children }) => {
           currentTime: projectedPos,
           isPlaying,
           playbackRate: payload.playbackRate || 1.0,
-          serverNum: payload.serverNum ?? prev.serverNum ?? 1,
+          serverNum: payload.serverNum ?? prev.serverNum ?? 9,
           season: payload.season ?? prev.season ?? 1,
           episode: payload.episode ?? prev.episode ?? 1,
           version: payload.version || prev.version,
@@ -661,7 +661,7 @@ export const WatchSpaceProvider = ({ children }) => {
       if (space?.settings) {
         setPlaybackState((prev) => ({
           ...prev,
-          serverNum: space.settings.serverNum || prev.serverNum || 1,
+          serverNum: space.settings.serverNum || prev.serverNum || 9,
           season: space.settings.season || prev.season || 1,
           episode: space.settings.episode || prev.episode || 1,
         }));
