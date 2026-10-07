@@ -677,7 +677,7 @@ export const initSocketHandler = (io) => {
       }
 
       try {
-        const isAiMsg = Boolean(payload.isAi);
+        const isAiMsg = Boolean(payload.isAi || payload.senderName === 'Nova' || payload.senderUserId === 'ai-copilot');
         const senderNameClean = isAiMsg ? (payload.senderName || 'Nova') : currentUser.displayName;
         const textClean = String(payload.text)
           .replace(/[<>]/g, '')
@@ -699,7 +699,7 @@ export const initSocketHandler = (io) => {
           console.warn('[Socket.IO] Chat message DB persist fallback:', dbErr.message);
           chatMsg = {
             _id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            senderId: currentUser.id,
+            senderId: isAiMsg ? 'ai-copilot' : currentUser.id,
             senderName: senderNameClean,
             text: textClean,
             isAi: isAiMsg,
@@ -710,8 +710,10 @@ export const initSocketHandler = (io) => {
 
         const envelope = buildEnvelope('room.chat.message', watchSpaceId, {
           _id: chatMsg._id,
-          senderId: chatMsg.senderId,
-          senderName: chatMsg.senderName,
+          senderId: isAiMsg ? 'ai-copilot' : (chatMsg.senderId || currentUser.id),
+          senderUserId: isAiMsg ? 'ai-copilot' : (currentUser.id),
+          senderName: senderNameClean,
+          displayName: senderNameClean,
           text: chatMsg.text,
           isAi: isAiMsg,
           sourceEvents: payload.sourceEvents || chatMsg.sourceEvents || [],
