@@ -28,6 +28,7 @@ function App() {
               <Route path="home" element={<CinebyHome activeCategory="browse" />} />
               <Route path="movies" element={<CinebyHome activeCategory="movies" />} />
               <Route path="tv-shows" element={<CinebyHome activeCategory="series" />} />
+              <Route path="anime" element={<CinebyHome activeCategory="anime" />} />
               <Route path="top-imdb" element={<CinebyHome activeCategory="top-imdb" />} />
 
               {/* Shared Layout Routes */}

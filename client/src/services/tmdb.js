@@ -191,6 +191,181 @@ export const fetchUpcomingMovies = async () => {
   return CURATED_MOVIES;
 };
 
+export const CURATED_ANIME_MOVIES = [
+  {
+    id: 372058,
+    title: 'Your Name.',
+    name: 'Your Name.',
+    overview: 'High schoolers Mitsuha and Taki are complete strangers living separate lives. But tonight, they suddenly swap places.',
+    poster_path: '/q71t1ikWPh.jpg',
+    backdrop_path: '/vL5LR6WGlHDiomG2jKJq1RToVw.jpg',
+    vote_average: 8.5,
+    release_date: '2016-08-26',
+    media_type: 'movie',
+    trailer_key: 'xU47nhruN-k'
+  },
+  {
+    id: 129,
+    title: 'Spirited Away',
+    name: 'Spirited Away',
+    overview: 'A young girl, Chihiro, becomes trapped in a strange new world of spirits. When her parents undergo a mysterious transformation, she must call upon courage.',
+    poster_path: '/39wmItEPh1JuOVccjFiBviFjwo3.jpg',
+    backdrop_path: '/Ab8mtWfvwyETHYlU2Bx4D93h9p3.jpg',
+    vote_average: 8.5,
+    release_date: '2001-07-20',
+    media_type: 'movie',
+    trailer_key: 'ByXuk9QqQkk'
+  },
+  {
+    id: 635302,
+    title: 'Demon Slayer: Mugen Train',
+    name: 'Demon Slayer: Mugen Train',
+    overview: 'Tanjiro Kamado and his friends join Flame Hashira Kyojuro Rengoku aboard the Mugen Train to investigate a series of mysterious disappearances.',
+    poster_path: '/h8Rb9gBr48ODKxYvHYeMMmVEiKN.jpg',
+    backdrop_path: '/n6bUvigpRFqSwmPp1m2YR4L0LTo.jpg',
+    vote_average: 8.3,
+    release_date: '2020-10-16',
+    media_type: 'movie',
+    trailer_key: 'ATJYac_dORw'
+  },
+  {
+    id: 916224,
+    title: 'Suzume',
+    name: 'Suzume',
+    overview: 'A 17-year-old girl named Suzume helps a mysterious young man close doors from the outer side that are releasing disasters all over Japan.',
+    poster_path: '/vJU3FwqQCftUzPy2J5ZJqjR56tF.jpg',
+    backdrop_path: '/b1Y8SUal2P4KWZ7xD4Y8VG4p2d1.jpg',
+    vote_average: 7.9,
+    release_date: '2022-11-11',
+    media_type: 'movie',
+    trailer_key: '5pvh-BstDyo'
+  },
+  {
+    id: 128,
+    title: 'Princess Mononoke',
+    name: 'Princess Mononoke',
+    overview: 'Ashitaka, a prince infected by a demon curse, sets out to find a cure and finds himself in the middle of a war between forest gods and humanity.',
+    poster_path: '/c24sv2weTHPsmDa7jE2qYCGqPvw.jpg',
+    backdrop_path: '/44Im2yfRiYWjLzFWG6zUKi3xUVE.jpg',
+    vote_average: 8.3,
+    release_date: '1997-07-12',
+    media_type: 'movie',
+    trailer_key: '4OiMOHRDs14'
+  },
+  {
+    id: 4935,
+    title: "Howl's Moving Castle",
+    name: "Howl's Moving Castle",
+    overview: 'When Sophie is cursed with an old body by a spiteful witch, her only chance of breaking the spell lies with a self-indulgent wizard.',
+    poster_path: '/ye9h80MspgJgK4616238h177LTo.jpg',
+    backdrop_path: '/7T654k2j2gK4616238h177LTo.jpg',
+    vote_average: 8.4,
+    release_date: '2004-11-20',
+    media_type: 'movie',
+    trailer_key: 'iwROgK94zcM'
+  }
+];
+
+export const CURATED_ANIME_SERIES = [
+  {
+    id: 1429,
+    name: 'Attack on Titan',
+    title: 'Attack on Titan',
+    overview: 'After his hometown is destroyed and his mother is killed, Eren Jaeger vows to cleanse the earth of the giant humanoid Titans.',
+    poster_path: '/hTP1DtLGFamjW259YuvvjD9XMh3.jpg',
+    backdrop_path: '/2me72V9Hk1f4961559y.jpg',
+    vote_average: 8.7,
+    first_air_date: '2013-04-07',
+    media_type: 'tv',
+    trailer_key: 'MGRm4IycvXM'
+  },
+  {
+    id: 85937,
+    name: 'Demon Slayer: Kimetsu no Yaiba',
+    title: 'Demon Slayer: Kimetsu no Yaiba',
+    overview: 'It is the Taisho Period in Japan. Tanjiro, a kindhearted boy who sells charcoal for a living, finds his family slaughtered by a demon.',
+    poster_path: '/xUfVStWhxUfVStWhxUfVStWh.jpg',
+    backdrop_path: '/nTvM42b8Yv2736yH871Z.jpg',
+    vote_average: 8.7,
+    first_air_date: '2019-04-06',
+    media_type: 'tv',
+    trailer_key: 'VQGCKyvzIM4'
+  },
+  {
+    id: 95479,
+    name: 'Jujutsu Kaisen',
+    title: 'Jujutsu Kaisen',
+    overview: 'A boy fights... for "the right death." Hardship, regret, shame: the negative feelings that humans feel become Curses in everyday life.',
+    poster_path: '/eDA4559y181h798.jpg',
+    backdrop_path: '/j3Z2gK4616238h177LTo.jpg',
+    vote_average: 8.6,
+    first_air_date: '2020-10-03',
+    media_type: 'tv',
+    trailer_key: 'pkneV15D7c4'
+  },
+  {
+    id: 37854,
+    name: 'One Piece',
+    title: 'One Piece',
+    overview: 'Monkey D. Luffy sets off on an epic voyage to find the legendary treasure One Piece and become King of the Pirates.',
+    poster_path: '/cMD9Ygz11NJJzA2YmuvE2929.jpg',
+    backdrop_path: '/2rm281827h9Yv2736yH871Z.jpg',
+    vote_average: 8.7,
+    first_air_date: '1999-10-20',
+    media_type: 'tv',
+    trailer_key: 'MCb13lbK6W0'
+  },
+  {
+    id: 118489,
+    name: 'Solo Leveling',
+    title: 'Solo Leveling',
+    overview: 'They say whatever doesn’t kill you makes you stronger, but that’s not the case for the world’s weakest hunter Sung Jinwoo.',
+    poster_path: '/181h798xUfVStWhxUfVStWh.jpg',
+    backdrop_path: '/981827h9Yv2736yH871Z.jpg',
+    vote_average: 8.5,
+    first_air_date: '2024-01-07',
+    media_type: 'tv',
+    trailer_key: '9h_L5xK3Kqw'
+  },
+  {
+    id: 13916,
+    name: 'Death Note',
+    title: 'Death Note',
+    overview: 'Light Yagami is an intelligent high school student who finds a notebook that grants the user the ability to kill anyone whose name and face they know.',
+    poster_path: '/iC6718h798xUfVStWhxUfVStWh.jpg',
+    backdrop_path: '/t981827h9Yv2736yH871Z.jpg',
+    vote_average: 8.6,
+    first_air_date: '2006-10-04',
+    media_type: 'tv',
+    trailer_key: 'NlJZ-YgAt-c'
+  }
+];
+
+export const fetchTrendingAnimeMovies = async () => {
+  const data = await fetchFromTMDB('/discover/movie?with_genres=16&with_original_language=ja&sort_by=popularity.desc');
+  if (data?.results?.length) return data.results;
+  return CURATED_ANIME_MOVIES;
+};
+
+export const fetchTopRatedAnimeMovies = async () => {
+  const data = await fetchFromTMDB('/discover/movie?with_genres=16&with_original_language=ja&sort_by=vote_average.desc&vote_count.gte=100');
+  if (data?.results?.length) return data.results;
+  return CURATED_ANIME_MOVIES;
+};
+
+export const fetchTrendingAnimeTV = async () => {
+  const data = await fetchFromTMDB('/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc');
+  if (data?.results?.length) return data.results;
+  return CURATED_ANIME_SERIES;
+};
+
+export const fetchTopRatedAnimeTV = async () => {
+  const data = await fetchFromTMDB('/discover/tv?with_genres=16&with_original_language=ja&sort_by=vote_average.desc&vote_count.gte=100');
+  if (data?.results?.length) return data.results;
+  return CURATED_ANIME_SERIES;
+};
+
+
 export const fetchTrailerCandidates = async (id, type = 'movie') => {
   const data = await fetchFromTMDB(`/${type}/${id}/videos`);
   if (data?.results?.length) {

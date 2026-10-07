@@ -16,8 +16,14 @@ import {
   fetchPopularTV,
   fetchTopRatedMovies,
   fetchUpcomingMovies,
+  fetchTrendingAnimeMovies,
+  fetchTopRatedAnimeMovies,
+  fetchTrendingAnimeTV,
+  fetchTopRatedAnimeTV,
   fetchMediaDetails,
   getImageUrl,
+  CURATED_ANIME_MOVIES,
+  CURATED_ANIME_SERIES
 } from '../services/tmdb';
 
 export const CinebyHome = ({ activeCategory = 'browse' }) => {
@@ -30,6 +36,14 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
   const [popularTV, setPopularTV] = useState([]);
   const [topRatedMovies, setTopRatedMovies] = useState([]);
   const [upcomingMovies, setUpcomingMovies] = useState([]);
+
+  // Anime Section State (Movies & Series with Trending and Top Rated filters)
+  const [trendingAnimeM, setTrendingAnimeM] = useState([]);
+  const [topRatedAnimeM, setTopRatedAnimeM] = useState([]);
+  const [trendingAnimeT, setTrendingAnimeT] = useState([]);
+  const [topRatedAnimeT, setTopRatedAnimeT] = useState([]);
+  const [animeMovieFilter, setAnimeMovieFilter] = useState('trending'); // 'trending' | 'top'
+  const [animeSeriesFilter, setAnimeSeriesFilter] = useState('trending'); // 'trending' | 'top'
   const [loading, setLoading] = useState(true);
 
   // Personalized Dashboard State
@@ -84,6 +98,10 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
           popularT,
           topRatedM,
           upcomingM,
+          trAnM,
+          topAnM,
+          trAnT,
+          topAnT
         ] = await Promise.all([
           fetchTrendingMovies(),
           fetchTrendingTV(),
@@ -91,6 +109,10 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
           fetchPopularTV(),
           fetchTopRatedMovies(),
           fetchUpcomingMovies(),
+          fetchTrendingAnimeMovies(),
+          fetchTopRatedAnimeMovies(),
+          fetchTrendingAnimeTV(),
+          fetchTopRatedAnimeTV()
         ]);
 
         if (!isMounted) return;
@@ -102,14 +124,21 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
         setTopRatedMovies(topRatedM || []);
         setUpcomingMovies(upcomingM || []);
 
+        setTrendingAnimeM(trAnM?.length ? trAnM : CURATED_ANIME_MOVIES);
+        setTopRatedAnimeM(topAnM?.length ? topAnM : CURATED_ANIME_MOVIES);
+        setTrendingAnimeT(trAnT?.length ? trAnT : CURATED_ANIME_SERIES);
+        setTopRatedAnimeT(topAnT?.length ? topAnT : CURATED_ANIME_SERIES);
+
         // Pick a random hero title from category
         const pool = activeCategory === 'series'
           ? (trendingT?.length ? trendingT : popularT)
+          : activeCategory === 'anime'
+          ? (trAnM?.length ? trAnM : trAnT)
           : (trendingM?.length ? trendingM : popularM);
 
         if (pool && pool.length > 0) {
           const randomHero = pool[Math.floor(Math.random() * Math.min(pool.length, 5))];
-          const type = activeCategory === 'series' ? 'tv' : 'movie';
+          const type = activeCategory === 'series' || activeCategory === 'anime' ? (randomHero.media_type || 'movie') : 'movie';
           const fullDetails = await fetchMediaDetails(randomHero.id, type);
           setHeroMedia(fullDetails || randomHero);
         }
@@ -214,6 +243,7 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
   const showMovies = activeCategory === 'browse' || activeCategory === 'movies';
   const showSeries = activeCategory === 'browse' || activeCategory === 'series';
   const showTopImdb = activeCategory === 'browse' || activeCategory === 'top-imdb';
+  const showAnime = activeCategory === 'browse' || activeCategory === 'anime';
 
   const activeTrailerKey = heroMedia?.trailer_key || 'YoHD9XEInc0';
 
@@ -940,6 +970,231 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
               <button
                 className="cb-row-arrow cb-arrow-right"
                 onClick={() => handleScrollRow('trendingT', 'right')}
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </div>
+        {/* ── 8.5. ANIME MOVIES (TRENDING & TOP RATED LISTS) ── */}
+        {showAnime && (
+          <section className="cb-movie-row">
+            <div className="cb-row-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Film color="var(--netflix-red)" size={20} /> Anime Movies
+                </h2>
+                <span className="cb-row-sub">Top Japanese animated feature films</span>
+              </div>
+              <div style={{ display: 'flex', background: '#1c1c1c', borderRadius: '20px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <button
+                  type="button"
+                  onClick={() => setAnimeMovieFilter('trending')}
+                  style={{
+                    padding: '0.3rem 0.85rem',
+                    borderRadius: '16px',
+                    border: 'none',
+                    background: animeMovieFilter === 'trending' ? 'var(--netflix-red)' : 'transparent',
+                    color: '#fff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Trending
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnimeMovieFilter('top')}
+                  style={{
+                    padding: '0.3rem 0.85rem',
+                    borderRadius: '16px',
+                    border: 'none',
+                    background: animeMovieFilter === 'top' ? 'var(--netflix-red)' : 'transparent',
+                    color: '#fff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Top Rated
+                </button>
+              </div>
+            </div>
+
+            <div className="cb-row-slider-wrapper">
+              <button
+                className="cb-row-arrow cb-arrow-left"
+                onClick={() => handleScrollRow('animeM', 'left')}
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={24} />
+              </button>
+
+              <div
+                className="cb-row-posters portrait-row"
+                ref={(el) => (rowRefs.current['animeM'] = el)}
+              >
+                {loading
+                  ? Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="cb-skeleton-card cb-skeleton" />
+                    ))
+                  : (animeMovieFilter === 'trending' ? trendingAnimeM : topRatedAnimeM).map((item) => (
+                      <div
+                        key={item.id}
+                        className="cb-portrait-card"
+                        onClick={() => setSelectedMedia({ ...item, media_type: 'movie' })}
+                      >
+                        <div className="cb-portrait-wrapper">
+                          <img
+                            src={getImageUrl(item.poster_path)}
+                            alt={item.title || item.name}
+                            className="cb-portrait-img"
+                          />
+                          <div className="cb-card-badge-hd">Anime</div>
+                          <div className="cb-portrait-hover">
+                            <div className="cb-hover-btn-group">
+                              <button className="cb-circle-btn">
+                                <Play size={15} fill="currentColor" />
+                              </button>
+                              <button
+                                className="cb-circle-btn space"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenWatchSpace({ ...item, media_type: 'movie' });
+                                }}
+                                title="Watch Together"
+                              >
+                                <Users size={14} />
+                              </button>
+                            </div>
+                            <div className="cb-hover-title">{item.title || item.name}</div>
+                            <div className="cb-hover-score" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                              <Star size={12} fill="#e50914" color="#e50914" /> {item.vote_average ? item.vote_average.toFixed(1) : '8.5'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="cb-card-footer-title">{item.title || item.name}</div>
+                      </div>
+                    ))}
+              </div>
+
+              <button
+                className="cb-row-arrow cb-arrow-right"
+                onClick={() => handleScrollRow('animeM', 'right')}
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ── 8.6. ANIME SERIES (TRENDING & TOP RATED LISTS) ── */}
+        {showAnime && (
+          <section className="cb-movie-row">
+            <div className="cb-row-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Tv color="var(--netflix-red)" size={20} /> Anime Series
+                </h2>
+                <span className="cb-row-sub">Binge-worthy animated TV series</span>
+              </div>
+              <div style={{ display: 'flex', background: '#1c1c1c', borderRadius: '20px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <button
+                  type="button"
+                  onClick={() => setAnimeSeriesFilter('trending')}
+                  style={{
+                    padding: '0.3rem 0.85rem',
+                    borderRadius: '16px',
+                    border: 'none',
+                    background: animeSeriesFilter === 'trending' ? 'var(--netflix-red)' : 'transparent',
+                    color: '#fff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Trending
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnimeSeriesFilter('top')}
+                  style={{
+                    padding: '0.3rem 0.85rem',
+                    borderRadius: '16px',
+                    border: 'none',
+                    background: animeSeriesFilter === 'top' ? 'var(--netflix-red)' : 'transparent',
+                    color: '#fff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Top Rated
+                </button>
+              </div>
+            </div>
+
+            <div className="cb-row-slider-wrapper">
+              <button
+                className="cb-row-arrow cb-arrow-left"
+                onClick={() => handleScrollRow('animeT', 'left')}
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={24} />
+              </button>
+
+              <div
+                className="cb-row-posters portrait-row"
+                ref={(el) => (rowRefs.current['animeT'] = el)}
+              >
+                {loading
+                  ? Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="cb-skeleton-card cb-skeleton" />
+                    ))
+                  : (animeSeriesFilter === 'trending' ? trendingAnimeT : topRatedAnimeT).map((item) => (
+                      <div
+                        key={item.id}
+                        className="cb-portrait-card"
+                        onClick={() => setSelectedMedia({ ...item, media_type: 'tv' })}
+                      >
+                        <div className="cb-portrait-wrapper">
+                          <img
+                            src={getImageUrl(item.poster_path)}
+                            alt={item.name || item.title}
+                            className="cb-portrait-img"
+                          />
+                          <div className="cb-card-badge-hd">Anime</div>
+                          <div className="cb-portrait-hover">
+                            <div className="cb-hover-btn-group">
+                              <button className="cb-circle-btn">
+                                <Play size={15} fill="currentColor" />
+                              </button>
+                              <button
+                                className="cb-circle-btn space"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenWatchSpace({ ...item, media_type: 'tv' });
+                                }}
+                                title="Watch Together"
+                              >
+                                <Users size={14} />
+                              </button>
+                            </div>
+                            <div className="cb-hover-title">{item.name || item.title}</div>
+                            <div className="cb-hover-score" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                              <Star size={12} fill="#e50914" color="#e50914" /> {item.vote_average ? item.vote_average.toFixed(1) : '8.6'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="cb-card-footer-title">{item.name || item.title}</div>
+                      </div>
+                    ))}
+              </div>
+
+              <button
+                className="cb-row-arrow cb-arrow-right"
+                onClick={() => handleScrollRow('animeT', 'right')}
                 aria-label="Scroll right"
               >
                 <ChevronRight size={24} />

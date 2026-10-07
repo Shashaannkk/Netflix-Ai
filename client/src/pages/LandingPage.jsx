@@ -15,11 +15,23 @@ import {
   Check,
   Lock,
   Star,
-  Film
+  Film,
+  Tv
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NetflixAiLogo from '../components/NetflixAiLogo';
-import { fetchTrendingMovies, fetchTopRatedMovies, getImageUrl, CURATED_MOVIES } from '../services/tmdb';
+import {
+  fetchTrendingMovies,
+  fetchTopRatedMovies,
+  fetchTrendingAnimeMovies,
+  fetchTopRatedAnimeMovies,
+  fetchTrendingAnimeTV,
+  fetchTopRatedAnimeTV,
+  getImageUrl,
+  CURATED_MOVIES,
+  CURATED_ANIME_MOVIES,
+  CURATED_ANIME_SERIES
+} from '../services/tmdb';
 
 const FAQS = [
   {
@@ -65,6 +77,15 @@ export const LandingPage = ({ initialTab }) => {
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
 
+  // Anime Section State (Movies & Series with Trending and Top Rated filters)
+  const [trendingAnimeMovies, setTrendingAnimeMovies] = useState([]);
+  const [topRatedAnimeMovies, setTopRatedAnimeMovies] = useState([]);
+  const [trendingAnimeSeries, setTrendingAnimeSeries] = useState([]);
+  const [topRatedAnimeSeries, setTopRatedAnimeSeries] = useState([]);
+  const [animeMovieFilter, setAnimeMovieFilter] = useState('trending'); // 'trending' | 'top'
+  const [animeSeriesFilter, setAnimeSeriesFilter] = useState('trending'); // 'trending' | 'top'
+  const [loadingAnime, setLoadingAnime] = useState(true);
+
   // Modal state when unauthenticated user clicks a title
   const [loginRequiredMedia, setLoginRequiredMedia] = useState(null);
 
@@ -75,6 +96,8 @@ export const LandingPage = ({ initialTab }) => {
   const bgVideoRef = useRef(null);
   const formCardRef = useRef(null);
   const trendingRowRef = useRef(null);
+  const animeMoviesRowRef = useRef(null);
+  const animeSeriesRowRef = useRef(null);
 
   // Always redirect to /browse page after successful login
   const redirectPath = '/browse';
@@ -117,14 +140,66 @@ export const LandingPage = ({ initialTab }) => {
     }
   };
 
-  // 1. Fetch Top IMDb / TMDB Trending Blockbusters
+  // Scroll handler for Anime Movies Row
+  const scrollAnimeMovies = (direction) => {
+    if (animeMoviesRowRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = animeMoviesRowRef.current;
+      const maxScroll = scrollWidth - clientWidth;
+      const scrollStep = 550;
+
+      if (direction === 'right') {
+        if (scrollLeft >= maxScroll - 20) {
+          animeMoviesRowRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          animeMoviesRowRef.current.scrollBy({ left: scrollStep, behavior: 'smooth' });
+        }
+      } else {
+        if (scrollLeft <= 20) {
+          animeMoviesRowRef.current.scrollTo({ left: maxScroll, behavior: 'smooth' });
+        } else {
+          animeMoviesRowRef.current.scrollBy({ left: -scrollStep, behavior: 'smooth' });
+        }
+      }
+    }
+  };
+
+  // Scroll handler for Anime Series Row
+  const scrollAnimeSeries = (direction) => {
+    if (animeSeriesRowRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = animeSeriesRowRef.current;
+      const maxScroll = scrollWidth - clientWidth;
+      const scrollStep = 550;
+
+      if (direction === 'right') {
+        if (scrollLeft >= maxScroll - 20) {
+          animeSeriesRowRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          animeSeriesRowRef.current.scrollBy({ left: scrollStep, behavior: 'smooth' });
+        }
+      } else {
+        if (scrollLeft <= 20) {
+          animeSeriesRowRef.current.scrollTo({ left: maxScroll, behavior: 'smooth' });
+        } else {
+          animeSeriesRowRef.current.scrollBy({ left: -scrollStep, behavior: 'smooth' });
+        }
+      }
+    }
+  };
+
+  // 1. Fetch Top IMDb / TMDB Trending Blockbusters & Anime World Catalog
   useEffect(() => {
-    const loadTrending = async () => {
+    const loadCatalogData = async () => {
       try {
         setLoadingTrending(true);
-        const [trending, topRated] = await Promise.all([
+        setLoadingAnime(true);
+
+        const [trending, topRated, trAnMovies, topAnMovies, trAnTV, topAnTV] = await Promise.all([
           fetchTrendingMovies(),
-          fetchTopRatedMovies()
+          fetchTopRatedMovies(),
+          fetchTrendingAnimeMovies(),
+          fetchTopRatedAnimeMovies(),
+          fetchTrendingAnimeTV(),
+          fetchTopRatedAnimeTV()
         ]);
 
         const combined = (trending?.length ? trending : topRated || [])
@@ -140,8 +215,25 @@ export const LandingPage = ({ initialTab }) => {
           }));
 
         setTrendingMovies(combined.length > 0 ? combined : CURATED_MOVIES);
+
+        const formatAnimeItem = (item, defaultType) => ({
+          id: item.id,
+          title: item.title || item.name,
+          img: getImageUrl(item.poster_path, 'w500'),
+          backdrop: getImageUrl(item.backdrop_path, 'w1280'),
+          rating: item.vote_average ? item.vote_average.toFixed(1) : '8.5',
+          releaseDate: (item.release_date || item.first_air_date || '2024').substring(0, 4),
+          overview: item.overview || 'Stream and watch together in synchronized AI Watch Space.',
+          media_type: item.media_type || defaultType
+        });
+
+        setTrendingAnimeMovies((trAnMovies?.length ? trAnMovies : CURATED_ANIME_MOVIES).map((i) => formatAnimeItem(i, 'movie')));
+        setTopRatedAnimeMovies((topAnMovies?.length ? topAnMovies : CURATED_ANIME_MOVIES).map((i) => formatAnimeItem(i, 'movie')));
+        setTrendingAnimeSeries((trAnTV?.length ? trAnTV : CURATED_ANIME_SERIES).map((i) => formatAnimeItem(i, 'tv')));
+        setTopRatedAnimeSeries((topAnTV?.length ? topAnTV : CURATED_ANIME_SERIES).map((i) => formatAnimeItem(i, 'tv')));
+
       } catch (err) {
-        console.warn('Failed to fetch TMDB trending, fallback to curated:', err);
+        console.warn('Failed to fetch TMDB catalog, fallback to curated:', err);
         setTrendingMovies(CURATED_MOVIES.map((c) => ({
           id: c.id,
           title: c.title,
@@ -151,12 +243,53 @@ export const LandingPage = ({ initialTab }) => {
           releaseDate: (c.release_date || '2024').substring(0, 4),
           overview: c.overview
         })));
+        setTrendingAnimeMovies(CURATED_ANIME_MOVIES.map((c) => ({
+          id: c.id,
+          title: c.title,
+          img: getImageUrl(c.poster_path, 'w500'),
+          backdrop: getImageUrl(c.backdrop_path, 'w1280'),
+          rating: c.vote_average ? c.vote_average.toFixed(1) : '8.5',
+          releaseDate: (c.release_date || '2024').substring(0, 4),
+          overview: c.overview,
+          media_type: 'movie'
+        })));
+        setTopRatedAnimeMovies(CURATED_ANIME_MOVIES.map((c) => ({
+          id: c.id,
+          title: c.title,
+          img: getImageUrl(c.poster_path, 'w500'),
+          backdrop: getImageUrl(c.backdrop_path, 'w1280'),
+          rating: c.vote_average ? c.vote_average.toFixed(1) : '8.5',
+          releaseDate: (c.release_date || '2024').substring(0, 4),
+          overview: c.overview,
+          media_type: 'movie'
+        })));
+        setTrendingAnimeSeries(CURATED_ANIME_SERIES.map((c) => ({
+          id: c.id,
+          title: c.name || c.title,
+          img: getImageUrl(c.poster_path, 'w500'),
+          backdrop: getImageUrl(c.backdrop_path, 'w1280'),
+          rating: c.vote_average ? c.vote_average.toFixed(1) : '8.7',
+          releaseDate: (c.first_air_date || '2024').substring(0, 4),
+          overview: c.overview,
+          media_type: 'tv'
+        })));
+        setTopRatedAnimeSeries(CURATED_ANIME_SERIES.map((c) => ({
+          id: c.id,
+          title: c.name || c.title,
+          img: getImageUrl(c.poster_path, 'w500'),
+          backdrop: getImageUrl(c.backdrop_path, 'w1280'),
+          rating: c.vote_average ? c.vote_average.toFixed(1) : '8.7',
+          releaseDate: (c.first_air_date || '2024').substring(0, 4),
+          overview: c.overview,
+          media_type: 'tv'
+        })));
       } finally {
         setLoadingTrending(false);
+        setLoadingAnime(false);
       }
     };
 
-    loadTrending();
+    loadCatalogData();
   }, []);
 
   // 2. Load Google Identity Services SDK for Google OAuth Popup
@@ -1052,7 +1185,494 @@ export const LandingPage = ({ initialTab }) => {
               ))}
             </div>
           </div>
-        )}
+      {/* ── 2.5. ANIME WORLD — MOVIES & SERIES (WITH TRENDING AND TOP RATED LISTS) ── */}
+      <section className="landing-anime-section" style={{ padding: '3rem 4%', position: 'relative', zIndex: 10, background: '#111111', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0 }}>
+            <Sparkles color="var(--netflix-red)" /> Anime World — Movies &amp; Series
+          </h2>
+          <p style={{ color: '#aaa', fontSize: '0.88rem', marginTop: '4px', margin: 0 }}>
+            Top Japanese animated films and binge-worthy series ready to stream together in AI Watch Spaces.
+          </p>
+        </div>
+
+        {/* ── LIST 1: ANIME MOVIES (TRENDING & TOP RATED) ── */}
+        <div style={{ marginBottom: '2.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <Film size={18} color="var(--netflix-red)" /> Anime Movies
+            </h3>
+            <div style={{ display: 'flex', background: '#242424', borderRadius: '20px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <button
+                type="button"
+                onClick={() => setAnimeMovieFilter('trending')}
+                style={{
+                  padding: '0.35rem 0.95rem',
+                  borderRadius: '16px',
+                  border: 'none',
+                  background: animeMovieFilter === 'trending' ? 'var(--netflix-red)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Trending Movies
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnimeMovieFilter('top')}
+                style={{
+                  padding: '0.35rem 0.95rem',
+                  borderRadius: '16px',
+                  border: 'none',
+                  background: animeMovieFilter === 'top' ? 'var(--netflix-red)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Top Rated Movies
+              </button>
+            </div>
+          </div>
+
+          {loadingAnime ? (
+            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#888' }}>Loading Anime Movies...</div>
+          ) : (
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => scrollAnimeMovies('left')}
+                aria-label="Scroll Left"
+                style={{
+                  position: 'absolute',
+                  left: '-16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 25,
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  background: 'rgba(20, 20, 20, 0.85)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.3)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.8)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'transform 0.2s, background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                  e.currentTarget.style.background = 'var(--netflix-red)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                  e.currentTarget.style.background = 'rgba(20, 20, 20, 0.85)';
+                }}
+              >
+                <ChevronLeft size={26} strokeWidth={2.5} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => scrollAnimeMovies('right')}
+                aria-label="Scroll Right"
+                style={{
+                  position: 'absolute',
+                  right: '-16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 25,
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  background: 'rgba(20, 20, 20, 0.85)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.3)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.8)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'transform 0.2s, background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                  e.currentTarget.style.background = 'var(--netflix-red)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                  e.currentTarget.style.background = 'rgba(20, 20, 20, 0.85)';
+                }}
+              >
+                <ChevronRight size={26} strokeWidth={2.5} />
+              </button>
+
+              <div
+                ref={animeMoviesRowRef}
+                style={{
+                  display: 'flex',
+                  gap: '1.25rem',
+                  overflowX: 'auto',
+                  scrollSnapType: 'x mandatory',
+                  paddingBottom: '0.5rem',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitOverflowScrolling: 'touch'
+                }}
+                className="no-scrollbar"
+              >
+                {(animeMovieFilter === 'trending' ? trendingAnimeMovies : topRatedAnimeMovies).map((anime) => (
+                  <div
+                    key={`am-${anime.id}`}
+                    onClick={() => handleMediaClick(anime)}
+                    style={{
+                      flex: '0 0 210px',
+                      scrollSnapAlign: 'start',
+                      position: 'relative',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: '#181818',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      cursor: 'pointer',
+                      transition: 'transform 0.25s ease, border-color 0.25s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.04)';
+                      e.currentTarget.style.borderColor = 'var(--netflix-red)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                    }}
+                  >
+                    <div style={{ height: '260px', overflow: 'hidden', position: 'relative' }}>
+                      <img
+                        src={anime.img}
+                        alt={anime.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop';
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          background: 'rgba(0,0,0,0.8)',
+                          color: '#FBBF24',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}
+                      >
+                        <Star size={12} fill="#FBBF24" /> {anime.rating}
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '10px',
+                          left: '10px',
+                          background: 'var(--netflix-red)',
+                          color: '#fff',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '3px',
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        Anime Movie
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '0.85rem' }}>
+                      <h3 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {anime.title}
+                      </h3>
+                      <span style={{ fontSize: '0.75rem', color: '#888', display: 'block', marginTop: '2px' }}>
+                        {anime.releaseDate} &bull; {animeMovieFilter === 'trending' ? 'Trending' : 'Top Rated'}
+                      </span>
+
+                      <button
+                        className="btn-netflix-space"
+                        style={{
+                          width: '100%',
+                          marginTop: '0.75rem',
+                          padding: '0.45rem',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
+                          background: 'var(--netflix-red)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontWeight: 700
+                        }}
+                      >
+                        <Users size={14} /> Watch Together
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── LIST 2: ANIME SERIES (TRENDING & TOP RATED) ── */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <Tv size={18} color="var(--netflix-red)" /> Anime Series
+            </h3>
+            <div style={{ display: 'flex', background: '#242424', borderRadius: '20px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <button
+                type="button"
+                onClick={() => setAnimeSeriesFilter('trending')}
+                style={{
+                  padding: '0.35rem 0.95rem',
+                  borderRadius: '16px',
+                  border: 'none',
+                  background: animeSeriesFilter === 'trending' ? 'var(--netflix-red)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Trending Series
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnimeSeriesFilter('top')}
+                style={{
+                  padding: '0.35rem 0.95rem',
+                  borderRadius: '16px',
+                  border: 'none',
+                  background: animeSeriesFilter === 'top' ? 'var(--netflix-red)' : 'transparent',
+                  color: '#fff',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Top Rated Series
+              </button>
+            </div>
+          </div>
+
+          {loadingAnime ? (
+            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#888' }}>Loading Anime Series...</div>
+          ) : (
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => scrollAnimeSeries('left')}
+                aria-label="Scroll Left"
+                style={{
+                  position: 'absolute',
+                  left: '-16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 25,
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  background: 'rgba(20, 20, 20, 0.85)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.3)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.8)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'transform 0.2s, background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                  e.currentTarget.style.background = 'var(--netflix-red)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                  e.currentTarget.style.background = 'rgba(20, 20, 20, 0.85)';
+                }}
+              >
+                <ChevronLeft size={26} strokeWidth={2.5} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => scrollAnimeSeries('right')}
+                aria-label="Scroll Right"
+                style={{
+                  position: 'absolute',
+                  right: '-16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 25,
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  background: 'rgba(20, 20, 20, 0.85)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.3)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.8)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'transform 0.2s, background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                  e.currentTarget.style.background = 'var(--netflix-red)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                  e.currentTarget.style.background = 'rgba(20, 20, 20, 0.85)';
+                }}
+              >
+                <ChevronRight size={26} strokeWidth={2.5} />
+              </button>
+
+              <div
+                ref={animeSeriesRowRef}
+                style={{
+                  display: 'flex',
+                  gap: '1.25rem',
+                  overflowX: 'auto',
+                  scrollSnapType: 'x mandatory',
+                  paddingBottom: '0.5rem',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitOverflowScrolling: 'touch'
+                }}
+                className="no-scrollbar"
+              >
+                {(animeSeriesFilter === 'trending' ? trendingAnimeSeries : topRatedAnimeSeries).map((anime) => (
+                  <div
+                    key={`as-${anime.id}`}
+                    onClick={() => handleMediaClick(anime)}
+                    style={{
+                      flex: '0 0 210px',
+                      scrollSnapAlign: 'start',
+                      position: 'relative',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: '#181818',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      cursor: 'pointer',
+                      transition: 'transform 0.25s ease, border-color 0.25s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.04)';
+                      e.currentTarget.style.borderColor = 'var(--netflix-red)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                    }}
+                  >
+                    <div style={{ height: '260px', overflow: 'hidden', position: 'relative' }}>
+                      <img
+                        src={anime.img}
+                        alt={anime.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop';
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          background: 'rgba(0,0,0,0.8)',
+                          color: '#FBBF24',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}
+                      >
+                        <Star size={12} fill="#FBBF24" /> {anime.rating}
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '10px',
+                          left: '10px',
+                          background: '#a855f7',
+                          color: '#fff',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '3px',
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        Anime Series
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '0.85rem' }}>
+                      <h3 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {anime.title}
+                      </h3>
+                      <span style={{ fontSize: '0.75rem', color: '#888', display: 'block', marginTop: '2px' }}>
+                        {anime.releaseDate} &bull; {animeSeriesFilter === 'trending' ? 'Trending' : 'Top Rated'}
+                      </span>
+
+                      <button
+                        className="btn-netflix-space"
+                        style={{
+                          width: '100%',
+                          marginTop: '0.75rem',
+                          padding: '0.45rem',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
+                          background: 'var(--netflix-red)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontWeight: 700
+                        }}
+                      >
+                        <Users size={14} /> Watch Together
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* ── 3. AI WATCH SPACES FEATURES SHOWCASE ── */}

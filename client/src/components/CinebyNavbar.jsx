@@ -106,6 +106,11 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
               </NavLink>
             </li>
             <li>
+              <NavLink to="/anime" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`}>
+                Anime
+              </NavLink>
+            </li>
+            <li>
               <NavLink to="/top-imdb" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`}>
                 Top IMDb
               </NavLink>
