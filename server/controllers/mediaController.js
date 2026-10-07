@@ -6,10 +6,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Stream local Kantara Chapter 1 movie file bit-by-bit using HTTP Range requests (206 Partial Content)
+ * Stream local Watch Together demo movie file bit-by-bit using HTTP Range requests (206 Partial Content)
  */
 export const streamKantaraMovie = (req, res) => {
   const possiblePaths = [
+    path.join(__dirname, '..', '..', 'watch-together-demo.mp4'),
+    path.join(process.cwd(), 'watch-together-demo.mp4'),
     path.join(__dirname, '..', '..', 'kantara-chapter-1.mp4'),
     path.join(process.cwd(), 'kantara-chapter-1.mp4'),
     path.join(__dirname, '..', '..', 'Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv'),
@@ -25,7 +27,7 @@ export const streamKantaraMovie = (req, res) => {
   }
 
   if (!filePath) {
-    return res.status(404).json({ error: 'Kantara movie media file not found on server' });
+    return res.status(404).json({ error: 'Watch Together demo media file not found on server' });
   }
 
   const stat = fs.statSync(filePath);

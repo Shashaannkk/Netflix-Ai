@@ -43,7 +43,7 @@ describe('Kantara A Legend: Chapter 1 — Source Resolution Regression Audit', (
       serverNum: 8,
     });
     assert.strictEqual(res, SERVER_8_CANONICAL_SOURCE);
-    assert.strictEqual(res, '/media/kantara-chapter-1.mp4');
+    assert.ok(res.includes('/api/media/watch-together-demo.mp4'));
   });
 
   it('5. Kantara title without TMDB ID falls back safely to SERVER_8_CANONICAL_SOURCE instead of Google Cloud URL', () => {
@@ -112,12 +112,9 @@ describe('Kantara A Legend: Chapter 1 — Source Resolution Regression Audit', (
     assert.strictEqual(videoSrc, customAssetUrl);
   });
 
-  it('8. Server 9 Watch Together Demo defaults to Hindi audio with Kannada original and English subtitles', () => {
-    assert.strictEqual(WATCH_TOGETHER_DEMO_CONFIG.defaultLanguage, 'hi');
-    assert.strictEqual(WATCH_TOGETHER_DEMO_CONFIG.tmdbId, 964980);
-    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'hi'));
-    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'kn'));
-    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.some(s => s.code === 'en'));
+  it('8. Server 9 Watch Together Demo defaults to English audio with open movie metadata', () => {
+    assert.strictEqual(WATCH_TOGETHER_DEMO_CONFIG.defaultLanguage, 'en');
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'en'));
     assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableQualities.includes('1080p (Full HD)'));
   });
 

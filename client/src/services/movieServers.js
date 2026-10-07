@@ -4,7 +4,7 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const getBackendMediaUrl = (path = '/api/media/kantara-chapter-1.mp4') => {
+export const getBackendMediaUrl = (path = '/api/media/watch-together-demo.mp4') => {
   if (typeof window !== 'undefined') {
     const envUrl = import.meta.env.VITE_API_BASE_URL;
     if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
@@ -20,16 +20,16 @@ export const getBackendMediaUrl = (path = '/api/media/kantara-chapter-1.mp4') =>
   return `http://localhost:5000${path}`;
 };
 
-export const SERVER_8_CANONICAL_SOURCE = getBackendMediaUrl('/api/media/kantara-chapter-1.mp4');
+export const SERVER_8_CANONICAL_SOURCE = getBackendMediaUrl('/api/media/watch-together-demo.mp4');
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
-  title: 'Kantara A Legend: Chapter 1',
-  movieIdentifier: 'kantara-chapter-1-demo',
+  title: 'Watch Together Demo — Tears of Steel',
+  movieIdentifier: 'watch-together-demo',
   tmdbId: 964980,
   authorizedVideoSource: SERVER_8_CANONICAL_SOURCE,
   availableAudioLanguages: [
-    { code: 'hi', label: 'Hindi (Default)' },
-    { code: 'kn', label: 'Kannada (Original)' }
+    { code: 'en', label: 'English (Original)' },
+    { code: 'hi', label: 'Hindi (Dubbed)' }
   ],
   availableSubtitles: [
     { code: 'off', label: 'Off' },
@@ -37,7 +37,7 @@ export const WATCH_TOGETHER_DEMO_CONFIG = {
   ],
   availableQualities: ['1080p (Full HD)'],
   availableRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
-  defaultLanguage: 'hi',
+  defaultLanguage: 'en',
   defaultSubtitle: 'off',
   defaultQuality: '1080p (Full HD)',
   defaultSpeed: 1,

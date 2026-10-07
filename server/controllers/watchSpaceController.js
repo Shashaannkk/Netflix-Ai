@@ -78,7 +78,7 @@ export const createWatchSpace = async (req, res) => {
         ageRating: '16+',
         poster: poster || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
         backdropUrl: backdropUrl || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop',
-        videoAssetUrl: videoAssetUrl || '/media/kantara-chapter-1.mp4',
+        videoAssetUrl: videoAssetUrl || '/api/media/watch-together-demo.mp4',
         isPublished: true,
       });
     }

@@ -97,7 +97,7 @@ export const recordUserInteraction = async (req, res) => {
           genres: Array.isArray(genres) ? genres : ['Movie'],
           poster: poster || null,
           backdropUrl: backdropUrl || null,
-          videoAssetUrl: '/media/kantara-chapter-1.mp4',
+          videoAssetUrl: '/api/media/watch-together-demo.mp4',
           isPublished: true,
         });
       }
