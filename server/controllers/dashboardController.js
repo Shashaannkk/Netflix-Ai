@@ -97,7 +97,7 @@ export const recordUserInteraction = async (req, res) => {
           genres: Array.isArray(genres) ? genres : ['Movie'],
           poster: poster || null,
           backdropUrl: backdropUrl || null,
-          videoAssetUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+          videoAssetUrl: 'https://vidsrc.me/embed/movie?tmdb=964980',
           isPublished: true,
         });
       }

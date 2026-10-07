@@ -1361,31 +1361,6 @@ const WatchSpace = () => {
                       </select>
                     </div>
 
-                    {/* Captions / Subtitles */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                      <MessageSquare size={13} color="#aaa" />
-                      <select
-                        id="demo-sub-selector"
-                        value={selectedDemoSub}
-                        disabled={!isHost}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSelectedDemoSub(val);
-                          if (isHost && sendMediaConfigChange) {
-                            sendMediaConfigChange({ subTrack: val });
-                          }
-                        }}
-                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
-                        title={isHost ? "Captions / Subtitles (Host Controlled)" : "Subtitles controlled by Host"}
-                      >
-                        {WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.map((sub) => (
-                          <option key={sub.code} value={sub.code} style={{ background: '#141414', color: '#fff' }}>
-                            Subtitles: {sub.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
                     {/* Video Quality */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
                       <Film size={13} color="#e50914" />
@@ -1410,25 +1385,8 @@ const WatchSpace = () => {
                         ))}
                       </select>
                     </div>
-
-                    {/* Playback Speed (Host Authoritative Sync) */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.25rem', background: 'rgba(0,0,0,0.5)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                      <Clock size={13} color="#f59e0b" />
-                      <select
-                        id="demo-speed-selector"
-                        value={playbackState.playbackRate || 1}
-                        disabled={!isHost}
-                        onChange={(e) => handleSpeedChange(e.target.value)}
-                        style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.75rem', cursor: isHost ? 'pointer' : 'not-allowed', opacity: isHost ? 1 : 0.75 }}
-                        title={isHost ? "Authoritative Playback Speed (Room Synchronized)" : "Playback speed is controlled by the Host"}
-                      >
-                        {WATCH_TOGETHER_DEMO_CONFIG.availableRates.map((rate) => (
-                          <option key={rate} value={rate} style={{ background: '#141414', color: '#fff' }}>
-                            Speed: {rate}x
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  </>
+                )}
                   </>
                 )}
               </div>

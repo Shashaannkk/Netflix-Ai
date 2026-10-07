@@ -4,7 +4,7 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = 'https://vjs.zencdn.net/v/oceans.mp4';
+export const SERVER_8_CANONICAL_SOURCE = 'https://vidsrc.me/embed/movie?tmdb=964980';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
@@ -272,9 +272,8 @@ export const classifySource = (url) => {
 
   // Direct HTML5 Media (.mp4, .mkv, .webm, .m3u8, or local asset source)
   if (
-    cleanUrl === SERVER_8_CANONICAL_SOURCE ||
-    cleanUrl.includes('Kantara') ||
-    cleanUrl.includes('kantara') ||
+    cleanUrl.includes('Kantara.mp4') ||
+    cleanUrl.includes('kantara.mp4') ||
     cleanUrl.includes('/media/') ||
     cleanUrl.endsWith('.mkv') ||
     cleanUrl.includes('.mkv?') ||
