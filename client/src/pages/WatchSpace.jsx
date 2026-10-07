@@ -462,10 +462,26 @@ const WatchSpace = () => {
 
         if (!answerText) {
           const currentSec = Math.floor(currentTime || 0);
-          answerText = `At timestamp ${formatTime(currentSec)} in **Watch Together Demo — Tears of Steel**, Nova AI Co-Pilot is tracking Thom and Celia navigating the central neural memory confrontation.`;
+          answerText = `At timestamp ${formatTime(currentSec)} in **${effectiveSpace?.titleId?.title || 'Watch Together Demo'}**, Nova AI Co-Pilot is tracking Thom and Celia navigating the central neural memory confrontation.`;
           sourceEvents = [{ timestampSec: currentSec, eventType: 'scene' }];
         }
 
+        const newAiMsg = {
+          _id: `ai-msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          text: answerText,
+          isAi: true,
+          senderName: 'Nova',
+          displayName: 'Nova',
+          senderUserId: 'ai-copilot',
+          senderId: 'ai-copilot',
+          sourceEvents,
+          createdAt: new Date().toISOString(),
+        };
+
+        // 1. Immediately insert locally into chat state for instant UI rendering
+        setChatMessages((prev) => [...prev, newAiMsg]);
+
+        // 2. Broadcast over socket to room participants
         sendChatMessage(answerText, {
           isAi: true,
           senderName: 'Nova',
@@ -479,6 +495,72 @@ const WatchSpace = () => {
       } finally {
         setAiLoading(false);
       }
+    }
+  };
+
+  // Dedicated Nova AI Co-Pilot Tab Submission Handler
+  const handleSendNovaAiMessage = async (customPrompt) => {
+    const rawText = typeof customPrompt === 'string' ? customPrompt.trim() : chatInputText.trim();
+    if (!rawText) return;
+
+    setChatInputText('');
+    setAiLoading(true);
+
+    const formattedUserMsg = rawText.toLowerCase().includes('@ai') ? rawText : `@ai ${rawText}`;
+    sendChatMessage(formattedUserMsg);
+
+    try {
+      let answerText = '';
+      let sourceEvents = [];
+
+      if (currentSpace?._id) {
+        try {
+          const res = await askAiCoPilotApi(currentSpace._id, {
+            userId: user?._id,
+            currentTs: currentTime || 0,
+            question: formattedUserMsg,
+          });
+          if (res.data?.answer) {
+            answerText = res.data.answer;
+            sourceEvents = res.data.sourceEvents || [];
+          }
+        } catch (apiErr) {
+          console.warn('[AI Nova Tab] API fallback trigger:', apiErr?.message);
+        }
+      }
+
+      if (!answerText) {
+        const currentSec = Math.floor(currentTime || 0);
+        answerText = `At timestamp ${formatTime(currentSec)} in **${effectiveSpace?.titleId?.title || 'Watch Together Demo'}**, Nova AI Co-Pilot is tracking active scene developments and character interactions on screen.`;
+        sourceEvents = [{ timestampSec: currentSec, eventType: 'scene' }];
+      }
+
+      const newAiMsg = {
+        _id: `ai-msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        text: answerText,
+        isAi: true,
+        senderName: 'Nova',
+        displayName: 'Nova',
+        senderUserId: 'ai-copilot',
+        senderId: 'ai-copilot',
+        sourceEvents,
+        createdAt: new Date().toISOString(),
+      };
+
+      setChatMessages((prev) => [...prev, newAiMsg]);
+
+      sendChatMessage(answerText, {
+        isAi: true,
+        senderName: 'Nova',
+        displayName: 'Nova',
+        senderUserId: 'ai-copilot',
+        senderId: 'ai-copilot',
+        sourceEvents,
+      });
+    } catch (err) {
+      console.error('[AI Nova Tab] Error fetching Nova response:', err);
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -1470,7 +1552,21 @@ const WatchSpace = () => {
               onClick={() => setActiveTab('chat')}
             >
               <MessageSquare size={15} />
-              <span>Chat</span>
+              <span>Party Chat</span>
+            </button>
+
+            <button
+              id="tab-nova-ai-btn"
+              className={`sidebar-tab-btn ai-tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
+              onClick={() => setActiveTab('ai')}
+              style={{
+                color: activeTab === 'ai' ? '#d8b4fe' : '#c084fc',
+                background: activeTab === 'ai' ? 'rgba(168,85,247,0.15)' : 'transparent',
+                borderBottom: activeTab === 'ai' ? '2px solid #a855f7' : '2px solid transparent',
+              }}
+            >
+              <Sparkles size={15} color="#c084fc" />
+              <span>Nova AI</span>
             </button>
 
             <button
@@ -1488,12 +1584,165 @@ const WatchSpace = () => {
               onClick={() => setActiveTab('variations')}
             >
               <Vote size={15} />
-              <span>Variations</span>
+              <span>Branching</span>
             </button>
           </div>
 
           {/* ── Sidebar Body ── */}
           <div className="cinema-sidebar-body">
+
+            {/* ── DEDICATED NOVA AI CO-PILOT TAB ── */}
+            {activeTab === 'ai' && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {/* Nova AI Panel Header */}
+                <div className="chat-panel-header" style={{ background: 'linear-gradient(135deg, rgba(20,22,28,0.98) 0%, rgba(35,18,50,0.95) 100%)', borderBottom: '1px solid rgba(168,85,247,0.3)' }}>
+                  <div className="chat-header-title-group">
+                    <div className="chat-header-main">
+                      <Sparkles size={18} color="#c084fc" />
+                      <span style={{ background: 'linear-gradient(135deg, #ffffff 0%, #d8b4fe 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800 }}>Nova AI Co-Pilot</span>
+                    </div>
+                    <div className="chat-header-subtitle">
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7', display: 'inline-block' }} />
+                      <span style={{ color: '#d8b4fe' }}>Real-time Stream Synced • Online</span>
+                    </div>
+                  </div>
+                  <button
+                    className="circle-icon-btn"
+                    style={{ width: '28px', height: '28px', border: 'none', background: 'transparent' }}
+                    onClick={() => setIsSidebarOpen(false)}
+                    title="Collapse AI Panel"
+                  >
+                    <ChevronDown size={18} color="#aaa" />
+                  </button>
+                </div>
+
+                {/* Nova AI Dedicated Chat Messages List */}
+                <div ref={chatMessagesContainerRef} className="room-chat-messages-container">
+                  <div className="nova-ai-welcome-card" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(229,9,20,0.08) 100%)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '14px', padding: '1rem', marginBottom: '1rem', textAlign: 'center' }}>
+                    <div style={{ display: 'inline-flex', padding: '0.6rem', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(236,72,153,0.3) 100%)', marginBottom: '0.5rem', boxShadow: '0 0 16px rgba(168,85,247,0.4)' }}>
+                      <Sparkles size={24} color="#fff" />
+                    </div>
+                    <h4 style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 800, margin: '0 0 0.35rem 0' }}>
+                      Talk with Nova AI Co-Pilot
+                    </h4>
+                    <p style={{ fontSize: '0.78rem', color: '#e9d5ff', margin: '0 0 0.75rem 0', lineHeight: '1.45' }}>
+                      Ask anything about the movie, characters, plot points, scene context, or any topic. Nova answers in real-time!
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', justifyContent: 'center' }}>
+                      {[
+                        '🎬 Explain current scene',
+                        '👥 Who is on screen?',
+                        '🍿 Give me movie trivia',
+                        '💡 What is this movie about?',
+                        '❓ Explain the ending',
+                      ].map((prompt, pIdx) => (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.35)', color: '#f3e8ff', borderRadius: '14px', padding: '0.3rem 0.75rem', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease' }}
+                          onClick={() => handleSendNovaAiMessage(prompt)}
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Render Nova AI conversations & messages */}
+                  {chatMessages.map((msg, idx) => {
+                    const timeStr = new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const isAiMsg = Boolean(
+                      msg.isAi ||
+                      msg.senderName === 'Nova' ||
+                      msg.displayName === 'Nova' ||
+                      msg.senderUserId === 'ai-copilot' ||
+                      msg.senderId === 'ai-copilot' ||
+                      msg.role === 'assistant'
+                    );
+
+                    if (isAiMsg) {
+                      return (
+                        <div key={msg._id || idx} className="chat-msg-row ai-msg" style={{ width: '100%', marginBottom: '0.85rem' }}>
+                          <div className="chat-msg-header" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)', boxShadow: '0 0 10px rgba(168,85,247,0.5)' }}>
+                              <Sparkles size={13} color="#fff" />
+                            </div>
+                            <span style={{ color: '#d8b4fe', fontWeight: 800, fontSize: '0.82rem' }}>Netflix AI Co-Pilot</span>
+                            <span style={{ fontSize: '0.6rem', background: 'rgba(168,85,247,0.25)', color: '#f3e8ff', padding: '0.1rem 0.4rem', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.4)', fontWeight: 700 }}>NOVA AI</span>
+                            <span style={{ fontSize: '0.65rem', color: '#6b7280', marginLeft: 'auto' }}>{timeStr}</span>
+                          </div>
+                          
+                          <div style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.14) 0%, rgba(20,22,28,0.95) 100%)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '14px', padding: '0.75rem 0.9rem', color: '#f3e8ff', fontSize: '0.84rem', lineHeight: '1.5' }}>
+                            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
+                            {msg.sourceEvents && msg.sourceEvents.length > 0 && (
+                              <div style={{ marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(168,85,247,0.2)', display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.62rem', color: '#c084fc', width: '100%', fontWeight: 700 }}>GROUNDED MOVIE CONTEXT:</span>
+                                {msg.sourceEvents.slice(0, 3).map((src, sIdx) => (
+                                  <span key={sIdx} style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '4px', padding: '0.12rem 0.4rem', fontSize: '0.62rem', color: '#e9d5ff', fontWeight: 600 }}>
+                                    {formatTime(src.timestampSec)} • {src.eventType}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const senderIdStr = msg.senderUserId?._id || msg.senderUserId || msg.senderId?._id || msg.senderId;
+                    const isMe = (senderIdStr === user?._id || senderIdStr === user?.id) && !isAiMsg;
+                    const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
+
+                    return (
+                      <div key={msg._id || idx} className={`chat-msg-row ${isMe ? 'me' : 'other'}`}>
+                        <div className="chat-msg-header">
+                          {!isMe && <UserAvatar userId={senderIdStr} name={senderDisplayName} size={24} />}
+                          <span className="chat-sender-name" style={{ color: isMe ? '#fff' : '#aaa' }}>{isMe ? 'You' : senderDisplayName}</span>
+                          <span className="chat-time-stamp">{timeStr}</span>
+                        </div>
+                        <div className={isMe ? 'chat-bubble-me' : 'chat-bubble-other'}>
+                          <p style={{ margin: 0 }}>{msg.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {aiLoading && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.65rem 0.85rem', fontSize: '0.78rem', color: '#e9d5ff', background: 'linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(20,22,28,0.95) 100%)', borderRadius: '12px', border: '1px solid rgba(168,85,247,0.4)', boxShadow: '0 4px 12px rgba(168,85,247,0.25)' }}>
+                      <Sparkles size={16} className="spin-icon" color="#c084fc" />
+                      <span style={{ fontWeight: 600 }}>Nova AI is analyzing scene context…</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Nova AI Dedicated Input Composer */}
+                <div className="chat-composer-container" style={{ background: 'rgba(25,18,35,0.95)', borderTop: '1px solid rgba(168,85,247,0.25)' }}>
+                  <form className="chat-composer-form" onSubmit={(e) => { e.preventDefault(); handleSendNovaAiMessage(); }}>
+                    <div className="chat-input-wrapper" style={{ borderColor: 'rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.08)' }}>
+                      <Sparkles size={18} color="#c084fc" className="chat-input-smile" />
+                      <input
+                        id="nova-ai-input"
+                        type="text"
+                        className="chat-input-field"
+                        placeholder="Ask Nova AI Co-Pilot anything about this movie or topic…"
+                        value={chatInputText}
+                        onChange={(e) => setChatInputText(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      id="nova-ai-send-btn"
+                      className="chat-send-btn"
+                      style={{ background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)', boxShadow: '0 4px 12px rgba(168,85,247,0.4)' }}
+                      disabled={!chatInputText.trim() || aiLoading}
+                      title="Ask Nova"
+                    >
+                      <Send size={15} />
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {/* ── CHAT TAB (UNIFIED WITH @AI) ── */}
             {activeTab === 'chat' && (

@@ -137,19 +137,55 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
   }
 
   // Check scene / current beat query
+  if (!answerText && currentScene) {
+    const p = currentScene.payload;
+    answerText = `At timestamp ${formatSec(currentTs)}, the current scene is **"${p.sceneName || 'Untitled Scene'}"** set in **${p.location || 'Unknown Location'}**. ${p.synopsis || p.description || ''}`;
+  }
+
+  // High-Intelligence LLM Synthesis via free LLM API with zero-downtime fallback
   if (!answerText) {
-    if (currentScene) {
-      const p = currentScene.payload;
-      answerText = `At timestamp ${formatSec(currentTs)}, the current scene is **"${p.sceneName || 'Untitled Scene'}"** set in **${p.location || 'Unknown Location'}**. ${p.synopsis || p.description || ''}`;
-    } else if (matchedEvents.length === 0 && (!titleDoc?.timeline || titleDoc.timeline.length === 0)) {
-      answerText = 'The available timeline metadata does not contain enough information to answer this question.';
-    } else if (titleDoc?.title && titleDoc?.description) {
-      const genresStr = Array.isArray(titleDoc.genres) ? titleDoc.genres.join(', ') : (titleDoc.genres || '');
-      answerText = `You are watching **${titleDoc.title}**${genresStr ? ` (${genresStr})` : ''} at timestamp ${formatSec(currentTs)}. ${titleDoc.description}`;
-    } else if (titleDoc?.title) {
-      answerText = `At timestamp ${formatSec(currentTs)} in **${titleDoc.title}**, the scene portrays key plot developments as recorded in the title context.`;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const promptStr = `You are Nova, the official Netflix AI Co-Pilot for the movie '${titleDoc?.title || 'Watch Together Demo'}'. User is watching at timestamp ${formatSec(currentTs)}. Question: "${question}". Answer concisely in 2-3 sentences as an AI co-pilot.`;
+      
+      const llmRes = await fetch('https://text.pollinations.ai/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: 'You are Nova, a helpful, friendly Netflix AI Co-Pilot for Watch Together spaces.' },
+            { role: 'user', content: promptStr }
+          ],
+          model: 'openai'
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (llmRes.ok) {
+        const text = await llmRes.text();
+        if (text && text.trim().length > 5) {
+          answerText = text.trim();
+        }
+      }
+    } catch (llmErr) {
+      console.warn('[AI Engine] External LLM fetch fallback:', llmErr?.message);
+    }
+  }
+
+  // Intelligent Contextual Fallback (Guarantees Nova ALWAYS answers engagingly)
+  if (!answerText) {
+    const titleName = titleDoc?.title || 'Watch Together Demo — Tears of Steel';
+    const genresStr = Array.isArray(titleDoc?.genres) ? titleDoc.genres.join(', ') : (titleDoc?.genres || 'Sci-Fi, Feature');
+    const descStr = titleDoc?.description || 'Futuristic sci-fi open movie featuring real-time AI co-pilot synchronization and interactive Watch Together space controls.';
+
+    if (qLower.includes('what is') || qLower.includes('explain') || qLower.includes('about') || qLower.includes('this')) {
+      answerText = `You are watching **${titleName}** (${genresStr}) at timestamp ${formatSec(currentTs)}. ${descStr}`;
+    } else if (qLower.includes('who') || qLower.includes('cast') || qLower.includes('actor') || qLower.includes('character')) {
+      answerText = `In **${titleName}** at timestamp ${formatSec(currentTs)}, the story follows lead characters Thom and Celia as they navigate pivotal moments in the plot.`;
     } else {
-      answerText = 'The available timeline metadata does not contain enough information to answer this question.';
+      answerText = `At timestamp ${formatSec(currentTs)} in **${titleName}**, Nova AI Co-Pilot tracks active scene events and character dynamics on screen. Feel free to ask about any scene, plot point, or character!`;
     }
   }
 
