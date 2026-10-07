@@ -7,11 +7,15 @@ import watchSpaceRoutes from './watchSpaceRoutes.js';
 import aiRoutes from './aiRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import adminRoutes from './adminRoutes.js';
+import mediaRoutes from './mediaRoutes.js';
 
 const apiRouter = Router();
 
 // Mount Health Check endpoint
 apiRouter.use('/health', healthRoutes);
+
+// Mount Media Range Stream routes
+apiRouter.use('/media', mediaRoutes);
 
 // Mount Authentication routes
 apiRouter.use('/auth', authRoutes);

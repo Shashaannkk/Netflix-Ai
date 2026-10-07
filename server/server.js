@@ -56,8 +56,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import mediaRoutes from './routes/mediaRoutes.js';
+
 // 3. Mount REST API Routes & Static Local Media Stream Endpoint
 app.use('/api', apiRouter);
+app.use('/media', mediaRoutes);
 app.use('/media', express.static(path.join(__dirname, '..'), {
   acceptRanges: true,
   setHeaders: (res, filePath) => {
