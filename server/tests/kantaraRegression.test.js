@@ -24,13 +24,13 @@ describe('Kantara A Legend: Chapter 1 — Source Resolution Regression Audit', (
   it('2. classifySource marks obsolete Google Cloud sample URLs as INVALID', () => {
     assert.strictEqual(classifySource(OBSOLETE_GOOGLE_URL), 'INVALID');
     assert.strictEqual(classifySource(OBSOLETE_BUNNY_URL), 'INVALID');
-    assert.strictEqual(classifySource(SERVER_8_CANONICAL_SOURCE), 'EMBED_PROVIDER');
+    assert.strictEqual(classifySource(SERVER_8_CANONICAL_SOURCE), 'DIRECT_MEDIA');
     assert.strictEqual(classifySource('https://vidsrc.me/embed/movie?tmdb=550'), 'EMBED_PROVIDER');
   });
 
   it('3. getPlayerMode marks obsolete Google Cloud sample URLs as invalid', () => {
     assert.strictEqual(getPlayerMode(OBSOLETE_GOOGLE_URL), 'invalid');
-    assert.strictEqual(getPlayerMode(SERVER_8_CANONICAL_SOURCE), 'provider');
+    assert.strictEqual(getPlayerMode(SERVER_8_CANONICAL_SOURCE), 'native');
     assert.strictEqual(getPlayerMode('https://vidsrc.me/embed/movie?tmdb=550'), 'provider');
   });
 
@@ -43,7 +43,7 @@ describe('Kantara A Legend: Chapter 1 — Source Resolution Regression Audit', (
       serverNum: 8,
     });
     assert.strictEqual(res, SERVER_8_CANONICAL_SOURCE);
-    assert.strictEqual(res, 'https://vidsrc.me/embed/movie?tmdb=964980');
+    assert.strictEqual(res, '/media/kantara-chapter-1.mp4');
   });
 
   it('5. Kantara title without TMDB ID falls back safely to SERVER_8_CANONICAL_SOURCE instead of Google Cloud URL', () => {
@@ -112,21 +112,24 @@ describe('Kantara A Legend: Chapter 1 — Source Resolution Regression Audit', (
     assert.strictEqual(videoSrc, customAssetUrl);
   });
 
-  it('8. Server 9 Watch Together Demo defaults to Hindi audio with multi-language, subtitle, and quality support', () => {
+  it('8. Server 9 Watch Together Demo defaults to Hindi audio with Kannada original and English subtitles', () => {
     assert.strictEqual(WATCH_TOGETHER_DEMO_CONFIG.defaultLanguage, 'hi');
     assert.strictEqual(WATCH_TOGETHER_DEMO_CONFIG.tmdbId, 964980);
     assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'hi'));
     assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'kn'));
-    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableAudioLanguages.some(l => l.code === 'te'));
-    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.some(s => s.code === 'hi'));
-    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableQualities.includes('Auto (1080p)'));
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableSubtitles.some(s => s.code === 'en'));
+    assert.ok(WATCH_TOGETHER_DEMO_CONFIG.availableQualities.includes('1080p (Full HD)'));
   });
 
-  it('9. getPlayerMode identifies Servers 1-9 provider embed resolution for Kantara Chapter 1', () => {
+  it('9. getPlayerMode identifies Servers 1-7 as provider embeds and Server 8/9 as native media', () => {
     const kantaraTmdb = 964980;
-    for (let s = 1; s <= 9; s++) {
+    for (let s = 1; s <= 7; s++) {
       const url = getServerStreamUrl({ tmdbId: kantaraTmdb, serverNum: s });
       assert.strictEqual(getPlayerMode(url), 'provider', `Server ${s} should resolve to provider player mode`);
     }
+    const server8Url = getServerStreamUrl({ tmdbId: kantaraTmdb, serverNum: 8 });
+    const server9Url = getServerStreamUrl({ tmdbId: kantaraTmdb, serverNum: 9 });
+    assert.strictEqual(getPlayerMode(server8Url), 'native');
+    assert.strictEqual(getPlayerMode(server9Url), 'native');
   });
 });

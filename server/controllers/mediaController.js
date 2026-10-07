@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
  */
 export const streamKantaraMovie = (req, res) => {
   const possiblePaths = [
+    path.join(__dirname, '..', '..', 'kantara-chapter-1.mp4'),
+    path.join(process.cwd(), 'kantara-chapter-1.mp4'),
     path.join(__dirname, '..', '..', 'Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv'),
     path.join(process.cwd(), 'Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv'),
   ];

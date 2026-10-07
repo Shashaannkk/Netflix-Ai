@@ -4,7 +4,7 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = 'https://vidsrc.me/embed/movie?tmdb=964980';
+export const SERVER_8_CANONICAL_SOURCE = '/media/kantara-chapter-1.mp4';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
@@ -13,26 +13,17 @@ export const WATCH_TOGETHER_DEMO_CONFIG = {
   authorizedVideoSource: SERVER_8_CANONICAL_SOURCE,
   availableAudioLanguages: [
     { code: 'hi', label: 'Hindi (Default)' },
-    { code: 'en', label: 'English' },
-    { code: 'kn', label: 'Kannada (Original)' },
-    { code: 'te', label: 'Telugu' },
-    { code: 'ta', label: 'Tamil' },
-    { code: 'ml', label: 'Malayalam' }
+    { code: 'kn', label: 'Kannada (Original)' }
   ],
   availableSubtitles: [
     { code: 'off', label: 'Off' },
-    { code: 'hi', label: 'Hindi Subtitles' },
-    { code: 'en', label: 'English Subtitles' },
-    { code: 'kn', label: 'Kannada Subtitles' },
-    { code: 'te', label: 'Telugu Subtitles' },
-    { code: 'ta', label: 'Tamil Subtitles' },
-    { code: 'ml', label: 'Malayalam Subtitles' }
+    { code: 'en', label: 'English Subtitles' }
   ],
-  availableQualities: ['Auto (1080p)', '1080p (Full HD)', '720p (HD)', '480p (SD)', '360p'],
+  availableQualities: ['1080p (Full HD)'],
   availableRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
   defaultLanguage: 'hi',
   defaultSubtitle: 'off',
-  defaultQuality: 'Auto (1080p)',
+  defaultQuality: '1080p (Full HD)',
   defaultSpeed: 1,
 };
 
@@ -270,10 +261,12 @@ export const classifySource = (url) => {
     return ytId ? 'YOUTUBE' : 'INVALID';
   }
 
-  // Direct HTML5 Media (.mp4, .mkv, .webm, .m3u8, or local asset source)
+  // Direct HTML5 Media (.mp4, .mkv, .webm, .m3u8, /media/, or local asset source)
   if (
-    cleanUrl.includes('Kantara.mp4') ||
-    cleanUrl.includes('kantara.mp4') ||
+    cleanUrl === SERVER_8_CANONICAL_SOURCE ||
+    cleanUrl.includes('Kantara') ||
+    cleanUrl.includes('kantara') ||
+    cleanUrl.includes('/media/') ||
     cleanUrl.endsWith('.mkv') ||
     cleanUrl.includes('.mkv?') ||
     cleanUrl.endsWith('.mp4') ||
