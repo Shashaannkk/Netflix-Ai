@@ -1387,8 +1387,6 @@ const WatchSpace = () => {
                     </div>
                   </>
                 )}
-                  </>
-                )}
               </div>
 
               {/* Right side */}
