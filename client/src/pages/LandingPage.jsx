@@ -1185,6 +1185,9 @@ export const LandingPage = ({ initialTab }) => {
               ))}
             </div>
           </div>
+        )}
+      </section>
+
       {/* ── 2.5. ANIME WORLD — MOVIES & SERIES (WITH TRENDING AND TOP RATED LISTS) ── */}
       <section className="landing-anime-section" style={{ padding: '3rem 4%', position: 'relative', zIndex: 10, background: '#111111', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ marginBottom: '1.5rem' }}>

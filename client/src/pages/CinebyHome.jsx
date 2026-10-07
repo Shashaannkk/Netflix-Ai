@@ -975,6 +975,9 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
                 <ChevronRight size={24} />
               </button>
             </div>
+          </section>
+        )}
+
         {/* ── 8.5. ANIME MOVIES (TRENDING & TOP RATED LISTS) ── */}
         {showAnime && (
           <section className="cb-movie-row">
