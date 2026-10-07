@@ -981,6 +981,16 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
             logNativeDiagnostics('ERROR', videoEl, error);
 
+            if (
+              (serverNum === 9 || currentSource?.includes('watch-together-demo')) &&
+              currentSource !== 'https://vjs.zencdn.net/v/oceans.mp4'
+            ) {
+              console.log('[NetflixVideoPlayer] Server 9 primary stream load error, switching to resilient fallback video stream');
+              setCurrentSource('https://vjs.zencdn.net/v/oceans.mp4');
+              setMediaState('LOADING');
+              return;
+            }
+
             setMediaState('ERROR');
             setMediaError({
               code: `CODE_${code}`,

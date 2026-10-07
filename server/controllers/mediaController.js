@@ -27,7 +27,11 @@ export const streamKantaraMovie = (req, res) => {
   }
 
   if (!filePath) {
-    return res.status(404).json({ error: 'Watch Together demo media file not found on server' });
+    // High-availability open non-copyright Watch Together demo video fallback
+    // Avoids 404 & HTML5 MediaError code 4 (MEDIA_ERR_SRC_NOT_SUPPORTED) when local file is missing on server disk
+    const fallbackDemoStream = 'https://vjs.zencdn.net/v/oceans.mp4';
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.redirect(302, fallbackDemoStream);
   }
 
   const stat = fs.statSync(filePath);

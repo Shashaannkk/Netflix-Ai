@@ -537,7 +537,7 @@ const WatchSpace = () => {
   const resetControlsTimer = () => {
     setShowControls(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    if (isPlaying && selectedServer === 8) {
+    if (isPlaying && (selectedServer === 8 || selectedServer === 9)) {
       controlsTimer.current = setTimeout(() => setShowControls(false), 3500);
     }
   };

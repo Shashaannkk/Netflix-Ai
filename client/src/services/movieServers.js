@@ -253,7 +253,10 @@ export const getYouTubeVideoId = (url) => {
  */
 export const isObsoleteSampleUrl = (url) => {
   if (!url || typeof url !== 'string') return false;
-  return false;
+  return (
+    url.includes('commondatastorage.googleapis.com/gtv-videos-bucket/sample/') ||
+    url.includes('storage.googleapis.com/gtv-videos-bucket/sample/')
+  );
 };
 
 /**
