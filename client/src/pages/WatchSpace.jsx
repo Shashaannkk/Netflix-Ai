@@ -466,14 +466,15 @@ const WatchSpace = () => {
           sourceEvents = [{ timestampSec: currentSec, eventType: 'scene' }];
         }
 
+        const tempAiId = `ai-msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const newAiMsg = {
-          _id: `ai-msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          _id: tempAiId,
           text: answerText,
           isAi: true,
-          senderName: 'Nova',
-          displayName: 'Nova',
-          senderUserId: 'ai-copilot',
-          senderId: 'ai-copilot',
+          senderName: 'Netflix AI Co-Pilot',
+          displayName: 'Netflix AI Co-Pilot',
+          senderUserId: 'ai-copilot-nova',
+          senderId: 'ai-copilot-nova',
           sourceEvents,
           createdAt: new Date().toISOString(),
         };
@@ -484,10 +485,11 @@ const WatchSpace = () => {
         // 2. Broadcast over socket to room participants
         sendChatMessage(answerText, {
           isAi: true,
-          senderName: 'Nova',
-          displayName: 'Nova',
-          senderUserId: 'ai-copilot',
-          senderId: 'ai-copilot',
+          senderName: 'Netflix AI Co-Pilot',
+          displayName: 'Netflix AI Co-Pilot',
+          senderUserId: 'ai-copilot-nova',
+          senderId: 'ai-copilot-nova',
+          clientMsgId: tempAiId,
           sourceEvents,
         });
       } catch (err) {
@@ -535,14 +537,15 @@ const WatchSpace = () => {
         sourceEvents = [{ timestampSec: currentSec, eventType: 'scene' }];
       }
 
+      const tempAiId = `ai-msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const newAiMsg = {
-        _id: `ai-msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        _id: tempAiId,
         text: answerText,
         isAi: true,
-        senderName: 'Nova',
-        displayName: 'Nova',
-        senderUserId: 'ai-copilot',
-        senderId: 'ai-copilot',
+        senderName: 'Netflix AI Co-Pilot',
+        displayName: 'Netflix AI Co-Pilot',
+        senderUserId: 'ai-copilot-nova',
+        senderId: 'ai-copilot-nova',
         sourceEvents,
         createdAt: new Date().toISOString(),
       };
@@ -551,10 +554,11 @@ const WatchSpace = () => {
 
       sendChatMessage(answerText, {
         isAi: true,
-        senderName: 'Nova',
-        displayName: 'Nova',
-        senderUserId: 'ai-copilot',
-        senderId: 'ai-copilot',
+        senderName: 'Netflix AI Co-Pilot',
+        displayName: 'Netflix AI Co-Pilot',
+        senderUserId: 'ai-copilot-nova',
+        senderId: 'ai-copilot-nova',
+        clientMsgId: tempAiId,
         sourceEvents,
       });
     } catch (err) {
@@ -1361,6 +1365,29 @@ const WatchSpace = () => {
             </div>
           ))}
         </div>
+
+        {/* Live Recent Chat Ticker Overlay under video player */}
+        {chatMessages.length > 0 && (
+          <div className="video-under-chat-ticker">
+            <div className="ticker-badge">
+              <MessageSquare size={13} color="var(--netflix-red)" />
+              <span>Live Chat</span>
+            </div>
+            <div className="ticker-message">
+              {(() => {
+                const lastMsg = chatMessages[chatMessages.length - 1];
+                const isAi = Boolean(lastMsg.isAi || lastMsg.senderUserId === 'ai-copilot-nova' || lastMsg.senderName === 'Netflix AI Co-Pilot' || lastMsg.displayName === 'Netflix AI Co-Pilot');
+                const name = isAi ? 'Netflix AI Co-Pilot' : (lastMsg.displayName || lastMsg.senderName || 'User');
+                return (
+                  <span>
+                    <strong style={{ color: isAi ? '#c084fc' : '#e50914' }}>{name}: </strong>
+                    {lastMsg.text}
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+        )}
 
         {/* ── Controls Bar — ONLY FOR NATIVE MEDIA (Servers 8 & 9) ── */}
         {!isEmbedServer && (

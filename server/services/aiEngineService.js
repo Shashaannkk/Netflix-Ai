@@ -142,31 +142,50 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
     answerText = `At timestamp ${formatSec(currentTs)}, the current scene is **"${p.sceneName || 'Untitled Scene'}"** set in **${p.location || 'Unknown Location'}**. ${p.synopsis || p.description || ''}`;
   }
 
-  // High-Intelligence LLM Synthesis via free LLM API with zero-downtime fallback
+  // High-Intelligence LLM Synthesis via Pollinations AI with GET & POST fallbacks
   if (!answerText) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
-      const promptStr = `You are Nova, the official Netflix AI Co-Pilot for the movie '${titleDoc?.title || 'Watch Together Demo'}'. User is watching at timestamp ${formatSec(currentTs)}. Question: "${question}". Answer concisely in 2-3 sentences as an AI co-pilot.`;
-      
-      const llmRes = await fetch('https://text.pollinations.ai/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: 'system', content: 'You are Nova, a helpful, friendly Netflix AI Co-Pilot for Watch Together spaces.' },
-            { role: 'user', content: promptStr }
-          ],
-          model: 'openai'
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+      const promptStr = `You are Nova, the official Netflix AI Co-Pilot. The user is currently watching '${titleDoc?.title || 'Watch Together Demo'}' at timestamp ${formatSec(currentTs)}. Question: "${question}". Answer concisely in 2-3 engaging, expert sentences. If the user asks about any movie, TV series, director, cast, or lore, provide an accurate, intelligent answer!`;
 
-      if (llmRes.ok) {
-        const text = await llmRes.text();
-        if (text && text.trim().length > 5) {
-          answerText = text.trim();
+      // 1. Try POST to Pollinations AI
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      try {
+        const llmRes = await fetch('https://text.pollinations.ai/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: 'You are Nova, an expert Netflix AI Co-Pilot knowledgeable about all movies, TV series, anime, cinema, and timeline lore.' },
+              { role: 'user', content: promptStr }
+            ],
+            model: 'openai'
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (llmRes.ok) {
+          const text = await llmRes.text();
+          if (text && text.trim().length > 5) {
+            answerText = text.trim();
+          }
+        }
+      } catch (postErr) {
+        clearTimeout(timeoutId);
+        // 2. Fallback to GET endpoint on Pollinations AI
+        const getController = new AbortController();
+        const getTimeOut = setTimeout(() => getController.abort(), 3500);
+        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(promptStr)}?model=openai`;
+        const getRes = await fetch(getUrl, { signal: getController.signal });
+        clearTimeout(getTimeOut);
+
+        if (getRes.ok) {
+          const text = await getRes.text();
+          if (text && text.trim().length > 5) {
+            answerText = text.trim();
+          }
         }
       }
     } catch (llmErr) {
@@ -178,14 +197,14 @@ export const generateGroundedAnswer = async ({ titleDoc, currentTs, question }) 
   if (!answerText) {
     const titleName = titleDoc?.title || 'Watch Together Demo — Tears of Steel';
     const genresStr = Array.isArray(titleDoc?.genres) ? titleDoc.genres.join(', ') : (titleDoc?.genres || 'Sci-Fi, Feature');
-    const descStr = titleDoc?.description || 'Futuristic sci-fi open movie featuring real-time AI co-pilot synchronization and interactive Watch Together space controls.';
+    const descStr = titleDoc?.description || 'Futuristic sci-fi movie featuring real-time AI co-pilot synchronization and interactive Watch Together space controls.';
 
     if (qLower.includes('what is') || qLower.includes('explain') || qLower.includes('about') || qLower.includes('this')) {
       answerText = `You are watching **${titleName}** (${genresStr}) at timestamp ${formatSec(currentTs)}. ${descStr}`;
     } else if (qLower.includes('who') || qLower.includes('cast') || qLower.includes('actor') || qLower.includes('character')) {
-      answerText = `In **${titleName}** at timestamp ${formatSec(currentTs)}, the story follows lead characters Thom and Celia as they navigate pivotal moments in the plot.`;
+      answerText = `In **${titleName}** at timestamp ${formatSec(currentSec || currentTs)}, the story follows lead characters Thom and Celia as they navigate pivotal moments in the plot.`;
     } else {
-      answerText = `At timestamp ${formatSec(currentTs)} in **${titleName}**, Nova AI Co-Pilot tracks active scene events and character dynamics on screen. Feel free to ask about any scene, plot point, or character!`;
+      answerText = `At timestamp ${formatSec(currentTs)} in **${titleName}**, Nova AI Co-Pilot tracks active scene events and character dynamics on screen. Feel free to ask about any scene, plot point, movie, or series!`;
     }
   }
 

@@ -360,8 +360,31 @@ export const WatchSpaceProvider = ({ children }) => {
       if (!payload) return;
 
       setChatMessages((prev) => {
-        // Prevent duplicate messages if already present
-        if (prev.some((m) => m._id === payload._id)) return prev;
+        // Prevent duplicate messages if already present by _id
+        if (payload._id && prev.some((m) => m._id === payload._id)) return prev;
+
+        // If payload contains clientMsgId matching a temporary local ID, replace it
+        if (payload.clientMsgId && prev.some((m) => m._id === payload.clientMsgId)) {
+          return prev.map((m) => (m._id === payload.clientMsgId ? { ...m, ...payload } : m));
+        }
+
+        // Deduplicate AI messages by text & timestamp window if added locally
+        const isAiPayload = Boolean(payload.isAi || payload.senderUserId === 'ai-copilot-nova' || payload.senderUserId === 'ai-copilot');
+        if (isAiPayload) {
+          const payloadTime = new Date(payload.createdAt || Date.now()).getTime();
+          const existingAiIdx = prev.findIndex((m) => {
+            const mIsAi = Boolean(m.isAi || m.senderUserId === 'ai-copilot-nova' || m.senderUserId === 'ai-copilot');
+            const mTime = new Date(m.createdAt || Date.now()).getTime();
+            return mIsAi && m.text === payload.text && Math.abs(payloadTime - mTime) < 15000;
+          });
+
+          if (existingAiIdx !== -1) {
+            const updated = [...prev];
+            updated[existingAiIdx] = { ...updated[existingAiIdx], ...payload };
+            return updated;
+          }
+        }
+
         return [...prev, payload];
       });
     });

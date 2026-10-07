@@ -677,8 +677,17 @@ export const initSocketHandler = (io) => {
       }
 
       try {
-        const isAiMsg = Boolean(payload.isAi || payload.senderName === 'Nova' || payload.senderUserId === 'ai-copilot');
-        const senderNameClean = isAiMsg ? (payload.senderName || 'Nova') : currentUser.displayName;
+        const isAiMsg = Boolean(
+          payload.isAi ||
+          payload.isAi === 'true' ||
+          payload.senderName === 'Nova' ||
+          payload.senderName === 'Netflix AI Co-Pilot' ||
+          payload.displayName === 'Netflix AI Co-Pilot' ||
+          payload.senderUserId === 'ai-copilot' ||
+          payload.senderUserId === 'ai-copilot-nova' ||
+          payload.senderId === 'ai-copilot-nova'
+        );
+        const senderNameClean = isAiMsg ? 'Netflix AI Co-Pilot' : currentUser.displayName;
         const textClean = String(payload.text)
           .replace(/[<>]/g, '')
           .slice(0, 1000)
@@ -699,7 +708,7 @@ export const initSocketHandler = (io) => {
           console.warn('[Socket.IO] Chat message DB persist fallback:', dbErr.message);
           chatMsg = {
             _id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            senderId: isAiMsg ? 'ai-copilot' : currentUser.id,
+            senderId: isAiMsg ? 'ai-copilot-nova' : currentUser.id,
             senderName: senderNameClean,
             text: textClean,
             isAi: isAiMsg,
@@ -710,14 +719,15 @@ export const initSocketHandler = (io) => {
 
         const envelope = buildEnvelope('room.chat.message', watchSpaceId, {
           _id: chatMsg._id,
-          senderId: isAiMsg ? 'ai-copilot' : (chatMsg.senderId || currentUser.id),
-          senderUserId: isAiMsg ? 'ai-copilot' : (currentUser.id),
+          senderId: isAiMsg ? 'ai-copilot-nova' : (chatMsg.senderId || currentUser.id),
+          senderUserId: isAiMsg ? 'ai-copilot-nova' : currentUser.id,
           senderName: senderNameClean,
           displayName: senderNameClean,
           text: chatMsg.text,
           isAi: isAiMsg,
           sourceEvents: payload.sourceEvents || chatMsg.sourceEvents || [],
           createdAt: chatMsg.createdAt,
+          clientMsgId: payload.clientMsgId || null,
           isSystem: false,
         });
 
