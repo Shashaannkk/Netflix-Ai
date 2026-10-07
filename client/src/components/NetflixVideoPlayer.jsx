@@ -59,7 +59,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const [currentSource, setCurrentSource] = useState(src || null);
 
   // Authoritative Single Player Mode Contract: 'native' | 'provider' | 'invalid'
-  const playerMode = getPlayerMode(currentSource);
+  const playerMode = getPlayerMode(currentSource, serverNum);
   const isNative = playerMode === 'native';
   const isProvider = playerMode === 'provider';
   const isInvalid = playerMode === 'invalid';
@@ -980,16 +980,6 @@ export const NetflixVideoPlayer = React.forwardRef(({
             const code = error?.code || 'UNKNOWN';
 
             logNativeDiagnostics('ERROR', videoEl, error);
-
-            // Failover to Kantara Chapter 1 movie stream if local container produces Code 4 error:
-            const kantaraFallback = 'https://vidsrc.me/embed/movie?tmdb=964980';
-            if (currentSource !== kantaraFallback) {
-              console.warn('[PLAYER FAILOVER] Unsupported media format (Code 4). Failover to Kantara Chapter 1 stream.');
-              setCurrentSource(kantaraFallback);
-              setMediaState('LOADING');
-              setMediaError({ code: null, message: null });
-              return;
-            }
 
             setMediaState('ERROR');
             setMediaError({

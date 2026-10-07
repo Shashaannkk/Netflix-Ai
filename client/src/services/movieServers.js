@@ -4,7 +4,23 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = '/media/kantara-chapter-1.mp4';
+export const getBackendMediaUrl = (path = '/api/media/kantara-chapter-1.mp4') => {
+  if (typeof window !== 'undefined') {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      const serverOrigin = envUrl.replace(/\/api\/?$/, '');
+      return `${serverOrigin}${path}`;
+    }
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `http://localhost:5000${path}`;
+    }
+    return `${window.location.origin}${path}`;
+  }
+  return `http://localhost:5000${path}`;
+};
+
+export const SERVER_8_CANONICAL_SOURCE = getBackendMediaUrl('/api/media/kantara-chapter-1.mp4');
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
@@ -291,7 +307,20 @@ export const classifySource = (url) => {
 /**
  * Single authoritative player mode decision: 'native' | 'provider' | 'invalid'
  */
-export const getPlayerMode = (url) => {
+export const getPlayerMode = (url, serverNum = null) => {
+  const num = Number(serverNum);
+  if (num === 8 || num === 9) {
+    return 'native';
+  }
+  if (
+    url &&
+    (url === SERVER_8_CANONICAL_SOURCE ||
+      url.includes('/api/media/') ||
+      url.includes('/media/') ||
+      url.includes('kantara'))
+  ) {
+    return 'native';
+  }
   const type = classifySource(url);
   if (type === 'DIRECT_MEDIA') return 'native';
   if (type === 'EMBED_PROVIDER' || type === 'YOUTUBE') return 'provider';

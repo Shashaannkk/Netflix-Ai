@@ -821,7 +821,7 @@ const WatchSpace = () => {
     videoSrc = SERVER_8_CANONICAL_SOURCE;
   }
 
-  const isEmbedServer = getPlayerMode(videoSrc) === 'provider';
+  const isEmbedServer = getPlayerMode(videoSrc, selectedServer) === 'provider';
 
   console.log('[WATCHSPACE SOURCE]', {
     serverNum: selectedServer,
