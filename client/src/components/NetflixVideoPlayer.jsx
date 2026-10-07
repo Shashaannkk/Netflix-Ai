@@ -981,16 +981,13 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
             logNativeDiagnostics('ERROR', videoEl, error);
 
-            // Failover to high-availability CDN stream if local asset 404s or fails:
-            const cdnFallback = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-            if (currentSource !== cdnFallback) {
-              console.warn('[PLAYER FAILOVER] Local asset 404 or unsupported. Failover to high-availability CDN stream.');
-              setCurrentSource(cdnFallback);
+            // Failover to Kantara Chapter 1 movie stream if local container produces Code 4 error:
+            const kantaraFallback = 'https://vidsrc.me/embed/movie?tmdb=964980';
+            if (currentSource !== kantaraFallback) {
+              console.warn('[PLAYER FAILOVER] Unsupported media format (Code 4). Failover to Kantara Chapter 1 stream.');
+              setCurrentSource(kantaraFallback);
               setMediaState('LOADING');
               setMediaError({ code: null, message: null });
-              requestAnimationFrame(() => {
-                videoEl?.load?.();
-              });
               return;
             }
 

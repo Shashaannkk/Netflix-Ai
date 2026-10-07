@@ -4,7 +4,7 @@
  * and Watch Together AI Spaces (WatchSpace / NetflixVideoPlayer).
  */
 
-export const SERVER_8_CANONICAL_SOURCE = '/media/Kantara-Chapter.1.2025.1080p.WEB-DL.Hindi.5.1-Kannad.mkv';
+export const SERVER_8_CANONICAL_SOURCE = 'https://vidsrc.me/embed/movie?tmdb=964980';
 
 export const WATCH_TOGETHER_DEMO_CONFIG = {
   title: 'Kantara A Legend: Chapter 1',
@@ -270,12 +270,10 @@ export const classifySource = (url) => {
     return ytId ? 'YOUTUBE' : 'INVALID';
   }
 
-  // Direct HTML5 Media (.mp4, .mkv, .webm, .m3u8, /media/, or local asset source)
+  // Direct HTML5 Media (.mp4, .mkv, .webm, .m3u8, or local asset source)
   if (
-    cleanUrl === SERVER_8_CANONICAL_SOURCE ||
-    cleanUrl.includes('Kantara') ||
-    cleanUrl.includes('kantara') ||
-    cleanUrl.includes('/media/') ||
+    cleanUrl.includes('Kantara.mp4') ||
+    cleanUrl.includes('kantara.mp4') ||
     cleanUrl.endsWith('.mkv') ||
     cleanUrl.includes('.mkv?') ||
     cleanUrl.endsWith('.mp4') ||

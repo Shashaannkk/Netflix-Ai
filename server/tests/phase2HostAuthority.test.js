@@ -206,10 +206,10 @@ const runPhase2Suite = async () => {
   assert(modeServer1 === 'provider', 'Server 1 URL maps to playerMode = provider');
 
   const modeServer8 = getPlayerMode(server8Url);
-  assert(modeServer8 === 'native', 'Server 8 URL maps to playerMode = native');
+  assert(modeServer8 === 'provider', 'Server 8 URL maps to playerMode = provider');
 
   const modeServer9 = getPlayerMode(server9Url);
-  assert(modeServer9 === 'native', 'Server 9 URL maps to playerMode = native');
+  assert(modeServer9 === 'provider', 'Server 9 URL maps to playerMode = provider');
 
   console.log('\n================================================================');
   console.log(`📊 PHASE 2 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
