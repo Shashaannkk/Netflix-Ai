@@ -1542,27 +1542,52 @@ const WatchSpace = () => {
                         );
                       }
 
-                      if (msg.isAi) {
+                      // Render AI Co-Pilot Replay / Response UI Card
+                      if (msg.isAi || msg.senderName === 'Nova' || msg.senderUserId === 'ai-copilot') {
                         return (
-                          <div key={msg._id || idx} className="chat-msg-row ai-msg" style={{ width: '100%', marginBottom: '0.75rem' }}>
-                            <div className="chat-msg-header" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
-                              <UserAvatar isAi={true} size={22} />
-                              <span className="chat-sender-name" style={{ color: '#c084fc', fontWeight: 700, fontSize: '0.8rem' }}>Nova</span>
-                              <span style={{ fontSize: '0.62rem', background: 'rgba(168,85,247,0.2)', color: '#e9d5ff', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.3)', fontWeight: 600 }}>AI</span>
+                          <div key={msg._id || idx} className="chat-msg-row ai-msg" style={{ width: '100%', marginBottom: '0.85rem' }}>
+                            <div className="chat-msg-header" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem' }}>
+                              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)', boxShadow: '0 0 10px rgba(168,85,247,0.5)' }}>
+                                <Sparkles size={13} color="#fff" />
+                              </div>
+                              <span className="chat-sender-name" style={{ color: '#d8b4fe', fontWeight: 800, fontSize: '0.82rem', letterSpacing: '0.3px' }}>Netflix AI Co-Pilot</span>
+                              <span style={{ fontSize: '0.6rem', background: 'linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(229,9,20,0.3) 100%)', color: '#f3e8ff', padding: '0.12rem 0.45rem', borderRadius: '10px', border: '1px solid rgba(168,85,247,0.4)', fontWeight: 700, letterSpacing: '0.5px' }}>NOVA AI</span>
                               <span className="chat-time-stamp" style={{ fontSize: '0.65rem', color: '#6b7280', marginLeft: 'auto' }}>{timeStr}</span>
                             </div>
-                            <div className="chat-bubble-ai" style={{ background: 'rgba(168,85,247,0.09)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '12px', padding: '0.6rem 0.8rem', color: '#f3e8ff', fontSize: '0.82rem', lineHeight: '1.45' }}>
-                              <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
+                            
+                            <div className="chat-bubble-ai" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(20,22,28,0.95) 100%)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '14px', padding: '0.75rem 0.9rem', color: '#f3e8ff', fontSize: '0.84rem', lineHeight: '1.5', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+                              <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontWeight: 400 }}>{msg.text}</p>
+                              
                               {msg.sourceEvents && msg.sourceEvents.length > 0 && (
-                                <div style={{ marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(168,85,247,0.15)', display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                                  <span style={{ fontSize: '0.6rem', color: '#a855f7', width: '100%', fontWeight: 700 }}>GROUNDED SOURCES:</span>
-                                  {msg.sourceEvents.slice(0, 2).map((src, sIdx) => (
-                                    <span key={sIdx} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '3px', padding: '0.1rem 0.3rem', fontSize: '0.6rem', color: '#d8b4fe' }}>
+                                <div style={{ marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(168,85,247,0.2)', display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.62rem', color: '#c084fc', width: '100%', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                    <Sparkles size={10} color="#c084fc" /> GROUNDED MOVIE CONTEXT:
+                                  </span>
+                                  {msg.sourceEvents.slice(0, 3).map((src, sIdx) => (
+                                    <span key={sIdx} style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '4px', padding: '0.12rem 0.4rem', fontSize: '0.62rem', color: '#e9d5ff', fontWeight: 600 }}>
                                       {formatTime(src.timestampSec)} • {src.eventType}
                                     </span>
                                   ))}
                                 </div>
                               )}
+
+                              {/* Quick AI follow-up suggestions */}
+                              <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                <button
+                                  type="button"
+                                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#d8b4fe', borderRadius: '12px', padding: '0.2rem 0.55rem', fontSize: '0.68rem', cursor: 'pointer' }}
+                                  onClick={() => setChatInputText('@ai explain this scene details')}
+                                >
+                                  @ai explain scene details
+                                </button>
+                                <button
+                                  type="button"
+                                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#d8b4fe', borderRadius: '12px', padding: '0.2rem 0.55rem', fontSize: '0.68rem', cursor: 'pointer' }}
+                                  onClick={() => setChatInputText('@ai who is in this scene?')}
+                                >
+                                  @ai who is in this scene?
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -1572,17 +1597,40 @@ const WatchSpace = () => {
                       const isMe = senderIdStr === user?._id || senderIdStr === user?.id;
                       const senderDisplayName = msg.displayName || msg.senderName || (isMe ? 'You' : 'Participant');
                       const userColor = getStableColor(senderIdStr, senderDisplayName);
+                      const hasAiMention = /(^|\s)@ai\b/i.test(msg.text || '');
 
                       return (
                         <div key={msg._id || idx} className={`chat-msg-row ${isMe ? 'me' : 'other'}`}>
                           <div className="chat-msg-header">
                             {!isMe && <UserAvatar userId={senderIdStr} name={senderDisplayName} size={24} />}
                             <span className="chat-sender-name" style={{ color: isMe ? '#fff' : userColor }}>{isMe ? 'You' : senderDisplayName}</span>
+                            {hasAiMention && (
+                              <span style={{ fontSize: '0.6rem', background: 'rgba(168,85,247,0.25)', color: '#e9d5ff', border: '1px solid rgba(168,85,247,0.4)', borderRadius: '4px', padding: '0.05rem 0.3rem', fontWeight: 700 }}>
+                                AI QUERY
+                              </span>
+                            )}
                             <span className="chat-time-stamp">{timeStr}</span>
                             {isMe && <UserAvatar userId={user?._id} name={user?.displayName || 'You'} size={24} />}
                           </div>
                           <div className={isMe ? 'chat-bubble-me' : 'chat-bubble-other'}>
-                            <p style={{ margin: 0 }}>{msg.text}</p>
+                            <p style={{ margin: 0 }}>
+                              {hasAiMention ? (
+                                <span>
+                                  {msg.text.split(/(^|\s)(@ai)\b/gi).map((part, pIdx) => {
+                                    if (part.toLowerCase() === '@ai') {
+                                      return (
+                                        <span key={pIdx} style={{ color: '#a855f7', fontWeight: 800, background: 'rgba(168,85,247,0.18)', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.3)', marginRight: '2px' }}>
+                                          @ai
+                                        </span>
+                                      );
+                                    }
+                                    return part;
+                                  })}
+                                </span>
+                              ) : (
+                                msg.text
+                              )}
+                            </p>
                           </div>
                         </div>
                       );
@@ -1590,9 +1638,9 @@ const WatchSpace = () => {
                   )}
 
                   {aiLoading && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: '#c084fc', background: 'rgba(168,85,247,0.08)', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.2)' }}>
-                      <Loader size={14} className="spin-icon" />
-                      <span>Nova is thinking…</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.65rem 0.85rem', fontSize: '0.78rem', color: '#e9d5ff', background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(20,22,28,0.95) 100%)', borderRadius: '12px', border: '1px solid rgba(168,85,247,0.35)', boxShadow: '0 4px 12px rgba(168,85,247,0.2)' }}>
+                      <Sparkles size={16} className="spin-icon" color="#c084fc" />
+                      <span style={{ fontWeight: 600 }}>Netflix AI Co-Pilot is analyzing movie context…</span>
                     </div>
                   )}
                 </div>

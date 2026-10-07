@@ -24,7 +24,13 @@ export class HTML5PlayerAdapter extends MediaPlayerAdapter {
 
   seek(positionSeconds) {
     if (this.video && typeof positionSeconds === 'number' && !isNaN(positionSeconds)) {
+      const wasPaused = this.video.paused;
       this.video.currentTime = Math.max(0, positionSeconds);
+      if (wasPaused) {
+        try {
+          this.video.pause();
+        } catch (err) {}
+      }
     }
   }
 

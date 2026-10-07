@@ -490,6 +490,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
         setIsPlaying(true);
       } else {
         adapter.pause();
+        if (videoRef.current) videoRef.current.pause();
         setIsPlaying(false);
       }
     } else {
@@ -502,18 +503,20 @@ export const NetflixVideoPlayer = React.forwardRef(({
         setCurrentTime(syncTime);
       }
 
-      if (syncIsPlaying && !isPlaying) {
+      if (syncIsPlaying) {
         adapter.play();
         setIsPlaying(true);
-      } else if (!syncIsPlaying && isPlaying) {
+      } else {
         adapter.pause();
+        if (videoRef.current) videoRef.current.pause();
         setIsPlaying(false);
       }
     }
 
-    setTimeout(() => {
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
       isApplyingRemoteUpdateRef.current = false;
-    }, 150);
+    }, 600);
   }, [
     syncTime,
     syncIsPlaying,
@@ -936,16 +939,24 @@ export const NetflixVideoPlayer = React.forwardRef(({
           preload="auto"
           playsInline
           onPlay={(e) => {
-            if (!isHost && !isApplyingRemoteUpdateRef.current) {
-              if (!syncIsPlaying) e.currentTarget.pause();
+            if (!isHost) {
+              if (!syncIsPlayingRef.current) {
+                e.currentTarget.pause();
+                setIsPlaying(false);
+                return;
+              }
             }
             setIsPlaying(true);
             setMediaState('READY');
             logNativeDiagnostics('PLAY', e.currentTarget);
           }}
           onPause={(e) => {
-            if (!isHost && !isApplyingRemoteUpdateRef.current) {
-              if (syncIsPlaying) e.currentTarget.play().catch(() => {});
+            if (!isHost) {
+              if (syncIsPlayingRef.current) {
+                e.currentTarget.play().catch(() => {});
+                setIsPlaying(true);
+                return;
+              }
             }
             setIsPlaying(false);
             logNativeDiagnostics('PAUSE', e.currentTarget);

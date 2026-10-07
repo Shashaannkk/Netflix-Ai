@@ -4477,4 +4477,75 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ============================================================
+   RESPONSIVE WATCH TOGETHER LAYOUT (MOBILE PHONE, TABLET & DESKTOP)
+   ============================================================ */
+
+/* Mobile Phones (max-width: 768px) */
+@media (max-width: 768px) {
+  .watch-space-container {
+    flex-direction: column !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+  }
+
+  .cinema-stage {
+    flex: none !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 240px !important;
+    max-height: 45vh !important;
+  }
+
+  .cinema-stage-controls {
+    padding: 0.5rem 0.75rem !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .cinema-leave-btn span {
+    display: none;
+  }
+  .cinema-leave-btn {
+    padding: 0.4rem 0.6rem !important;
+  }
+
+  .cinema-sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 !important;
+    height: auto !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .chat-reaction-dock {
+    padding: 0.4rem 0.5rem !important;
+  }
+
+  .chat-composer-container {
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .fullscreen-floating-messages-stack {
+    bottom: 80px !important;
+    right: 12px !important;
+    max-width: 260px !important;
+  }
+}
+
+/* Tablets (min-width: 769px) and (max-width: 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .cinema-sidebar {
+    width: 320px !important;
+    min-width: 300px !important;
+  }
+
+  .cinema-stage-controls {
+    padding: 0.65rem 1rem !important;
+  }
+}
+
 
