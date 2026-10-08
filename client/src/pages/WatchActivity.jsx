@@ -450,7 +450,7 @@ export const WatchActivity = () => {
             </Link>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
               {filteredHistory.map((item) => {
                 const titleObj = item.titleId || {};
                 const titleName = titleObj.title || item.titleName || 'Watched Title';

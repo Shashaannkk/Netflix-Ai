@@ -2434,6 +2434,116 @@
   margin-bottom: 1rem;
 }
 
+/* ── AI Co-Pilot & Audience Voting Bottom Split Row ── */
+.cs-bottom-split {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.cs-bottom-ai-card, .cs-bottom-voting-card {
+  margin-bottom: 0;
+}
+
+.cs-verbosity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.cs-verbosity-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.75rem 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cs-verbosity-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.cs-verbosity-card.active {
+  background: rgba(229, 9, 20, 0.15);
+  border-color: #e50914;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(229, 9, 20, 0.25);
+}
+
+.cs-verbosity-icon {
+  margin-bottom: 0.35rem;
+  color: #e50914;
+}
+
+.cs-verbosity-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: block;
+  color: #fff;
+}
+
+.cs-verbosity-desc {
+  font-size: 0.68rem;
+  color: #999;
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.cs-voting-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.5rem;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.cs-voting-hint {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 0;
+}
+
+.cs-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: #333;
+  border: none;
+  position: relative;
+  cursor: pointer;
+  padding: 2px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.cs-switch.on {
+  background: #e50914;
+}
+
+.cs-switch-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+
+.cs-switch.on .cs-switch-knob {
+  transform: translateX(20px);
+}
+
 @media (max-width: 850px) {
   .cs-launch-invite-grid {
     grid-template-columns: 1fr;

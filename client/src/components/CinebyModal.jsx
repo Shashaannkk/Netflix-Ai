@@ -145,6 +145,9 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const totalDurationSecs = targetMedia.durationSeconds || (runtimeMinutes ? runtimeMinutes * 60 : 7200);
   const resumeMins = Math.floor(resumeSecs / 60);
   const totalMins = Math.floor(totalDurationSecs / 60);
+  const formattedRuntime = isTv 
+    ? (episodes && episodes.length ? `${episodes.length} Episodes` : 'TV Series')
+    : `${Math.floor((runtimeMinutes || 120) / 60)}h ${(runtimeMinutes || 120) % 60}m`;
   const progressPercent = totalDurationSecs > 0 ? Math.min(99, Math.max(1, Math.round((resumeSecs / totalDurationSecs) * 100))) : 0;
   const videoRef = React.useRef(null);
 

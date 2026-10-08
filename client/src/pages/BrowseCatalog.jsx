@@ -510,8 +510,8 @@ export const BrowseCatalog = () => {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                gap: '1.5rem',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: '1.25rem',
               }}
             >
               {filteredItems.slice(0, displayLimit).map((item, idx) => {
