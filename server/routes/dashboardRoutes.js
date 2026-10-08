@@ -3,6 +3,8 @@ import { authenticate } from '../middleware/authMiddleware.js';
 import {
   getUserDashboard,
   recordUserInteraction,
+  deleteUserInteraction,
+  clearUserHistory,
   getSpaceAnalytics,
 } from '../controllers/dashboardController.js';
 
@@ -17,6 +19,10 @@ router.get('/', getUserDashboard);
 
 // Record interaction data (watchedSeconds, completed, rating, etc.)
 router.post('/interaction', recordUserInteraction);
+
+// Manage Watch History entries
+router.delete('/interaction/:id', deleteUserInteraction);
+router.delete('/history', clearUserHistory);
 
 // Watch Space Session Analytics
 router.get('/analytics/:id', getSpaceAnalytics);

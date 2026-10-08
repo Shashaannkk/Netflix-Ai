@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, Users, Film, LogOut, Settings, LogIn, Play, X, Star, Menu } from 'lucide-react';
+import { Search, Bell, Users, Film, LogOut, Settings, LogIn, Play, X, Star, Menu, Filter } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CinebyLogo from './CinebyLogo';
-import { searchMedia, getImageUrl } from '../services/tmdb';
+import { searchMediaFiltered, fetchFilteredCategory, getImageUrl } from '../services/tmdb';
 
 export const CinebyNavbar = ({ onSelectMedia }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilter, setSearchFilter] = useState('all'); // 'all' | 'hollywood' | 'bollywood' | 'series' | 'anime' | 'movies'
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDrop, setShowSearchDrop] = useState(false);
@@ -28,9 +29,9 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Handle live query search
+  // Handle live query and filter search
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() && searchFilter === 'all') {
       setSearchResults([]);
       setShowSearchDrop(false);
       return;
@@ -38,14 +39,14 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
 
     const timer = setTimeout(async () => {
       setIsSearching(true);
-      const results = await searchMedia(searchQuery);
-      setSearchResults(results.slice(0, 7));
+      const results = await searchMediaFiltered(searchQuery, searchFilter);
+      setSearchResults(results.slice(0, 8));
       setIsSearching(false);
       setShowSearchDrop(true);
-    }, 250);
+    }, 200);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, searchFilter]);
 
   // Click outside listener for search and profile dropdowns
   useEffect(() => {
@@ -79,6 +80,15 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
 
   const userInitial = user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'N';
   const avatarUrl = user?.avatarUrl || 'https://assets.nflxext.com/ffe/siteui/vma/netflix-avatar.png';
+
+  const filterOptions = [
+    { key: 'all', label: 'All' },
+    { key: 'hollywood', label: 'Hollywood' },
+    { key: 'bollywood', label: 'Bollywood' },
+    { key: 'series', label: 'Series' },
+    { key: 'anime', label: 'Anime' },
+    { key: 'movies', label: 'Movies' },
+  ];
 
   return (
     <header className={`cb-navbar ${isScrolled ? 'scrolled' : ''}`}>
@@ -126,17 +136,17 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
 
         {/* Right Section: Search & Auth */}
         <div className="cb-nav-right">
-          {/* Live Search Bar */}
+          {/* Live Search Bar with Category Filters */}
           <div className="cb-search-wrapper" ref={searchRef}>
             <form onSubmit={(e) => e.preventDefault()} className="cb-search-form">
               <Search size={17} className="cb-search-icon" />
               <input
                 type="text"
                 className="cb-search-input"
-                placeholder="Titles, people, genres..."
+                placeholder="Hollywood, Bollywood, Anime, Series..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => searchQuery.trim() && setShowSearchDrop(true)}
+                onFocus={() => setShowSearchDrop(true)}
               />
               {searchQuery && (
                 <button
@@ -149,11 +159,36 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
               )}
             </form>
 
-            {/* Instant Search Results Dropdown */}
+            {/* Instant Search Results & Filter Chips Dropdown */}
             {showSearchDrop && (
               <div className="cb-search-dropdown">
+                {/* Quick Category Filter Pills */}
+                <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', padding: '0.6rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.08)', scrollbarWidth: 'none' }}>
+                  {filterOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setSearchFilter(opt.key)}
+                      style={{
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: searchFilter === opt.key ? 'var(--netflix-red)' : 'rgba(255,255,255,0.1)',
+                        color: '#fff',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
                 {isSearching ? (
-                  <div className="cb-search-status">Searching TMDB...</div>
+                  <div className="cb-search-status">Searching catalog & TMDB...</div>
                 ) : searchResults.length > 0 ? (
                   <div className="cb-search-list">
                     {searchResults.map((item) => (
@@ -181,7 +216,9 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
                     ))}
                   </div>
                 ) : (
-                  <div className="cb-search-status">No titles found for "{searchQuery}"</div>
+                  <div className="cb-search-status">
+                    {searchQuery ? `No titles found for "${searchQuery}" (${searchFilter})` : `Explore ${searchFilter.toUpperCase()} titles`}
+                  </div>
                 )}
               </div>
             )}
@@ -215,7 +252,7 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
 
                 <div className="cb-dropdown-divider" />
 
-                <Link to="/#watch-activity" className="cb-dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                <Link to="/watch-activity" className="cb-dropdown-item" onClick={() => setIsProfileOpen(false)}>
                   <Film size={16} />
                   <span>My Watch Activity</span>
                 </Link>

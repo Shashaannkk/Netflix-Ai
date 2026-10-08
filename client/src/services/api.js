@@ -147,6 +147,8 @@ export const testAdminAccess = () => apiClient.get('/test/admin');
 // Part 9 Dashboard, Analytics & Recommendations API Calls
 export const getDashboardApi = () => apiClient.get('/dashboard/user');
 export const recordInteractionApi = (data) => apiClient.post('/dashboard/interaction', data);
+export const deleteInteractionApi = (id) => apiClient.delete(`/dashboard/interaction/${id}`);
+export const clearWatchHistoryApi = () => apiClient.delete('/dashboard/history');
 export const getSpaceAnalyticsApi = (spaceId) => apiClient.get(`/dashboard/analytics/${spaceId}`);
 
 // Part 9 Admin Timeline & Metadata Management API Calls

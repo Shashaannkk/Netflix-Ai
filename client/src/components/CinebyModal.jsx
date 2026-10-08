@@ -3,6 +3,7 @@ import { X, Play, Users, Star, Clock, Calendar, Sparkles, Film, ExternalLink, Sh
 import { useNavigate } from 'react-router-dom';
 import { fetchTrailerKey, getImageUrl, fetchMediaCredits, fetchSimilarMedia, fetchSeasonEpisodes, fetchMediaDetails } from '../services/tmdb';
 import { MOVIE_SERVERS, getServerStreamUrl, SERVER_8_CANONICAL_SOURCE } from '../services/movieServers';
+import { recordInteractionApi } from '../services/api';
 
 export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const [currentMedia, setCurrentMedia] = useState(media);
@@ -31,6 +32,34 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   useEffect(() => {
     setCurrentMedia(media);
   }, [media]);
+
+  // Log viewing telemetry to train recommendation engine when user starts streaming
+  useEffect(() => {
+    if (activeTab === 'movie' && currentMedia) {
+      const mediaType = currentMedia.media_type || (currentMedia.first_air_date ? 'tv' : 'movie');
+      const lang = currentMedia.original_language || 'en';
+      const languageName = lang === 'hi' ? 'Hindi' : lang === 'ja' ? 'Japanese' : 'English';
+      const extractedGenres = (currentMedia.genres || []).map((g) => g.name || g);
+
+      recordInteractionApi({
+        titleId: String(currentMedia.id),
+        title: currentMedia.title || currentMedia.name || 'Streamed Content',
+        poster: getImageUrl(currentMedia.poster_path),
+        backdropUrl: getImageUrl(currentMedia.backdrop_path || currentMedia.poster_path, true),
+        watchedSeconds: Math.floor((runtimeMinutes || 120) * 30),
+        durationSeconds: (runtimeMinutes || 120) * 60,
+        completed: false,
+        genreAffinity: extractedGenres.length ? extractedGenres : ['Movie'],
+        mediaType,
+        language: languageName,
+        tags: [
+          mediaType === 'tv' ? 'Series' : 'Movie',
+          lang === 'ja' ? 'Anime' : lang === 'hi' ? 'Bollywood' : 'Hollywood',
+          ...extractedGenres,
+        ],
+      }).catch((err) => console.warn('[CinebyModal] Interaction logging note:', err.message));
+    }
+  }, [activeTab, currentMedia, runtimeMinutes]);
 
   useEffect(() => {
     if (!currentMedia) return;

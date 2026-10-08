@@ -11,6 +11,7 @@ import Register from './pages/Register';
 import WatchSpace from './pages/WatchSpace';
 import CreateWatchSpace from './pages/CreateWatchSpace';
 import JoinWatchSpace from './pages/JoinWatchSpace';
+import WatchActivity from './pages/WatchActivity';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
@@ -30,16 +31,17 @@ function App() {
               <Route path="tv-shows" element={<CinebyHome activeCategory="series" />} />
               <Route path="anime" element={<CinebyHome activeCategory="anime" />} />
               <Route path="top-imdb" element={<CinebyHome activeCategory="top-imdb" />} />
+              <Route path="watch-activity" element={<WatchActivity />} />
 
               {/* Shared Layout Routes */}
               <Route element={<Layout />}>
                 <Route path="login"     element={<Login />} />
                 <Route path="register"  element={<Register />} />
 
-                {/* ── Dashboard compatibility route (redirect to Home) ── */}
+                {/* ── Dashboard route (redirect to watch-activity) ── */}
                 <Route
                   path="dashboard"
-                  element={<Navigate to="/#watch-activity" replace />}
+                  element={<Navigate to="/watch-activity" replace />}
                 />
 
                 {/* ── Join Watch Space (public page, auth checked inside) ── */}

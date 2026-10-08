@@ -42,6 +42,35 @@ const userInteractionSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    tags: {
+      type: [String],
+      default: [],
+    },
+    durationSeconds: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    language: {
+      type: String,
+      default: 'English',
+    },
+    mediaType: {
+      type: String,
+      default: 'movie',
+    },
+    titleName: {
+      type: String,
+      default: '',
+    },
+    poster: {
+      type: String,
+      default: null,
+    },
+    backdropUrl: {
+      type: String,
+      default: null,
+    },
     coWatchedUsers: [
       {
         type: mongoose.Schema.Types.ObjectId,

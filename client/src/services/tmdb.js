@@ -417,16 +417,98 @@ export const fetchMediaDetails = async (id, type = 'movie') => {
 };
 
 export const searchMedia = async (query) => {
-  if (!query || query.trim() === '') return [];
-  const data = await fetchFromTMDB(`/search/multi?query=${encodeURIComponent(query)}`);
-  if (data?.results?.length) {
-    return data.results.filter(
-      (item) => item.media_type === 'movie' || item.media_type === 'tv'
+  return searchMediaFiltered(query, 'all');
+};
+
+export const fetchFilteredCategory = async (filter = 'all') => {
+  try {
+    if (filter === 'bollywood') {
+      const data = await fetchFromTMDB('/discover/movie?with_original_language=hi&sort_by=popularity.desc');
+      if (data?.results?.length) {
+        return data.results.map((item) => ({ ...item, media_type: 'movie' })).slice(0, 7);
+      }
+      return CURATED_MOVIES.slice(0, 5);
+    }
+    if (filter === 'hollywood') {
+      const data = await fetchFromTMDB('/discover/movie?with_original_language=en&sort_by=popularity.desc');
+      if (data?.results?.length) {
+        return data.results.map((item) => ({ ...item, media_type: 'movie' })).slice(0, 7);
+      }
+      return CURATED_MOVIES.slice(0, 5);
+    }
+    if (filter === 'anime') {
+      const data = await fetchFromTMDB('/discover/movie?with_genres=16&with_original_language=ja&sort_by=popularity.desc');
+      if (data?.results?.length) {
+        return data.results.map((item) => ({ ...item, media_type: 'movie' })).slice(0, 7);
+      }
+      return CURATED_ANIME_MOVIES.slice(0, 5);
+    }
+    if (filter === 'series') {
+      const data = await fetchTrendingTV();
+      return (data || []).map((item) => ({ ...item, media_type: 'tv' })).slice(0, 7);
+    }
+    if (filter === 'movies') {
+      const data = await fetchTrendingMovies();
+      return (data || []).map((item) => ({ ...item, media_type: 'movie' })).slice(0, 7);
+    }
+    return [];
+  } catch (err) {
+    console.warn('[TMDB] Filtered category fetch error:', err);
+    return [];
+  }
+};
+
+export const searchMediaFiltered = async (query, filter = 'all') => {
+  if (!query || query.trim() === '') {
+    return fetchFilteredCategory(filter);
+  }
+
+  let results = [];
+  try {
+    if (filter === 'bollywood') {
+      const data = await fetchFromTMDB(`/search/multi?query=${encodeURIComponent(query)}&language=hi-IN`);
+      results = data?.results || [];
+    } else {
+      const data = await fetchFromTMDB(`/search/multi?query=${encodeURIComponent(query)}`);
+      results = data?.results || [];
+    }
+  } catch (err) {
+    console.warn('[TMDB Search Error]:', err.message);
+  }
+
+  if (!results || !results.length) {
+    results = CURATED_MOVIES.filter((m) =>
+      m.title.toLowerCase().includes(query.toLowerCase())
     );
   }
-  return CURATED_MOVIES.filter((m) =>
-    m.title.toLowerCase().includes(query.toLowerCase())
-  );
+
+  return results.filter((item) => {
+    const type = item.media_type || (item.first_air_date ? 'tv' : 'movie');
+    if (type !== 'movie' && type !== 'tv') return false;
+
+    const lang = (item.original_language || item.language || '').toLowerCase();
+    const titleText = (item.title || item.name || '').toLowerCase();
+    const isAnimeGenre =
+      item.genre_ids?.includes(16) ||
+      item.genres?.some((g) => (g.name || g || '').toLowerCase().includes('animation'));
+
+    if (filter === 'hollywood') {
+      return lang === 'en' || (!lang && !titleText.includes('hindi'));
+    }
+    if (filter === 'bollywood') {
+      return lang === 'hi' || lang === 'ta' || lang === 'te' || titleText.includes('hindi') || titleText.includes('bollywood');
+    }
+    if (filter === 'series') {
+      return type === 'tv' || Boolean(item.first_air_date);
+    }
+    if (filter === 'anime') {
+      return isAnimeGenre || lang === 'ja';
+    }
+    if (filter === 'movies') {
+      return type === 'movie' || Boolean(item.release_date);
+    }
+    return true;
+  });
 };
 
 export const fetchMediaCredits = async (id, type = 'movie') => {

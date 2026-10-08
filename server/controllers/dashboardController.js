@@ -121,6 +121,14 @@ export const recordUserInteraction = async (req, res) => {
     if (Array.isArray(genreAffinity)) updateFields.genreAffinity = genreAffinity;
     if (Array.isArray(coWatchedUsers)) updateFields.coWatchedUsers = coWatchedUsers;
 
+    if (Array.isArray(req.body.tags)) updateFields.tags = req.body.tags;
+    if (typeof req.body.durationSeconds === 'number') updateFields.durationSeconds = req.body.durationSeconds;
+    if (req.body.language) updateFields.language = req.body.language;
+    if (req.body.mediaType) updateFields.mediaType = req.body.mediaType;
+    if (titleName) updateFields.titleName = titleName;
+    if (poster) updateFields.poster = poster;
+    if (backdropUrl) updateFields.backdropUrl = backdropUrl;
+
     const interaction = await UserInteraction.findOneAndUpdate(
       { userId, titleId: targetMongoTitleId },
       { $set: updateFields },
@@ -136,6 +144,58 @@ export const recordUserInteraction = async (req, res) => {
     return sendError(res, {
       statusCode: 500,
       message: 'Failed to record interaction',
+      error: err.message,
+    });
+  }
+};
+
+// ── DELETE /api/dashboard/interaction/:id ────────────────────────────────────
+// Deletes a specific watch history entry for the user
+export const deleteUserInteraction = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const interactionId = req.params.id;
+
+    const result = await UserInteraction.findOneAndDelete({
+      _id: interactionId,
+      userId,
+    });
+
+    if (!result) {
+      return sendError(res, { statusCode: 404, message: 'Interaction record not found' });
+    }
+
+    return sendSuccess(res, {
+      message: 'Watch history item removed successfully',
+      data: { deletedId: interactionId },
+    });
+  } catch (err) {
+    console.error('[Dashboard Controller] Error deleting interaction:', err.message);
+    return sendError(res, {
+      statusCode: 500,
+      message: 'Failed to delete watch history item',
+      error: err.message,
+    });
+  }
+};
+
+// ── DELETE /api/dashboard/history ────────────────────────────────────────────
+// Clears all watch history records for the user
+export const clearUserHistory = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    await UserInteraction.deleteMany({ userId });
+
+    return sendSuccess(res, {
+      message: 'Watch history cleared successfully',
+      data: { cleared: true },
+    });
+  } catch (err) {
+    console.error('[Dashboard Controller] Error clearing watch history:', err.message);
+    return sendError(res, {
+      statusCode: 500,
+      message: 'Failed to clear watch history',
       error: err.message,
     });
   }
