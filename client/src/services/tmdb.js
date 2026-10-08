@@ -400,19 +400,70 @@ export const fetchTrailerCandidates = async (id, type = 'movie') => {
   return ['YoHD9XEInc0', 'qtRKDV93s2s', 'zSWdZVtXT7E', '6ZfuNTqbHE8', 'b9EkMc79ZSU'];
 };
 
-export const fetchTrailerKey = async (id, type = 'movie') => {
-  const candidates = await fetchTrailerCandidates(id, type);
-  return candidates[0] || 'YoHD9XEInc0';
+export const fetchTrailerKey = async (idOrMedia, type = 'movie') => {
+  let targetId = typeof idOrMedia === 'object' ? (idOrMedia.tmdbId || idOrMedia.id) : idOrMedia;
+  let titleName = typeof idOrMedia === 'object' ? (idOrMedia.title || idOrMedia.name) : null;
+  const numericId = typeof targetId === 'number' ? targetId : (!isNaN(Number(targetId)) ? Number(targetId) : null);
+
+  if (numericId) {
+    const candidates = await fetchTrailerCandidates(numericId, type);
+    if (candidates && candidates.length) return candidates[0];
+  }
+
+  if (titleName) {
+    const searchRes = await searchMediaFiltered(titleName, 'all');
+    if (searchRes && searchRes.length > 0 && searchRes[0].id) {
+      const candidates = await fetchTrailerCandidates(searchRes[0].id, searchRes[0].media_type || type);
+      if (candidates && candidates.length) return candidates[0];
+    }
+  }
+
+  return 'YoHD9XEInc0';
 };
 
-export const fetchMediaDetails = async (id, type = 'movie') => {
-  const data = await fetchFromTMDB(`/${type}/${id}`);
-  if (data) {
-    const videoKey = await fetchTrailerKey(id, type);
-    return { ...data, trailer_key: videoKey, media_type: type };
+export const fetchMediaDetails = async (idOrMedia, type = 'movie') => {
+  if (!idOrMedia) return null;
+
+  let targetId = typeof idOrMedia === 'object' ? (idOrMedia.tmdbId || idOrMedia.id) : idOrMedia;
+  let titleName = typeof idOrMedia === 'object' ? (idOrMedia.title || idOrMedia.name) : null;
+  if (typeof idOrMedia === 'object' && idOrMedia.media_type) {
+    type = idOrMedia.media_type;
   }
-  const curated = CURATED_MOVIES.find((m) => m.id === Number(id));
+
+  const numericId = typeof targetId === 'number' ? targetId : (!isNaN(Number(targetId)) ? Number(targetId) : null);
+
+  if (numericId) {
+    const data = await fetchFromTMDB(`/${type}/${numericId}`);
+    if (data) {
+      const videoKey = await fetchTrailerKey(numericId, type);
+      return { ...data, trailer_key: videoKey, media_type: type };
+    }
+  }
+
+  if (titleName) {
+    const searchResults = await searchMediaFiltered(titleName, 'all');
+    if (searchResults && searchResults.length > 0) {
+      const match = searchResults[0];
+      const videoKey = await fetchTrailerKey(match.id, match.media_type || type);
+      return {
+        ...match,
+        ... (typeof idOrMedia === 'object' ? idOrMedia : {}),
+        id: match.id,
+        trailer_key: videoKey,
+        media_type: match.media_type || type,
+      };
+    }
+  }
+
+  const curated = CURATED_MOVIES.find(
+    (m) => m.id === numericId || (titleName && m.title.toLowerCase() === titleName.toLowerCase())
+  );
   if (curated) return curated;
+
+  if (typeof idOrMedia === 'object' && idOrMedia !== null) {
+    return idOrMedia;
+  }
+
   return null;
 };
 

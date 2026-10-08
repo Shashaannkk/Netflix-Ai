@@ -451,163 +451,198 @@ export const WatchActivity = () => {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-            {filteredHistory.map((item) => {
-              const titleObj = item.titleId || {};
-              const titleName = titleObj.title || item.titleName || 'Watched Title';
-              const poster = titleObj.poster || item.poster || titleObj.backdropUrl || item.backdropUrl || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop';
-              const durationSec = item.durationSeconds || titleObj.durationSeconds || 5400;
-              const watchedSec = item.watchedSeconds || 0;
-              const progressPct = Math.min(100, Math.round((watchedSec / durationSec) * 100)) || (item.completed ? 100 : 35);
-              const genres = item.genreAffinity?.length ? item.genreAffinity : titleObj.genres || ['Movie'];
+              {filteredHistory.map((item) => {
+                const titleObj = item.titleId || {};
+                const titleName = titleObj.title || item.titleName || 'Watched Title';
+                const poster = titleObj.poster || item.poster || titleObj.backdropUrl || item.backdropUrl || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop';
+                const durationSec = item.durationSeconds || titleObj.durationSeconds || 5400;
+                const watchedSec = item.watchedSeconds || 0;
 
-              return (
-                <div
-                  key={item._id}
-                  style={{
-                    background: '#141414',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                    position: 'relative',
-                    transition: 'transform 0.2s ease, border-color 0.2s ease',
-                  }}
-                >
-                  <div>
-                    {/* Thumbnail & Badges */}
-                    <div style={{ position: 'relative', height: '160px', overflow: 'hidden' }}>
-                      <img
-                        src={poster}
-                        alt={titleName}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                      <div
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(20,20,20,1) 100%)',
-                        }}
-                      />
+                const actualMinsWatched = Math.floor(watchedSec / 60);
+                const totalMins = Math.floor(durationSec / 60);
+                const remainingMins = Math.max(0, totalMins - actualMinsWatched);
+                const progressPct = item.completed
+                  ? 100
+                  : (durationSec > 0 ? Math.min(99, Math.max(1, Math.round((watchedSec / durationSec) * 100))) : 0);
 
-                      {/* Status pill */}
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '10px',
-                          left: '10px',
-                          padding: '0.2rem 0.6rem',
-                          borderRadius: '12px',
-                          background: item.completed ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)',
-                          color: '#fff',
-                          fontSize: '0.68rem',
-                          fontWeight: 800,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                        }}
-                      >
-                        {item.completed ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-                        {item.completed ? 'Completed' : `${progressPct}% Watched`}
-                      </span>
+                const genres = item.genreAffinity?.length ? item.genreAffinity : titleObj.genres || ['Movie'];
 
-                      {/* Delete button */}
-                      <button
-                        onClick={(e) => handleDeleteItem(item._id, e)}
-                        disabled={deletingId === item._id}
-                        title="Remove from history"
-                        style={{
-                          position: 'absolute',
-                          top: '10px',
-                          right: '10px',
-                          background: 'rgba(0,0,0,0.65)',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '30px',
-                          height: '30px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#ef4444',
-                          cursor: 'pointer',
-                          backdropFilter: 'blur(4px)',
-                        }}
-                      >
-                        {deletingId === item._id ? <Loader size={14} className="spin-icon" /> : <Trash2 size={14} />}
-                      </button>
+                const mediaPayload = {
+                  ...titleObj,
+                  id: titleObj.tmdbId || titleObj.id || titleObj._id || item.titleId,
+                  tmdbId: titleObj.tmdbId || titleObj.id,
+                  title: titleName,
+                  name: titleName,
+                  poster_path: titleObj.poster || item.poster,
+                  backdrop_path: titleObj.backdropUrl || item.backdropUrl,
+                  resumeTime: watchedSec,
+                  watchedSeconds: watchedSec,
+                  durationSeconds: durationSec,
+                  completed: item.completed,
+                  media_type: item.mediaType || (titleObj.genres?.includes('Anime') ? 'anime' : (titleObj.first_air_date ? 'tv' : 'movie')),
+                };
 
-                      {/* Progress Bar */}
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px', background: 'rgba(255,255,255,0.2)' }}>
-                        <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--netflix-red)' }} />
-                      </div>
-                    </div>
-
-                    {/* Content Details */}
-                    <div style={{ padding: '1rem' }}>
-                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff', marginBottom: '0.4rem', lineClamp: 1 }}>
-                        {titleName}
-                      </h3>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem', color: '#aaa', marginBottom: '0.6rem' }}>
-                        <span>{(watchedSec / 60).toFixed(0)} mins / {(durationSec / 60).toFixed(0)} mins</span>
-                        <span>&bull;</span>
-                        <span style={{ color: '#22c55e', fontWeight: 700 }}>
-                          {new Date(item.updatedAt || Date.now()).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      {/* Genre & Tag Chips */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
-                        {genres.slice(0, 3).map((g, idx) => (
-                          <span
-                            key={idx}
-                            style={{
-                              padding: '0.15rem 0.5rem',
-                              borderRadius: '4px',
-                              background: '#222',
-                              border: '1px solid #333',
-                              fontSize: '0.68rem',
-                              color: '#ddd',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {g}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* User Rating Display & Train Action */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1c1c1c', padding: '0.45rem 0.75rem', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 600 }}>Your Rating:</div>
+                return (
+                  <div
+                    key={item._id}
+                    style={{
+                      background: '#141414',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                      position: 'relative',
+                      transition: 'transform 0.2s ease, border-color 0.2s ease',
+                    }}
+                  >
+                    <div>
+                      {/* Thumbnail & Badges */}
+                      <div style={{ position: 'relative', height: '160px', overflow: 'hidden' }}>
+                        <img
+                          src={poster}
+                          alt={titleName}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
                         <div
-                          onClick={() => setRatingTarget(item)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', cursor: 'pointer' }}
-                          title="Click to rate & train AI recommendation"
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(20,20,20,1) 100%)',
+                          }}
+                        />
+
+                        {/* Status pill */}
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: '10px',
+                            left: '10px',
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '12px',
+                            background: item.completed ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+                            color: '#fff',
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                          }}
                         >
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                              key={s}
-                              size={13}
-                              fill={s <= (item.rating || 0) ? '#f59e0b' : 'none'}
-                              color={s <= (item.rating || 0) ? '#f59e0b' : '#555'}
-                            />
+                          {item.completed ? <CheckCircle2 size={11} /> : <Clock size={11} />}
+                          {item.completed ? 'Completed (100%)' : `${progressPct}% Watched (${remainingMins}m left)`}
+                        </span>
+
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => handleDeleteItem(item._id, e)}
+                          disabled={deletingId === item._id}
+                          title="Remove from history"
+                          style={{
+                            position: 'absolute',
+                            top: '10px',
+                            right: '10px',
+                            background: 'rgba(0,0,0,0.65)',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '30px',
+                            height: '30px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            backdropFilter: 'blur(4px)',
+                          }}
+                        >
+                          {deletingId === item._id ? <Loader size={14} className="spin-icon" /> : <Trash2 size={14} />}
+                        </button>
+
+                        {/* Progress Bar */}
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px', background: 'rgba(255,255,255,0.2)' }}>
+                          <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--netflix-red)' }} />
+                        </div>
+                      </div>
+
+                      {/* Content Details */}
+                      <div style={{ padding: '1rem' }}>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff', marginBottom: '0.4rem', lineClamp: 1 }}>
+                          {titleName}
+                        </h3>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem', color: '#aaa', marginBottom: '0.6rem' }}>
+                          <span>{actualMinsWatched}m watched / {totalMins}m total</span>
+                          <span>&bull;</span>
+                          <span style={{ color: '#22c55e', fontWeight: 700 }}>
+                            {new Date(item.updatedAt || Date.now()).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        {/* Genre & Tag Chips */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
+                          {genres.slice(0, 3).map((g, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '4px',
+                                background: '#222',
+                                border: '1px solid #333',
+                                fontSize: '0.68rem',
+                                color: '#ddd',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {g}
+                            </span>
                           ))}
+                        </div>
+
+                        {/* User Rating Display & Train Action */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1c1c1c', padding: '0.45rem 0.75rem', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 600 }}>Your Rating:</div>
+                          <div
+                            onClick={() => setRatingTarget(item)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', cursor: 'pointer' }}
+                            title="Click to rate & train AI recommendation"
+                          >
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                size={13}
+                                fill={s <= (item.rating || 0) ? '#f59e0b' : 'none'}
+                                color={s <= (item.rating || 0) ? '#f59e0b' : '#555'}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Footer Actions */}
-                  <div style={{ display: 'flex', gap: '0.5rem', padding: '0 1rem 1rem 1rem' }}>
-                    <button
-                      className="cb-btn cb-btn-play"
-                      onClick={() => setSelectedMedia(titleObj.title ? titleObj : { id: item._id, title: titleName, poster_path: poster })}
-                      style={{ flex: 1, fontSize: '0.8rem', padding: '0.5rem' }}
-                    >
-                      <Play size={14} fill="currentColor" /> Play / Details
-                    </button>
+                    {/* Footer Actions */}
+                    <div style={{ display: 'flex', gap: '0.5rem', padding: '0 1rem 1rem 1rem' }}>
+                      <button
+                        className="cb-btn cb-btn-play"
+                        onClick={() => setSelectedMedia(mediaPayload)}
+                        style={{ flex: 1, fontSize: '0.8rem', padding: '0.5rem' }}
+                      >
+                        <Play size={14} fill="currentColor" /> {watchedSec > 0 && !item.completed ? `Resume (${actualMinsWatched}m)` : 'Play / Details'}
+                      </button>
+
+                      <button
+                        className="cb-btn cb-btn-space"
+                        onClick={() => handleOpenWatchSpace(item)}
+                        style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                        title="Watch in Watch Space"
+                      >
+                        <Users size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
 
                     <button
                       className="cb-btn cb-btn-space"

@@ -141,19 +141,31 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const posterUrl = getImageUrl(targetMedia.poster_path);
   const isTv = targetMedia.media_type === 'tv' || Boolean(targetMedia.first_air_date);
 
-  const formattedRuntime = isTv 
-    ? 'TV Series (Multi-Season)'
-    : `${Math.floor(runtimeMinutes / 60)}h ${runtimeMinutes % 60}m`;
+  const resumeSecs = targetMedia.resumeTime || targetMedia.watchedSeconds || 0;
+  const totalDurationSecs = targetMedia.durationSeconds || (runtimeMinutes ? runtimeMinutes * 60 : 7200);
+  const resumeMins = Math.floor(resumeSecs / 60);
+  const totalMins = Math.floor(totalDurationSecs / 60);
+  const progressPercent = totalDurationSecs > 0 ? Math.min(99, Math.max(1, Math.round((resumeSecs / totalDurationSecs) * 100))) : 0;
+  const videoRef = React.useRef(null);
+
+  const handleVideoLoaded = () => {
+    if (videoRef.current && resumeSecs > 0) {
+      videoRef.current.currentTime = resumeSecs;
+    }
+  };
 
   const handleStartWatchSpace = () => {
     if (onWatchTogether) {
       onWatchTogether(media);
     } else {
+      const tmdbIdVal = targetMedia.tmdbId || targetMedia.id;
       navigate(
-        `/create-space?titleId=${media.id}&title=${encodeURIComponent(title)}&trailerKey=${trailerKey || 'YoHD9XEInc0'}`
+        `/create-space?titleId=${tmdbIdVal}&title=${encodeURIComponent(title)}&trailerKey=${trailerKey || 'YoHD9XEInc0'}`
       );
     }
   };
+
+  const tmdbNumericId = targetMedia.tmdbId || (typeof targetMedia.id === 'number' ? targetMedia.id : (!isNaN(Number(targetMedia.id)) ? Number(targetMedia.id) : 550));
 
   return (
     <div className="cb-modal-overlay" onClick={onClose}>
@@ -173,15 +185,17 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
               <div className="cb-modal-iframe-wrapper">
                 {selectedServer === 8 || selectedServer === 9 ? (
                   <video
+                    ref={videoRef}
                     src={SERVER_8_CANONICAL_SOURCE}
                     controls
                     autoPlay
+                    onLoadedMetadata={handleVideoLoaded}
                     className="cb-modal-iframe"
                     poster={backdropUrl}
                   />
                 ) : (
                   <iframe
-                    src={getServerStreamUrl({ tmdbId: targetMedia.id, isTv, season: selectedSeason, episode: selectedEpisode, serverNum: selectedServer })}
+                    src={`${getServerStreamUrl({ tmdbId: tmdbNumericId, isTv, season: selectedSeason, episode: selectedEpisode, serverNum: selectedServer })}${resumeSecs > 0 ? `#t=${resumeSecs}` : ''}`}
                     title={`${title} Stream - Server ${selectedServer}`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -222,19 +236,41 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
 
         {/* Modal Main Content & Actions */}
         <div className="cb-modal-body">
+          {/* Resume Progress Bar if previously watched */}
+          {resumeSecs > 0 && !targetMedia.completed && (
+            <div style={{ background: '#1c1c1c', border: '1px solid rgba(229,9,20,0.3)', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Clock size={15} color="var(--netflix-red)" /> Resume playback from {resumeMins}m ({progressPercent}% watched)
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#aaa' }}>{totalMins - resumeMins}m remaining</div>
+            </div>
+          )}
+
           <div className="cb-modal-actions-bar" style={{ flexWrap: 'wrap' }}>
             <button className="cb-btn cb-btn-watch-space" onClick={handleStartWatchSpace}>
               <Users size={18} />
               <span>Watch Together (AI Space)</span>
             </button>
 
-            <button
-              className={`cb-btn ${activeTab === 'movie' ? 'cb-btn-play' : 'cb-btn-secondary'}`}
-              onClick={() => setActiveTab('movie')}
-            >
-              <Film size={16} />
-              <span>Play Full {isTv ? 'Series' : 'Movie'}</span>
-            </button>
+            {resumeSecs > 0 && !targetMedia.completed ? (
+              <button
+                className="cb-btn cb-btn-play"
+                onClick={() => {
+                  setActiveTab('movie');
+                }}
+              >
+                <Play size={16} fill="currentColor" />
+                <span>Resume from {resumeMins}m</span>
+              </button>
+            ) : (
+              <button
+                className={`cb-btn ${activeTab === 'movie' ? 'cb-btn-play' : 'cb-btn-secondary'}`}
+                onClick={() => setActiveTab('movie')}
+              >
+                <Film size={16} />
+                <span>Play Full {isTv ? 'Series' : 'Movie'}</span>
+              </button>
+            )}
 
             <button
               className={`cb-btn cb-btn-secondary ${activeTab === 'trailer' ? 'active' : ''}`}
