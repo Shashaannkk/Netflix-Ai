@@ -37,7 +37,7 @@ export const WatchSpaceProvider = ({ children }) => {
   // ── Room state ──────────────────────────────────────────────────────────────
   const [currentSpace, setCurrentSpace] = useState(null);
   const [spaceLoading, setSpaceLoading] = useState(false);
-  const [spaceError, setSpaceError]     = useState(null);
+  const [spaceError, setSpaceError] = useState(null);
 
   // Derived flags
   const isHost = currentSpace
@@ -79,16 +79,16 @@ export const WatchSpaceProvider = ({ children }) => {
     hostUserId: null,
   });
 
-  const [chatMessages, setChatMessages]       = useState([]);
-  const [typingUsers, setTypingUsers]         = useState({}); // { userId: displayName }
+  const [chatMessages, setChatMessages] = useState([]);
+  const [typingUsers, setTypingUsers] = useState({}); // { userId: displayName }
   const [floatingReactions, setFloatingReactions] = useState([]); // [{ id, displayName, emoji }]
 
   // ── Part 8: Narrative Variation Voting & Localization State ────────────────
-  const [activeVote, setActiveVote]             = useState(null); // { variationPointId, promptText, options, durationSec, expiresAt }
-  const [voteTally, setVoteTally]               = useState(null); // { optionId: count }
-  const [userVotedOption, setUserVotedOption]   = useState(null); // optionId user voted for
+  const [activeVote, setActiveVote] = useState(null); // { variationPointId, promptText, options, durationSec, expiresAt }
+  const [voteTally, setVoteTally] = useState(null); // { optionId: count }
+  const [userVotedOption, setUserVotedOption] = useState(null); // optionId user voted for
   const [appliedVariation, setAppliedVariation] = useState(null); // { winningOptionId, winningOptionText, ... }
-  const [selectedLocale, setSelectedLocale]     = useState('en-US');
+  const [selectedLocale, setSelectedLocale] = useState('en-US');
   const [selectedSubtitle, setSelectedSubtitle] = useState('English (v1.2 Approved)');
 
   const [mediaConfigState, setMediaConfigState] = useState({
@@ -100,10 +100,10 @@ export const WatchSpaceProvider = ({ children }) => {
   // ── Socket.IO ref & state ───────────────────────────────────────────────────
   const socketRef = useRef(null);
   const currentSpaceIdRef = useRef(null);
-  const joinedSpaceIdRef  = useRef(null);
+  const joinedSpaceIdRef = useRef(null);
 
   const [socketConnected, setSocketConnected] = useState(false);
-  const [socketId, setSocketId]               = useState(null);
+  const [socketId, setSocketId] = useState(null);
   const [socketTransport, setSocketTransport] = useState(null);
   const pingTimerRef = useRef(null);
 
@@ -186,282 +186,282 @@ export const WatchSpaceProvider = ({ children }) => {
         console.log('[WATCH_SOCKET] Server ACK:', data.message);
       });
 
-    // ── PRD Event: room.playback.update ─────────────────────────────────────
-    socket.on('room.playback.update', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
+      // ── PRD Event: room.playback.update ─────────────────────────────────────
+      socket.on('room.playback.update', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
 
-      console.log('[WATCHSPACE PARTICIPANT UPDATE]', {
-        serverNum: payload.serverNum,
-        season: payload.season,
-        episode: payload.episode,
-        version: payload.version,
-        action: payload.action,
+        console.log('[WATCHSPACE PARTICIPANT UPDATE]', {
+          serverNum: payload.serverNum,
+          season: payload.season,
+          episode: payload.episode,
+          version: payload.version,
+          action: payload.action,
+        });
+
+        const now = Date.now();
+        const isPlaying = payload.state === 'playing' || !!payload.isPlaying;
+        const basePos = payload.positionSeconds ?? payload.currentTime ?? 0;
+        const projectedPos = Math.max(0, basePos);
+
+        setPlaybackState((prev) => {
+          // Version check: Ignore stale server responses
+          if (payload.version && prev.version && payload.version < prev.version) {
+            console.warn('[WATCHSPACE PARTICIPANT UPDATE DISCARDED] Stale version:', payload.version, '< prev version:', prev.version);
+            return prev;
+          }
+
+          if (payload.mediaConfig) {
+            setMediaConfigState(payload.mediaConfig);
+          }
+
+          return {
+            ...prev,
+            state: isPlaying ? 'playing' : 'paused',
+            positionSeconds: projectedPos,
+            currentTime: projectedPos,
+            isPlaying,
+            playbackRate: payload.playbackRate || 1.0,
+            serverNum: payload.serverNum ?? prev.serverNum ?? 9,
+            season: payload.season ?? prev.season ?? 1,
+            episode: payload.episode ?? prev.episode ?? 1,
+            version: payload.version || prev.version || 1,
+            hostConnected: payload.hostConnected !== false,
+            changedAtServerMs: payload.changedAtServerMs || now,
+            lastUpdatedTs: now,
+            action: payload.action || 'update',
+          };
+        });
       });
 
-      const now = Date.now();
-      const isPlaying = payload.state === 'playing' || !!payload.isPlaying;
-      const basePos = payload.positionSeconds ?? payload.currentTime ?? 0;
-      const projectedPos = Math.max(0, basePos);
-
-      setPlaybackState((prev) => {
-        // Version check: Ignore stale server responses
-        if (payload.version && prev.version && payload.version < prev.version) {
-          console.warn('[WATCHSPACE PARTICIPANT UPDATE DISCARDED] Stale version:', payload.version, '< prev version:', prev.version);
-          return prev;
-        }
-
-        if (payload.mediaConfig) {
+      // ── PRD Event: room.media.config ───────────────────────────────────────
+      socket.on('room.media.config', (envelope) => {
+        const { payload } = envelope || {};
+        if (payload?.mediaConfig) {
           setMediaConfigState(payload.mediaConfig);
         }
+      });
 
-        return {
+      // ── PRD Event: room.host.disconnected ──────────────────────────────────
+      socket.on('room.host.disconnected', (envelope) => {
+        const { payload } = envelope || {};
+        console.warn('[WatchSpaceContext] Host disconnected:', payload?.message);
+
+        setPlaybackState((prev) => ({
           ...prev,
-          state: isPlaying ? 'playing' : 'paused',
-          positionSeconds: projectedPos,
-          currentTime: projectedPos,
-          isPlaying,
-          playbackRate: payload.playbackRate || 1.0,
-          serverNum: payload.serverNum ?? prev.serverNum ?? 9,
-          season: payload.season ?? prev.season ?? 1,
-          episode: payload.episode ?? prev.episode ?? 1,
-          version: payload.version || prev.version || 1,
-          hostConnected: payload.hostConnected !== false,
-          changedAtServerMs: payload.changedAtServerMs || now,
-          lastUpdatedTs: now,
-          action: payload.action || 'update',
-        };
-      });
-    });
-
-    // ── PRD Event: room.media.config ───────────────────────────────────────
-    socket.on('room.media.config', (envelope) => {
-      const { payload } = envelope || {};
-      if (payload?.mediaConfig) {
-        setMediaConfigState(payload.mediaConfig);
-      }
-    });
-
-    // ── PRD Event: room.host.disconnected ──────────────────────────────────
-    socket.on('room.host.disconnected', (envelope) => {
-      const { payload } = envelope || {};
-      console.warn('[WatchSpaceContext] Host disconnected:', payload?.message);
-
-      setPlaybackState((prev) => ({
-        ...prev,
-        state: 'paused',
-        isPlaying: false,
-        positionSeconds: payload?.positionSeconds ?? prev.positionSeconds,
-        currentTime: payload?.positionSeconds ?? prev.currentTime,
-        hostConnected: false,
-        action: 'host_disconnected',
-        lastUpdatedTs: Date.now(),
-      }));
-    });
-
-    // ── PRD Event: room.sync.pong (Drift & Server Clock Offset calculation) ──
-    socket.on('room.sync.pong', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload || !payload.clientTs) return;
-
-      const now = Date.now();
-      const rttMs = Math.max(0, now - payload.clientTs);
-      const halfRttMs = rttMs / 2;
-      const estimatedClockOffsetMs = (payload.serverTs || now) - (payload.clientTs + halfRttMs);
-      clockOffsetMsRef.current = estimatedClockOffsetMs;
-
-      const estimatedServerNow = now + estimatedClockOffsetMs;
-      const isPlaying = payload.state === 'playing' || !!payload.isPlaying;
-      const basePos = payload.positionSeconds ?? payload.currentTime ?? 0;
-      const projectedPos = Math.max(0, basePos);
-
-      setPlaybackState((prev) => {
-        // Version check: Ignore stale server responses
-        if (payload.version && prev.version && payload.version < prev.version) {
-          return prev;
-        }
-        return {
-          ...prev,
-          state: isPlaying ? 'playing' : 'paused',
-          positionSeconds: projectedPos,
-          currentTime: projectedPos,
-          isPlaying,
-          playbackRate: payload.playbackRate || 1.0,
-          serverNum: payload.serverNum ?? prev.serverNum ?? 9,
-          season: payload.season ?? prev.season ?? 1,
-          episode: payload.episode ?? prev.episode ?? 1,
-          version: payload.version || prev.version,
-          hostConnected: payload.hostConnected !== false,
-          changedAtServerMs: payload.changedAtServerMs || now,
-          lastUpdatedTs: now,
-        };
+          state: 'paused',
+          isPlaying: false,
+          positionSeconds: payload?.positionSeconds ?? prev.positionSeconds,
+          currentTime: payload?.positionSeconds ?? prev.currentTime,
+          hostConnected: false,
+          action: 'host_disconnected',
+          lastUpdatedTs: Date.now(),
+        }));
       });
 
-      setDriftInfo((prev) => ({
-        ...prev,
-        rttMs,
-        clockOffsetMs: estimatedClockOffsetMs,
-      }));
-    });
+      // ── PRD Event: room.sync.pong (Drift & Server Clock Offset calculation) ──
+      socket.on('room.sync.pong', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload || !payload.clientTs) return;
 
-    // ── PRD Event: room.ai.trivia (Authored Trivia marker trigger) ──────────
-    socket.on('room.ai.trivia', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
-      console.log('[WatchSpaceContext] Incoming AI Trivia:', payload);
-      setCurrentTrivia(payload);
-    });
+        const now = Date.now();
+        const rttMs = Math.max(0, now - payload.clientTs);
+        const halfRttMs = rttMs / 2;
+        const estimatedClockOffsetMs = (payload.serverTs || now) - (payload.clientTs + halfRttMs);
+        clockOffsetMsRef.current = estimatedClockOffsetMs;
 
-    // ── PRD Event: room.presence.update ─────────────────────────────────────
-    socket.on('room.presence.update', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
-      console.log('[WatchSpaceContext] Presence update:', payload);
+        const estimatedServerNow = now + estimatedClockOffsetMs;
+        const isPlaying = payload.state === 'playing' || !!payload.isPlaying;
+        const basePos = payload.positionSeconds ?? payload.currentTime ?? 0;
+        const projectedPos = Math.max(0, basePos);
 
-      setPresenceState({
-        members: payload.members || [],
-        count: payload.count || 0,
-        isLocked: !!payload.isLocked,
-        hostConnected: payload.hostConnected !== false,
-        hostUserId: payload.hostUserId,
-      });
-    });
-
-    // ── PRD Event: room.chat.history & room.chat.message ────────────────────
-    socket.on('room.chat.history', (envelope) => {
-      const { payload } = envelope || {};
-      if (Array.isArray(payload?.messages)) {
-        setChatMessages((prev) => {
-          const merged = [...prev, ...payload.messages];
-          const unique = [];
-          const seen = new Set();
-
-          for (const msg of merged) {
-            if (!msg) continue;
-            const id = msg._id;
-            if (id) {
-              if (seen.has(id)) continue;
-              seen.add(id);
-            }
-            unique.push(msg);
+        setPlaybackState((prev) => {
+          // Version check: Ignore stale server responses
+          if (payload.version && prev.version && payload.version < prev.version) {
+            return prev;
           }
-
-          return unique.sort((a, b) => {
-            const aTime = new Date(a?.createdAt || 0).getTime();
-            const bTime = new Date(b?.createdAt || 0).getTime();
-            return aTime - bTime;
-          });
+          return {
+            ...prev,
+            state: isPlaying ? 'playing' : 'paused',
+            positionSeconds: projectedPos,
+            currentTime: projectedPos,
+            isPlaying,
+            playbackRate: payload.playbackRate || 1.0,
+            serverNum: payload.serverNum ?? prev.serverNum ?? 9,
+            season: payload.season ?? prev.season ?? 1,
+            episode: payload.episode ?? prev.episode ?? 1,
+            version: payload.version || prev.version,
+            hostConnected: payload.hostConnected !== false,
+            changedAtServerMs: payload.changedAtServerMs || now,
+            lastUpdatedTs: now,
+          };
         });
-      }
-    });
 
-    socket.on('room.chat.message', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
+        setDriftInfo((prev) => ({
+          ...prev,
+          rttMs,
+          clockOffsetMs: estimatedClockOffsetMs,
+        }));
+      });
 
-      setChatMessages((prev) => {
-        // Prevent duplicate messages if already present by _id
-        if (payload._id && prev.some((m) => m._id === payload._id)) return prev;
+      // ── PRD Event: room.ai.trivia (Authored Trivia marker trigger) ──────────
+      socket.on('room.ai.trivia', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
+        console.log('[WatchSpaceContext] Incoming AI Trivia:', payload);
+        setCurrentTrivia(payload);
+      });
 
-        // If payload contains clientMsgId matching a temporary local ID, replace it
-        if (payload.clientMsgId && prev.some((m) => m._id === payload.clientMsgId)) {
-          return prev.map((m) => (m._id === payload.clientMsgId ? { ...m, ...payload } : m));
-        }
+      // ── PRD Event: room.presence.update ─────────────────────────────────────
+      socket.on('room.presence.update', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
+        console.log('[WatchSpaceContext] Presence update:', payload);
 
-        // Deduplicate AI messages by text & timestamp window if added locally
-        const isAiPayload = Boolean(payload.isAi || payload.senderUserId === 'ai-copilot-nova' || payload.senderUserId === 'ai-copilot');
-        if (isAiPayload) {
-          const payloadTime = new Date(payload.createdAt || Date.now()).getTime();
-          const existingAiIdx = prev.findIndex((m) => {
-            const mIsAi = Boolean(m.isAi || m.senderUserId === 'ai-copilot-nova' || m.senderUserId === 'ai-copilot');
-            const mTime = new Date(m.createdAt || Date.now()).getTime();
-            return mIsAi && m.text === payload.text && Math.abs(payloadTime - mTime) < 15000;
+        setPresenceState({
+          members: payload.members || [],
+          count: payload.count || 0,
+          isLocked: !!payload.isLocked,
+          hostConnected: payload.hostConnected !== false,
+          hostUserId: payload.hostUserId,
+        });
+      });
+
+      // ── PRD Event: room.chat.history & room.chat.message ────────────────────
+      socket.on('room.chat.history', (envelope) => {
+        const { payload } = envelope || {};
+        if (Array.isArray(payload?.messages)) {
+          setChatMessages((prev) => {
+            const merged = [...prev, ...payload.messages];
+            const unique = [];
+            const seen = new Set();
+
+            for (const msg of merged) {
+              if (!msg) continue;
+              const id = msg._id;
+              if (id) {
+                if (seen.has(id)) continue;
+                seen.add(id);
+              }
+              unique.push(msg);
+            }
+
+            return unique.sort((a, b) => {
+              const aTime = new Date(a?.createdAt || 0).getTime();
+              const bTime = new Date(b?.createdAt || 0).getTime();
+              return aTime - bTime;
+            });
           });
+        }
+      });
 
-          if (existingAiIdx !== -1) {
-            const updated = [...prev];
-            updated[existingAiIdx] = { ...updated[existingAiIdx], ...payload };
-            return updated;
+      socket.on('room.chat.message', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
+
+        setChatMessages((prev) => {
+          // Prevent duplicate messages if already present by _id
+          if (payload._id && prev.some((m) => m._id === payload._id)) return prev;
+
+          // If payload contains clientMsgId matching a temporary local ID, replace it
+          if (payload.clientMsgId && prev.some((m) => m._id === payload.clientMsgId)) {
+            return prev.map((m) => (m._id === payload.clientMsgId ? { ...m, ...payload } : m));
           }
-        }
 
-        return [...prev, payload];
+          // Deduplicate AI messages by text & timestamp window if added locally
+          const isAiPayload = Boolean(payload.isAi || payload.senderUserId === 'ai-copilot-nova' || payload.senderUserId === 'ai-copilot');
+          if (isAiPayload) {
+            const payloadTime = new Date(payload.createdAt || Date.now()).getTime();
+            const existingAiIdx = prev.findIndex((m) => {
+              const mIsAi = Boolean(m.isAi || m.senderUserId === 'ai-copilot-nova' || m.senderUserId === 'ai-copilot');
+              const mTime = new Date(m.createdAt || Date.now()).getTime();
+              return mIsAi && m.text === payload.text && Math.abs(payloadTime - mTime) < 15000;
+            });
+
+            if (existingAiIdx !== -1) {
+              const updated = [...prev];
+              updated[existingAiIdx] = { ...updated[existingAiIdx], ...payload };
+              return updated;
+            }
+          }
+
+          return [...prev, payload];
+        });
       });
-    });
 
-    // ── PRD Event: room.chat.typing ─────────────────────────────────────────
-    socket.on('room.chat.typing', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
+      // ── PRD Event: room.chat.typing ─────────────────────────────────────────
+      socket.on('room.chat.typing', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
 
-      setTypingUsers((prev) => {
-        const next = { ...prev };
-        if (payload.isTyping) {
-          next[payload.userId] = payload.displayName;
-        } else {
-          delete next[payload.userId];
-        }
-        return next;
+        setTypingUsers((prev) => {
+          const next = { ...prev };
+          if (payload.isTyping) {
+            next[payload.userId] = payload.displayName;
+          } else {
+            delete next[payload.userId];
+          }
+          return next;
+        });
       });
-    });
 
-    // ── PRD Event: room.chat.reaction ───────────────────────────────────────
-    socket.on('room.chat.reaction', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
+      // ── PRD Event: room.chat.reaction ───────────────────────────────────────
+      socket.on('room.chat.reaction', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
 
-      const reactionId = Date.now() + Math.random();
-      setFloatingReactions((prev) => [
-        ...prev.slice(-10), // keep max 10 active
-        { id: reactionId, displayName: payload.displayName, emoji: payload.emoji },
-      ]);
+        const reactionId = Date.now() + Math.random();
+        setFloatingReactions((prev) => [
+          ...prev.slice(-10), // keep max 10 active
+          { id: reactionId, displayName: payload.displayName, emoji: payload.emoji },
+        ]);
 
-      setTimeout(() => {
-        setFloatingReactions((prev) => prev.filter((r) => r.id !== reactionId));
-      }, 3000);
-    });
+        setTimeout(() => {
+          setFloatingReactions((prev) => prev.filter((r) => r.id !== reactionId));
+        }, 3000);
+      });
 
-    // ── PRD Event: room.kicked ──────────────────────────────────────────────
-    socket.on('room.kicked', (envelope) => {
-      const { payload } = envelope || {};
-      alert(payload?.message || 'You have been removed from the room.');
-      setCurrentSpace(null);
-      navigate('/dashboard');
-    });
+      // ── PRD Event: room.kicked ──────────────────────────────────────────────
+      socket.on('room.kicked', (envelope) => {
+        const { payload } = envelope || {};
+        alert(payload?.message || 'You have been removed from the room.');
+        setCurrentSpace(null);
+        navigate('/dashboard');
+      });
 
-    // ── Part 8: PRD Events — Narrative Variation Voting ─────────────────────
-    socket.on('room.variation.voteOpen', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
-      console.log('[WatchSpaceContext] Variation Vote Open:', payload);
-      setActiveVote(payload);
-      setVoteTally(null);
-      setUserVotedOption(null);
-      setAppliedVariation(null);
-    });
+      // ── Part 8: PRD Events — Narrative Variation Voting ─────────────────────
+      socket.on('room.variation.voteOpen', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
+        console.log('[WatchSpaceContext] Variation Vote Open:', payload);
+        setActiveVote(payload);
+        setVoteTally(null);
+        setUserVotedOption(null);
+        setAppliedVariation(null);
+      });
 
-    socket.on('room.variation.voteTally', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
-      setVoteTally(payload.tally);
-    });
+      socket.on('room.variation.voteTally', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
+        setVoteTally(payload.tally);
+      });
 
-    socket.on('room.variation.applied', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
-      console.log('[WatchSpaceContext] Variation Vote Applied:', payload);
-      setAppliedVariation(payload);
-      setActiveVote(null);
-      setVoteTally(null);
-    });
+      socket.on('room.variation.applied', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
+        console.log('[WatchSpaceContext] Variation Vote Applied:', payload);
+        setAppliedVariation(payload);
+        setActiveVote(null);
+        setVoteTally(null);
+      });
 
-    // ── Part 8: PRD Events — Localization Updates ───────────────────────────
-    socket.on('room.localization.update', (envelope) => {
-      const { payload } = envelope || {};
-      if (!payload) return;
-      if (payload.locale) setSelectedLocale(payload.locale);
-      if (payload.subtitleTrack) setSelectedSubtitle(payload.subtitleTrack);
-    });
+      // ── Part 8: PRD Events — Localization Updates ───────────────────────────
+      socket.on('room.localization.update', (envelope) => {
+        const { payload } = envelope || {};
+        if (!payload) return;
+        if (payload.locale) setSelectedLocale(payload.locale);
+        if (payload.subtitleTrack) setSelectedSubtitle(payload.subtitleTrack);
+      });
 
     } else {
       if (socketRef.current) {
@@ -634,26 +634,73 @@ export const WatchSpaceProvider = ({ children }) => {
 
   // ── Host Playback & Server Updates ───────────────────────────────────────
   const sendPlaybackUpdate = useCallback(
-    ({ action, positionSeconds, currentTime, state, isPlaying, playbackRate, serverNum, season, episode }) => {
-      if (!socketRef.current?.connected || !currentSpace) return;
+    ({
+      action,
+      positionSeconds,
+      currentTime,
+      state,
+      isPlaying,
+      playbackRate,
+      serverNum,
+      season,
+      episode,
+    }) => {
+      const socket = socketRef.current;
 
-      const pos = typeof positionSeconds === 'number' ? positionSeconds : (typeof currentTime === 'number' ? currentTime : 0);
-      const currentState = state || (isPlaying ? 'playing' : 'paused');
+      // Temporary diagnostic: prove exactly what the Host is trying to send.
+      console.log('[WATCHSPACE SEND PLAYBACK]', {
+        socketConnected: !!socket?.connected,
+        socketId: socket?.id || null,
+        watchSpaceId: currentSpace?._id || null,
+        action,
+        positionSeconds,
+        currentTime,
+        state,
+        isPlaying,
+        playbackRate,
+        serverNum,
+        season,
+        episode,
+      });
 
-      socketRef.current.emit('room.playback.update', {
+      if (!socket?.connected || !currentSpace) {
+        console.warn('[WATCHSPACE SEND PLAYBACK] BLOCKED', {
+          socketConnected: !!socket?.connected,
+          socketId: socket?.id || null,
+          hasCurrentSpace: !!currentSpace,
+          watchSpaceId: currentSpace?._id || null,
+        });
+        return;
+      }
+
+      const pos =
+        typeof positionSeconds === 'number'
+          ? positionSeconds
+          : typeof currentTime === 'number'
+            ? currentTime
+            : 0;
+
+      const currentState =
+        state || (isPlaying ? 'playing' : 'paused');
+
+      const payload = {
+        action: action || 'update',
+        positionSeconds: pos,
+        currentTime: pos,
+        state: currentState,
+        isPlaying: currentState === 'playing',
+        playbackRate: playbackRate || 1.0,
+        serverNum,
+        season,
+        episode,
+      };
+
+      console.log('[WATCHSPACE EMIT PLAYBACK]', payload);
+
+      socket.emit('room.playback.update', {
         event: 'room.playback.update',
         watchSpaceId: currentSpace._id,
-        payload: {
-          action: action || 'update',
-          positionSeconds: pos,
-          currentTime: pos,
-          state: currentState,
-          isPlaying: currentState === 'playing',
-          playbackRate: playbackRate || 1.0,
-          serverNum,
-          season,
-          episode,
-        },
+        payload,
         ts: Date.now(),
       });
     },
@@ -742,7 +789,7 @@ export const WatchSpaceProvider = ({ children }) => {
             });
           });
         }
-      } catch {}
+      } catch { }
 
       return space;
     } catch (err) {

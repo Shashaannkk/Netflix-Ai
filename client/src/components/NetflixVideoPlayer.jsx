@@ -100,7 +100,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
     play: () => {
       setIsPlaying(true);
       if (isNative && videoRef.current) {
-        videoRef.current.play?.().catch(() => {});
+        videoRef.current.play?.().catch(() => { });
       } else {
         postIframeCommand('playVideo');
       }
@@ -117,7 +117,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
       const next = !isPlaying;
       setIsPlaying(next);
       if (isNative && videoRef.current) {
-        if (next) videoRef.current.play?.().catch(() => {});
+        if (next) videoRef.current.play?.().catch(() => { });
         else videoRef.current.pause?.();
       } else {
         postIframeCommand(next ? 'playVideo' : 'pauseVideo');
@@ -156,6 +156,9 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const [showControls, setShowControls] = useState(true);
 
   const [mediaState, setMediaState] = useState('LOADING');
+  // Tracks whether the native media element has enough metadata to accept
+  // authoritative Watch Together playback commands.
+  const [mediaReady, setMediaReady] = useState(false);
   const [mediaError, setMediaError] = useState({
     code: null,
     message: null,
@@ -354,6 +357,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
     setCurrentSource(nextSource);
     setMediaState('LOADING');
+    setMediaReady(false);
     setMediaError({ code: null, message: null });
     setShowIntro(false);
     hasAppliedInitialSyncRef.current = false;
@@ -469,7 +473,10 @@ export const NetflixVideoPlayer = React.forwardRef(({
       return;
     }
 
-    if (!isMediaReady()) {
+    // A playback command can arrive before the browser has loaded the
+    // native video's metadata. Do not lose that command: the effect also
+    // depends on mediaReady, so it will run again after loadedmetadata/canplay.
+    if (!mediaReady || !isMediaReady()) {
       return;
     }
 
@@ -520,6 +527,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
   }, [
     syncTime,
     syncIsPlaying,
+    mediaReady,
     isProvider,
     isNative,
     isMediaReady,
@@ -822,6 +830,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
         setCurrentSource(srcTemp);
       });
     } else if (isNative && videoRef.current) {
+      setMediaReady(false);
+      hasAppliedInitialSyncRef.current = false;
       videoRef.current.load();
     }
   }, [isProvider, isNative, currentSource]);
@@ -953,7 +963,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
           onPause={(e) => {
             if (!isHost) {
               if (syncIsPlayingRef.current) {
-                e.currentTarget.play().catch(() => {});
+                e.currentTarget.play().catch(() => { });
                 setIsPlaying(true);
                 return;
               }
@@ -973,15 +983,21 @@ export const NetflixVideoPlayer = React.forwardRef(({
             const dur = videoEl.duration;
             if (typeof dur === 'number' && Number.isFinite(dur) && dur > 0) {
               setDuration(dur);
+              setMediaReady(true);
               setMediaState('READY');
               setMediaError({ code: null, message: null });
+              // The host may have played before this viewer finished loading.
+              // applyInitialParticipantSync() uses the latest sync refs.
               applyInitialParticipantSync();
             }
           }}
           onCanPlay={(e) => {
             logNativeDiagnostics('CAN_PLAY', e.currentTarget);
             if (isMediaReady()) {
+              setMediaReady(true);
               setMediaState('READY');
+              // Re-apply the latest authoritative state if loadedmetadata
+              // happened before the media became fully playable.
               applyInitialParticipantSync();
             }
           }}
