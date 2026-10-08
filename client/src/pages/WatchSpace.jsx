@@ -178,8 +178,8 @@ const UserAvatar = ({ userId, name, customAvatar, isAi = false, size = 26 }) => 
 
 const WatchSpace = () => {
   const { roomId } = useParams();
-  const navigate   = useNavigate();
-  const { user }   = useAuth();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     currentSpace,
     spaceLoading,
@@ -227,23 +227,23 @@ const WatchSpace = () => {
   } = useWatchSpace();
 
   // ── Video player state ──────────────────────────────────────────────────────
-  const videoRef                        = useRef(null);
-  const controlsTimer                   = useRef(null);
-  const typingTimeoutRef                 = useRef(null);
+  const videoRef = useRef(null);
+  const controlsTimer = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
-  const [isPlaying, setIsPlaying]       = useState(false);
-  const [isMuted, setIsMuted]           = useState(false);
-  const [volume, setVolume]             = useState(1);
-  const [currentTime, setCurrentTime]   = useState(0);
-  const [duration, setDuration]         = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
-  const [syncStatus, setSyncStatus]     = useState('Syncing…');
+  const [syncStatus, setSyncStatus] = useState('Syncing…');
 
   // Multi-server & Episode state (Default Server 9 = Watch Together Demo Engine)
-  const [selectedServer, setSelectedServer]   = useState(playbackState?.serverNum || 9);
-  const [selectedSeason, setSelectedSeason]   = useState(playbackState?.season || 1);
+  const [selectedServer, setSelectedServer] = useState(playbackState?.serverNum || 9);
+  const [selectedSeason, setSelectedSeason] = useState(playbackState?.season || 1);
   const [selectedEpisode, setSelectedEpisode] = useState(playbackState?.episode || 1);
-  const [episodes, setEpisodes]               = useState([]);
+  const [episodes, setEpisodes] = useState([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
   // Live Server Sync: Instantly reflect server changes on viewer UI without page refresh
@@ -320,15 +320,15 @@ const WatchSpace = () => {
   };
 
   // ── UI & AI state ───────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab]       = useState('chat');
+  const [activeTab, setActiveTab] = useState('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [copied, setCopied]             = useState('');
-  const [aiHistory, setAiHistory]       = useState([]);
-  const [aiLoading, setAiLoading]       = useState(false);
+  const [copied, setCopied] = useState('');
+  const [aiHistory, setAiHistory] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
-  const [isGoingLive, setIsGoingLive]   = useState(false);
-  const [isEnding, setIsEnding]         = useState(false);
-  const [confirmEnd, setConfirmEnd]     = useState(false);
+  const [isGoingLive, setIsGoingLive] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const [showTriviaAnswer, setShowTriviaAnswer] = useState(false);
   const [remainingSec, setRemainingSec] = useState(0);
 
@@ -337,7 +337,7 @@ const WatchSpace = () => {
     return !sessionStorage.getItem('dismissed_watch_together_demo_banner');
   });
   const [selectedAudioLang, setSelectedAudioLang] = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultLanguage);
-  const [selectedDemoSub, setSelectedDemoSub]   = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultSubtitle);
+  const [selectedDemoSub, setSelectedDemoSub] = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultSubtitle);
   const [selectedDemoQuality, setSelectedDemoQuality] = useState(WATCH_TOGETHER_DEMO_CONFIG.defaultQuality);
 
   // Sync Server 9 audio, subtitles & quality from host mediaConfigState broadcast
@@ -362,8 +362,8 @@ const WatchSpace = () => {
 
   // ── Chat & Fullscreen Overlay Refs & State ────────────────────────────────
   const chatMessagesContainerRef = useRef(null);
-  const isInitialChatLoadRef     = useRef(true);
-  const prevChatLengthRef        = useRef(0);
+  const isInitialChatLoadRef = useRef(true);
+  const prevChatLengthRef = useRef(0);
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [fullscreenFloatingItems, setFullscreenFloatingItems] = useState([]);
 
@@ -600,7 +600,7 @@ const WatchSpace = () => {
         typeof currentSpace.titleId === 'string' ||
         !currentSpace.titleId?.title)
     ) {
-      loadSpace(roomId).catch(() => {});
+      loadSpace(roomId).catch(() => { });
     }
   }, [roomId, currentSpace?._id, currentSpace?.titleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -792,13 +792,13 @@ const WatchSpace = () => {
   // ── Host controls ─────────────────────────────────────────────────────────────
   const handleGoLive = async () => {
     setIsGoingLive(true);
-    try { await goLive(); } catch {} finally { setIsGoingLive(false); }
+    try { await goLive(); } catch { } finally { setIsGoingLive(false); }
   };
 
   const handleEndRoom = async () => {
     if (!confirmEnd) { setConfirmEnd(true); setTimeout(() => setConfirmEnd(false), 4000); return; }
     setIsEnding(true);
-    try { await endRoom(); } catch {} finally { setIsEnding(false); }
+    try { await endRoom(); } catch { } finally { setIsEnding(false); }
   };
 
   // ── All members (host + participants) for display ─────────────────────────────
@@ -817,8 +817,8 @@ const WatchSpace = () => {
   // ── Status badge ──────────────────────────────────────────────────────────────
   const statusConfig = {
     scheduled: { label: 'Scheduled', cls: 'badge-scheduled' },
-    live:      { label: 'LIVE',      cls: 'badge-live' },
-    ended:     { label: 'Ended',     cls: 'badge-ended' },
+    live: { label: 'LIVE', cls: 'badge-live' },
+    ended: { label: 'Ended', cls: 'badge-ended' },
   };
   const statusBadge = statusConfig[currentSpace?.status] || statusConfig.scheduled;
 
@@ -896,8 +896,15 @@ const WatchSpace = () => {
   let titleName = effectiveSpace?.titleId?.title || 'Netflix AI Watch Space';
 
   if (selectedServer === 9) {
-    videoSrc = WATCH_TOGETHER_DEMO_CONFIG.authorizedVideoSource;
-    titleName = WATCH_TOGETHER_DEMO_CONFIG.title;
+    videoSrc = getServerStreamUrl({
+      tmdbId: targetTmdbId,
+      isTv: isTvSeries,
+      season: selectedSeason,
+      episode: selectedEpisode,
+      serverNum: 9,
+    });
+    titleName = 'Kantara A Legend: Chapter 1';
+
   } else {
     videoSrc = getServerStreamUrl({
       tmdbId: targetTmdbId,
@@ -939,7 +946,7 @@ const WatchSpace = () => {
 
   const videoPoster = effectiveSpace?.titleId?.backdropUrl ||
     effectiveSpace?.titleId?.poster || null;
-  const roomCode  = effectiveSpace?.inviteCode || roomId || 'NX-0000';
+  const roomCode = effectiveSpace?.inviteCode || roomId || 'NX-0000';
 
   const progressPct = duration ? (currentTime / duration) * 100 : 0;
 
@@ -1698,7 +1705,7 @@ const WatchSpace = () => {
                             <span style={{ fontSize: '0.6rem', background: 'rgba(168,85,247,0.25)', color: '#f3e8ff', padding: '0.1rem 0.4rem', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.4)', fontWeight: 700 }}>NOVA AI</span>
                             <span style={{ fontSize: '0.65rem', color: '#6b7280', marginLeft: 'auto' }}>{timeStr}</span>
                           </div>
-                          
+
                           <div style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.14) 0%, rgba(20,22,28,0.95) 100%)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '14px', padding: '0.75rem 0.9rem', color: '#f3e8ff', fontSize: '0.84rem', lineHeight: '1.5' }}>
                             <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
                             {msg.sourceEvents && msg.sourceEvents.length > 0 && (
@@ -1858,10 +1865,10 @@ const WatchSpace = () => {
                               <span style={{ fontSize: '0.6rem', background: 'linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(229,9,20,0.3) 100%)', color: '#f3e8ff', padding: '0.12rem 0.45rem', borderRadius: '10px', border: '1px solid rgba(168,85,247,0.4)', fontWeight: 700, letterSpacing: '0.5px' }}>NOVA AI</span>
                               <span className="chat-time-stamp" style={{ fontSize: '0.65rem', color: '#6b7280', marginLeft: 'auto' }}>{timeStr}</span>
                             </div>
-                            
+
                             <div className="chat-bubble-ai" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(20,22,28,0.95) 100%)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '14px', padding: '0.75rem 0.9rem', color: '#f3e8ff', fontSize: '0.84rem', lineHeight: '1.5', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
                               <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontWeight: 400 }}>{msg.text}</p>
-                              
+
                               {msg.sourceEvents && msg.sourceEvents.length > 0 && (
                                 <div style={{ marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(168,85,247,0.2)', display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center' }}>
                                   <span style={{ fontSize: '0.62rem', color: '#c084fc', width: '100%', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
