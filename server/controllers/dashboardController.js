@@ -45,8 +45,12 @@ export const getUserDashboard = async (req, res) => {
         lastWatchedAt: i.updatedAt,
       }));
 
-    // 3. Generate Hybrid Ranked Recommendations
-    const recommendations = await generateHybridRecommendations(userId, 8);
+    // 3. Generate Hybrid Ranked Recommendations & Categorized Rails
+    const recResult = await generateHybridRecommendations(userId, 10);
+    const recommendations = recResult.recommendations || recResult;
+    const recommendedMovies = recResult.recommendedMovies || [];
+    const recommendedSeries = recResult.recommendedSeries || [];
+    const recommendedAnime = recResult.recommendedAnime || [];
 
     return sendSuccess(res, {
       message: 'User dashboard data retrieved successfully',
@@ -55,6 +59,9 @@ export const getUserDashboard = async (req, res) => {
         recentlyWatched,
         watchHistory: interactions,
         recommendations,
+        recommendedMovies,
+        recommendedSeries,
+        recommendedAnime,
       },
     });
   } catch (err) {

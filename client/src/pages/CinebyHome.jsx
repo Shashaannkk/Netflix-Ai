@@ -457,19 +457,19 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
           </section>
         )}
 
-        {/* ── 3. RECOMMENDED FOR YOU (Personalized Hybrid Engine Row) ── */}
+        {/* ── 3. RECOMMENDED MOVIES FOR YOU (Personalized Hybrid & Social Trends) ── */}
         <section className="cb-movie-row">
           <div className="cb-row-header">
             <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--netflix-red)' }}>
-              <Sparkles size={20} color="var(--netflix-red)" /> Recommended for You
+              <Sparkles size={20} color="var(--netflix-red)" /> Recommended Movies for You (AI Hybrid & Social Trends)
             </h2>
-            <span className="cb-row-sub">Personalized based on viewing history & preferences</span>
+            <span className="cb-row-sub">Unwatched cinema tailored to your watch history & length preferences</span>
           </div>
 
           <div className="cb-row-slider-wrapper">
             <button
               className="cb-row-arrow cb-arrow-left"
-              onClick={() => handleScrollRow('recommended', 'left')}
+              onClick={() => handleScrollRow('recMovies', 'left')}
               aria-label="Scroll left"
             >
               <ChevronLeft size={24} />
@@ -477,11 +477,9 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
 
             <div
               className="cb-row-posters portrait-row"
-              ref={(el) => (rowRefs.current['recommended'] = el)}
+              ref={(el) => (rowRefs.current['recMovies'] = el)}
             >
-              {(dashboardData.recommendations && dashboardData.recommendations.length > 0
-                ? dashboardData.recommendations
-                : (popularMovies.length > 0 ? popularMovies.slice(0, 10) : [])
+              {(dashboardData.recommendedMovies?.length ? dashboardData.recommendedMovies : (dashboardData.recommendations?.length ? dashboardData.recommendations : popularMovies.slice(0, 10))
               ).map((item, idx) => (
                 <div
                   key={item._id || item.id || idx}
@@ -510,21 +508,16 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
                         >
                           <Users size={14} />
                         </button>
-                        <button
-                          className="cb-circle-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRatingTitleId(item._id || item.id);
-                          }}
-                          title="Rate Title"
-                        >
-                          <Star size={13} color="#f59e0b" fill="#f59e0b" />
-                        </button>
                       </div>
                       <div className="cb-hover-title">{item.title || item.name}</div>
                       <div className="cb-hover-score" style={{ color: '#22c55e', fontWeight: 700 }}>
                         {item.matchScore || `${98 - idx}% Match`}
                       </div>
+                      {item.matchReason && (
+                        <div style={{ fontSize: '0.68rem', color: '#aaa', marginTop: '0.2rem' }}>
+                          {item.matchReason}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="cb-card-footer-title">{item.title || item.name}</div>
@@ -534,13 +527,88 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
 
             <button
               className="cb-row-arrow cb-arrow-right"
-              onClick={() => handleScrollRow('recommended', 'right')}
+              onClick={() => handleScrollRow('recMovies', 'right')}
               aria-label="Scroll right"
             >
               <ChevronRight size={24} />
             </button>
           </div>
         </section>
+
+        {/* ── 3.5. RECOMMENDED SERIES FOR YOU ── */}
+        {(dashboardData.recommendedSeries?.length > 0 || trendingTV.length > 0) && (
+          <section className="cb-movie-row">
+            <div className="cb-row-header">
+              <h2 className="cb-row-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#a855f7' }}>
+                <Tv size={20} color="#a855f7" /> Recommended Series for You (Binge Picks)
+              </h2>
+              <span className="cb-row-sub">Top show recommendations based on your viewing history</span>
+            </div>
+
+            <div className="cb-row-slider-wrapper">
+              <button
+                className="cb-row-arrow cb-arrow-left"
+                onClick={() => handleScrollRow('recSeries', 'left')}
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={24} />
+              </button>
+
+              <div
+                className="cb-row-posters portrait-row"
+                ref={(el) => (rowRefs.current['recSeries'] = el)}
+              >
+                {(dashboardData.recommendedSeries?.length ? dashboardData.recommendedSeries : trendingTV.slice(0, 10)
+                ).map((item, idx) => (
+                  <div
+                    key={item._id || item.id || idx}
+                    className="cb-portrait-card"
+                    onClick={() => setSelectedMedia({ ...item, media_type: 'tv' })}
+                  >
+                    <div className="cb-portrait-wrapper">
+                      <img
+                        src={getImageUrl(item.poster || item.poster_path || item.backdropUrl)}
+                        alt={item.name || item.title}
+                        className="cb-portrait-img"
+                      />
+                      <div className="cb-card-badge-hd">Series</div>
+                      <div className="cb-portrait-hover">
+                        <div className="cb-hover-btn-group">
+                          <button className="cb-circle-btn">
+                            <Play size={15} fill="currentColor" />
+                          </button>
+                          <button
+                            className="cb-circle-btn space"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenWatchSpace({ ...item, media_type: 'tv' });
+                            }}
+                            title="Watch Together"
+                          >
+                            <Users size={14} />
+                          </button>
+                        </div>
+                        <div className="cb-hover-title">{item.name || item.title}</div>
+                        <div className="cb-hover-score" style={{ color: '#22c55e', fontWeight: 700 }}>
+                          {item.matchScore || `${96 - idx}% Match`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="cb-card-footer-title">{item.name || item.title}</div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                className="cb-row-arrow cb-arrow-right"
+                onClick={() => handleScrollRow('recSeries', 'right')}
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* ── 4. ACTIVE WATCH SPACES ── */}
         <section className="cb-movie-row">

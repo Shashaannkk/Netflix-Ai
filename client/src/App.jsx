@@ -12,6 +12,7 @@ import WatchSpace from './pages/WatchSpace';
 import CreateWatchSpace from './pages/CreateWatchSpace';
 import JoinWatchSpace from './pages/JoinWatchSpace';
 import WatchActivity from './pages/WatchActivity';
+import BrowseCatalog from './pages/BrowseCatalog';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
@@ -25,7 +26,7 @@ function App() {
             <Routes>
               {/* Netflix AI Main Streaming & Nav Category Routes */}
               <Route path="/" element={<CinebyHome activeCategory="browse" />} />
-              <Route path="browse" element={<CinebyHome activeCategory="browse" />} />
+              <Route path="browse" element={<BrowseCatalog />} />
               <Route path="home" element={<CinebyHome activeCategory="browse" />} />
               <Route path="movies" element={<CinebyHome activeCategory="movies" />} />
               <Route path="tv-shows" element={<CinebyHome activeCategory="series" />} />
