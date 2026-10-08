@@ -798,7 +798,7 @@ export const initSocketHandler = (io) => {
         } else if (action === 'lock') {
           room.isLocked = !!isLocked;
           if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
-            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { 'settings.isLocked': room.isLocked }); } catch {}
+            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { 'settings.isLocked': room.isLocked }); } catch { }
           }
           io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', watchSpaceId, buildPresencePayload(room)));
         } else if (action === 'kick' && targetUserId) {
@@ -818,14 +818,14 @@ export const initSocketHandler = (io) => {
             room.members.delete(targetUserId);
           }
           if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
-            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { $pull: { participantIds: targetUserId } }); } catch {}
+            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { $pull: { participantIds: targetUserId } }); } catch { }
           }
           updateHostConnectionStatus(room, watchSpaceId, io);
           io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', watchSpaceId, buildPresencePayload(room)));
         } else if (action === 'transfer_host' && targetUserId) {
           room.hostUserId = targetUserId;
           if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(watchSpaceId)) {
-            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { hostUserId: targetUserId }); } catch {}
+            try { await WatchSpace.findByIdAndUpdate(watchSpaceId, { hostUserId: targetUserId }); } catch { }
           }
           updateHostConnectionStatus(room, watchSpaceId, io);
           io.to(roomKey).emit('room.presence.update', buildEnvelope('room.presence.update', watchSpaceId, buildPresencePayload(room)));
