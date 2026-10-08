@@ -141,25 +141,31 @@ export const BrowseCatalog = () => {
     };
   }, []);
 
-  // Handle dynamic query search
+  // Handle dynamic query and category/region search using the EXACT same search engine
   useEffect(() => {
-    if (!query.trim()) return;
     let isMounted = true;
+    const activeFilter = region !== 'all' ? region : category !== 'all' ? category : 'all';
 
-    const timer = setTimeout(async () => {
+    const performSearch = async () => {
       setLoading(true);
-      const searchRes = await searchMediaFiltered(query, region === 'all' ? category : region);
+      const searchRes = await searchMediaFiltered(query, activeFilter);
       if (isMounted) {
-        setCatalogItems(searchRes);
+        if (searchRes && searchRes.length > 0) {
+          setCatalogItems(searchRes);
+        }
         setLoading(false);
       }
-    }, 250);
+    };
+
+    const timer = setTimeout(() => {
+      performSearch();
+    }, 200);
 
     return () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [query, region]);
+  }, [query, category, region]);
 
   // Filtered & Sorted Catalog Computation
   const filteredItems = useMemo(() => {
