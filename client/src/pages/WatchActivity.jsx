@@ -643,19 +643,6 @@ export const WatchActivity = () => {
                   </div>
                 );
               })}
-
-                    <button
-                      className="cb-btn cb-btn-space"
-                      onClick={() => handleOpenWatchSpace(item)}
-                      style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
-                      title="Watch in Watch Space"
-                    >
-                      <Users size={14} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
       </div>
