@@ -39,7 +39,14 @@ export const getUserDashboard = async (req, res) => {
       .map((i) => ({
         interactionId: i._id,
         title: i.titleId,
+        titleName: i.titleName || i.titleId?.title,
+        poster: i.poster || i.titleId?.poster,
+        backdropUrl: i.backdropUrl || i.titleId?.backdropUrl,
+        mediaType: i.mediaType || 'movie',
+        season: i.season || 1,
+        episode: i.episode || 1,
         watchedSeconds: i.watchedSeconds,
+        durationSeconds: i.durationSeconds || i.titleId?.durationSeconds || 5400,
         completed: i.completed,
         rating: i.rating,
         lastWatchedAt: i.updatedAt,
@@ -130,6 +137,8 @@ export const recordUserInteraction = async (req, res) => {
 
     if (Array.isArray(req.body.tags)) updateFields.tags = req.body.tags;
     if (typeof req.body.durationSeconds === 'number') updateFields.durationSeconds = req.body.durationSeconds;
+    if (typeof req.body.season === 'number') updateFields.season = req.body.season;
+    if (typeof req.body.episode === 'number') updateFields.episode = req.body.episode;
     if (req.body.language) updateFields.language = req.body.language;
     if (req.body.mediaType) updateFields.mediaType = req.body.mediaType;
     if (titleName) updateFields.titleName = titleName;

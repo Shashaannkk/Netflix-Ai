@@ -17,9 +17,9 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   // Multi-server state (Default Server 1 = Vidsrc.pro)
   const [selectedServer, setSelectedServer] = useState(1);
   
-  // TV Series Seasons & Episodes State
-  const [selectedSeason, setSelectedSeason] = useState(1);
-  const [selectedEpisode, setSelectedEpisode] = useState(1);
+  // TV Series Seasons & Episodes State (initialized from media if present)
+  const [selectedSeason, setSelectedSeason] = useState(media?.season || 1);
+  const [selectedEpisode, setSelectedEpisode] = useState(media?.episode || 1);
   const [episodes, setEpisodes] = useState([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
@@ -30,7 +30,11 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const modalContainerRef = React.useRef(null);
 
   useEffect(() => {
-    setCurrentMedia(media);
+    if (media) {
+      setCurrentMedia(media);
+      if (media.season) setSelectedSeason(media.season);
+      if (media.episode) setSelectedEpisode(media.episode);
+    }
   }, [media]);
 
   // Log viewing telemetry to train recommendation engine when user starts streaming
@@ -42,12 +46,14 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
       const extractedGenres = (currentMedia.genres || []).map((g) => g.name || g);
 
       recordInteractionApi({
-        titleId: String(currentMedia.id),
+        titleId: String(currentMedia.tmdbId || currentMedia.id),
         title: currentMedia.title || currentMedia.name || 'Streamed Content',
         poster: getImageUrl(currentMedia.poster_path),
         backdropUrl: getImageUrl(currentMedia.backdrop_path || currentMedia.poster_path, true),
         watchedSeconds: Math.floor((runtimeMinutes || 120) * 30),
         durationSeconds: (runtimeMinutes || 120) * 60,
+        season: selectedSeason,
+        episode: selectedEpisode,
         completed: false,
         genreAffinity: extractedGenres.length ? extractedGenres : ['Movie'],
         mediaType,
@@ -59,7 +65,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
         ],
       }).catch((err) => console.warn('[CinebyModal] Interaction logging note:', err.message));
     }
-  }, [activeTab, currentMedia, runtimeMinutes]);
+  }, [activeTab, currentMedia, runtimeMinutes, selectedSeason, selectedEpisode]);
 
   useEffect(() => {
     if (!currentMedia) return;
@@ -68,41 +74,44 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
     const mediaType = currentMedia.media_type || (currentMedia.first_air_date ? 'tv' : 'movie');
 
     const loadData = async () => {
-      // 1. Fetch Trailer
-      if (!currentMedia.trailer_key) {
+      // 1. Fetch Detailed Info (runtime, resolved TMDB ID, etc)
+      const fullDetails = await fetchMediaDetails(currentMedia, mediaType);
+      if (isMounted && fullDetails) {
+        setCurrentMedia((prev) => ({ ...prev, ...fullDetails }));
+        if (fullDetails.runtime) setRuntimeMinutes(fullDetails.runtime);
+      }
+
+      const activeMedia = fullDetails || currentMedia;
+
+      // 2. Fetch Trailer
+      if (!activeMedia.trailer_key) {
         setLoadingTrailer(true);
-        const key = await fetchTrailerKey(currentMedia.id, mediaType);
+        const key = await fetchTrailerKey(activeMedia, mediaType);
         if (isMounted) {
           setTrailerKey(key);
           setLoadingTrailer(false);
         }
       } else {
-        setTrailerKey(currentMedia.trailer_key);
+        setTrailerKey(activeMedia.trailer_key);
         setLoadingTrailer(false);
       }
 
-      // 2. Fetch Detailed Info (runtime, etc)
-      const fullDetails = await fetchMediaDetails(currentMedia.id, mediaType);
-      if (isMounted && fullDetails?.runtime) {
-        setRuntimeMinutes(fullDetails.runtime);
-      }
-
       // 3. Fetch Cast & Crew credits
-      const creditsData = await fetchMediaCredits(currentMedia.id, mediaType);
+      const creditsData = await fetchMediaCredits(activeMedia.tmdbId || activeMedia.id, mediaType);
       if (isMounted && creditsData) {
         setCredits(creditsData);
       }
 
       // 4. Fetch Similar Content ("More Like This")
-      const similar = await fetchSimilarMedia(currentMedia.id, mediaType);
+      const similar = await fetchSimilarMedia(activeMedia.tmdbId || activeMedia.id, mediaType);
       if (isMounted) {
         setSimilarMedia(similar || []);
       }
 
-      // 5. If TV Series, load episodes for season 1
-      if (mediaType === 'tv') {
+      // 5. If TV Series, load episodes for season
+      if (mediaType === 'tv' || activeMedia.first_air_date) {
         setLoadingEpisodes(true);
-        const epList = await fetchSeasonEpisodes(currentMedia.id, selectedSeason);
+        const epList = await fetchSeasonEpisodes(activeMedia.tmdbId || activeMedia.id, selectedSeason);
         if (isMounted) {
           setEpisodes(epList);
           setLoadingEpisodes(false);
@@ -112,7 +121,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
 
     loadData();
     return () => { isMounted = false; };
-  }, [currentMedia]);
+  }, [currentMedia?.id, currentMedia?.tmdbId, currentMedia?.title]);
 
   // Load episodes when season changes
   useEffect(() => {
@@ -120,7 +129,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
     let isMounted = true;
     const loadSeason = async () => {
       setLoadingEpisodes(true);
-      const epList = await fetchSeasonEpisodes(currentMedia.id, selectedSeason);
+      const epList = await fetchSeasonEpisodes(currentMedia.tmdbId || currentMedia.id, selectedSeason);
       if (isMounted) {
         setEpisodes(epList);
         setSelectedEpisode(1);
@@ -145,10 +154,10 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const totalDurationSecs = targetMedia.durationSeconds || (runtimeMinutes ? runtimeMinutes * 60 : 7200);
   const resumeMins = Math.floor(resumeSecs / 60);
   const totalMins = Math.floor(totalDurationSecs / 60);
+  const remainingMins = Math.max(0, totalMins - resumeMins);
   const formattedRuntime = isTv 
     ? (episodes && episodes.length ? `${episodes.length} Episodes` : 'TV Series')
     : `${Math.floor((runtimeMinutes || 120) / 60)}h ${(runtimeMinutes || 120) % 60}m`;
-  const progressPercent = totalDurationSecs > 0 ? Math.min(99, Math.max(1, Math.round((resumeSecs / totalDurationSecs) * 100))) : 0;
   const videoRef = React.useRef(null);
 
   const handleVideoLoaded = () => {
@@ -159,7 +168,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
 
   const handleStartWatchSpace = () => {
     if (onWatchTogether) {
-      onWatchTogether(media);
+      onWatchTogether(targetMedia);
     } else {
       const tmdbIdVal = targetMedia.tmdbId || targetMedia.id;
       navigate(
@@ -168,7 +177,8 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
     }
   };
 
-  const tmdbNumericId = targetMedia.tmdbId || (typeof targetMedia.id === 'number' ? targetMedia.id : (!isNaN(Number(targetMedia.id)) ? Number(targetMedia.id) : 550));
+  const rawIdVal = targetMedia.tmdbId || targetMedia.id;
+  const tmdbNumericId = typeof rawIdVal === 'number' ? rawIdVal : (!isNaN(Number(rawIdVal)) ? Number(rawIdVal) : 550);
 
   return (
     <div className="cb-modal-overlay" onClick={onClose}>
@@ -243,9 +253,10 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
           {resumeSecs > 0 && !targetMedia.completed && (
             <div style={{ background: '#1c1c1c', border: '1px solid rgba(229,9,20,0.3)', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Clock size={15} color="var(--netflix-red)" /> Resume playback from {resumeMins}m ({progressPercent}% watched)
+                <Clock size={15} color="var(--netflix-red)" />
+                {isTv ? `Resume S${selectedSeason} E${selectedEpisode}` : 'Resume playback'} from {resumeMins}m
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#aaa' }}>{totalMins - resumeMins}m remaining</div>
+              <div style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 600 }}>{remainingMins} min left</div>
             </div>
           )}
 
@@ -263,7 +274,7 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
                 }}
               >
                 <Play size={16} fill="currentColor" />
-                <span>Resume from {resumeMins}m</span>
+                <span>Resume {isTv ? `S${selectedSeason} E${selectedEpisode}` : ''} ({resumeMins}m)</span>
               </button>
             ) : (
               <button

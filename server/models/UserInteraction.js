@@ -71,6 +71,16 @@ const userInteractionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    season: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    episode: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
     coWatchedUsers: [
       {
         type: mongoose.Schema.Types.ObjectId,

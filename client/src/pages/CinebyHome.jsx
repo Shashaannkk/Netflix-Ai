@@ -1299,22 +1299,60 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
               >
                 {dashboardData.recentlyWatched.map((item, idx) => {
                   const titleObj = item.title || {};
+                  const titleName = item.titleName || titleObj.title || 'Watched Title';
+                  const watchedSec = item.watchedSeconds || 0;
+                  const durSec = item.durationSeconds || titleObj.durationSeconds || 5400;
+                  const totalMins = Math.floor(durSec / 60);
+                  const watchedMins = Math.floor(watchedSec / 60);
+                  const remainingMins = Math.max(0, totalMins - watchedMins);
+                  const isSeries = item.mediaType === 'tv' || Boolean(item.season) || Boolean(item.episode) || Boolean(titleObj.first_air_date);
+
+                  const mediaPayload = {
+                    ...titleObj,
+                    id: titleObj.tmdbId || titleObj.id || titleObj._id,
+                    tmdbId: titleObj.tmdbId || titleObj.id,
+                    title: titleName,
+                    name: titleName,
+                    poster_path: item.poster || titleObj.poster,
+                    backdrop_path: item.backdropUrl || titleObj.backdropUrl,
+                    resumeTime: watchedSec,
+                    watchedSeconds: watchedSec,
+                    durationSeconds: durSec,
+                    season: item.season || 1,
+                    episode: item.episode || 1,
+                    completed: item.completed,
+                    media_type: isSeries ? 'tv' : 'movie',
+                  };
+
                   return (
-                    <div key={idx} className="cb-portrait-card">
+                    <div
+                      key={idx}
+                      className="cb-portrait-card"
+                      onClick={() => setSelectedMedia(mediaPayload)}
+                    >
                       <div className="cb-portrait-wrapper">
                         <img
-                          src={getImageUrl(titleObj.poster || titleObj.backdropUrl)}
-                          alt={titleObj.title || 'Watched Title'}
+                          src={getImageUrl(item.poster || item.backdropUrl || titleObj.poster || titleObj.backdropUrl)}
+                          alt={titleName}
                           className="cb-portrait-img"
                         />
                         <div className="cb-portrait-hover">
-                          <div className="cb-hover-title">{titleObj.title || 'Watched Title'}</div>
-                          <div className="cb-hover-score" style={{ color: '#aaa' }}>
-                            {item.watchedSeconds ? `${Math.floor(item.watchedSeconds / 60)} mins` : '15 mins'}
+                          <div className="cb-hover-btn-group">
+                            <button className="cb-circle-btn">
+                              <Play size={15} fill="currentColor" />
+                            </button>
+                          </div>
+                          <div className="cb-hover-title">{titleName}</div>
+                          <div className="cb-hover-score" style={{ color: '#22c55e', fontWeight: 700 }}>
+                            {item.completed
+                              ? 'Completed'
+                              : isSeries
+                              ? `S${item.season || 1} E${item.episode || 1} • ${remainingMins} min left`
+                              : `${remainingMins} min left`}
                           </div>
                         </div>
                       </div>
-                      <div className="cb-card-footer-title">{titleObj.title || 'Watched Title'}</div>
+                      <div className="cb-card-footer-title">{titleName}</div>
                     </div>
                   );
                 })}

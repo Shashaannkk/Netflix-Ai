@@ -315,12 +315,20 @@ export const Dashboard = () => {
             <div className="row-slider">
               {recentlyWatched.map((item, idx) => {
                 const titleObj = item.title || {};
+                const titleName = item.titleName || titleObj.title || 'Watched Title';
+                const watchedSec = item.watchedSeconds || 0;
+                const durSec = item.durationSeconds || titleObj.durationSeconds || 5400;
+                const totalMins = Math.floor(durSec / 60);
+                const watchedMins = Math.floor(watchedSec / 60);
+                const remainingMins = Math.max(0, totalMins - watchedMins);
+                const isSeries = item.mediaType === 'tv' || Boolean(item.season) || Boolean(item.episode) || Boolean(titleObj.first_air_date);
+
                 return (
                   <div key={idx} className="movie-card">
                     <div className="movie-poster-wrapper">
                       <img
-                        src={titleObj.backdropUrl || titleObj.poster || 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop'}
-                        alt={titleObj.title || 'Watched Title'}
+                        src={item.poster || item.backdropUrl || titleObj.backdropUrl || titleObj.poster || 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop'}
+                        alt={titleName}
                         className="movie-poster-img"
                       />
                     </div>
@@ -328,26 +336,25 @@ export const Dashboard = () => {
                     <div className="card-hover-details">
                       <div className="hover-action-icons">
                         <div className="hover-btn-group">
-                          <Link to="/space" className="circle-icon-btn primary" title="Resume">
+                          <button onClick={() => navigate('/watch-activity')} className="circle-icon-btn primary" title="Resume in Activity">
                             <Play size={16} fill="currentColor" />
-                          </Link>
-                          <button onClick={() => openCreateSpace(titleObj._id)} className="circle-icon-btn space-btn" title="Watch Together">
+                          </button>
+                          <button onClick={() => openCreateSpace(titleObj._id || item.interactionId)} className="circle-icon-btn space-btn" title="Watch Together">
                             <Users size={15} />
                           </button>
                         </div>
                       </div>
 
                       <div className="hover-meta-info">
-                        <span style={{ color: '#fff', fontWeight: 700 }}>{titleObj.title || 'Tears of Steel'}</span>
+                        <span style={{ color: '#fff', fontWeight: 700 }}>{titleName}</span>
                       </div>
 
-                      <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '0.3rem' }}>
-                        Watched: {item.watchedSeconds ? `${Math.floor(item.watchedSeconds / 60)} mins` : '15 mins'}
-                        {item.completed && (
-                          <span style={{ color: '#22c55e', marginLeft: '6px', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                            <Check size={12} /> Completed
-                          </span>
-                        )}
+                      <div style={{ fontSize: '0.7rem', color: '#22c55e', marginTop: '0.3rem', fontWeight: 700 }}>
+                        {item.completed
+                          ? 'Completed'
+                          : isSeries
+                          ? `S${item.season || 1} E${item.episode || 1} • ${remainingMins} min left`
+                          : `${remainingMins} min left`}
                       </div>
 
                       {item.rating && (

@@ -467,6 +467,10 @@ export const WatchActivity = () => {
 
                 const genres = item.genreAffinity?.length ? item.genreAffinity : titleObj.genres || ['Movie'];
 
+                const isSeries = item.mediaType === 'tv' || Boolean(item.season) || Boolean(item.episode) || Boolean(titleObj.first_air_date);
+                const season = item.season || 1;
+                const episode = item.episode || 1;
+
                 const mediaPayload = {
                   ...titleObj,
                   id: titleObj.tmdbId || titleObj.id || titleObj._id || item.titleId,
@@ -478,8 +482,10 @@ export const WatchActivity = () => {
                   resumeTime: watchedSec,
                   watchedSeconds: watchedSec,
                   durationSeconds: durationSec,
+                  season,
+                  episode,
                   completed: item.completed,
-                  media_type: item.mediaType || (titleObj.genres?.includes('Anime') ? 'anime' : (titleObj.first_air_date ? 'tv' : 'movie')),
+                  media_type: isSeries ? 'tv' : 'movie',
                 };
 
                 return (
@@ -514,7 +520,7 @@ export const WatchActivity = () => {
                           }}
                         />
 
-                        {/* Status pill */}
+                        {/* Status pill (No %, displays min left + Season/Episode) */}
                         <span
                           style={{
                             position: 'absolute',
@@ -532,7 +538,11 @@ export const WatchActivity = () => {
                           }}
                         >
                           {item.completed ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-                          {item.completed ? 'Completed (100%)' : `${progressPct}% Watched (${remainingMins}m left)`}
+                          {item.completed
+                            ? 'Completed'
+                            : isSeries
+                            ? `S${season} E${episode} • ${remainingMins} min left`
+                            : `${remainingMins} min left`}
                         </span>
 
                         {/* Delete button */}
@@ -628,7 +638,7 @@ export const WatchActivity = () => {
                         onClick={() => setSelectedMedia(mediaPayload)}
                         style={{ flex: 1, fontSize: '0.8rem', padding: '0.5rem' }}
                       >
-                        <Play size={14} fill="currentColor" /> {watchedSec > 0 && !item.completed ? `Resume (${actualMinsWatched}m)` : 'Play / Details'}
+                        <Play size={14} fill="currentColor" /> {watchedSec > 0 && !item.completed ? (isSeries ? `Resume S${season} E${episode}` : `Resume (${actualMinsWatched}m)`) : 'Play / Details'}
                       </button>
 
                       <button
