@@ -1153,7 +1153,8 @@ const WatchSpace = () => {
             key={`player_s${selectedServer}_${videoSrc}`}
             ref={videoRef}
             src={videoSrc}
-            poster={videoPoster}
+            // Server 9 must not inherit the workspace movie artwork. Keep the existing poster for Servers 1–8.
+            poster={selectedServer === 9 ? null : videoPoster}
             title={titleName}
             isHost={isHost}
             serverNum={selectedServer}
