@@ -2264,6 +2264,7 @@ const WatchSpace = () => {
 
           </div>
         </aside>
+      )}
     </div>
   );
 };
