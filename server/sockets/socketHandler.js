@@ -318,7 +318,7 @@ export const initSocketHandler = (io) => {
               positionSeconds: 0,
               changedAtServerMs: Date.now(),
               playbackRate: 1.0,
-              serverNum: space?.settings?.serverNum || space?.settings?.selectedServer || 9,
+              serverNum: parseBoundedInt(space?.settings?.serverNum, 1, 9) || 9,
               season: space?.settings?.season || 1,
               episode: space?.settings?.episode || 1,
             },
@@ -462,9 +462,12 @@ export const initSocketHandler = (io) => {
       const newState = state || (isPlaying ? 'playing' : 'paused');
       const newRate = typeof playbackRate === 'number' ? playbackRate : (room.playback.playbackRate || 1.0);
 
-      if (typeof serverNum === 'number') room.playback.serverNum = serverNum;
-      if (typeof season === 'number') room.playback.season = season;
-      if (typeof episode === 'number') room.playback.episode = episode;
+      const validServer = parseBoundedInt(serverNum, 1, 9);
+      if (validServer !== null && validServer !== undefined) {
+        room.playback.serverNum = validServer;
+      }
+      if (typeof season === 'number' && season >= 1) room.playback.season = season;
+      if (typeof episode === 'number' && episode >= 1) room.playback.episode = episode;
 
       room.playback = {
         ...room.playback,
@@ -482,7 +485,7 @@ export const initSocketHandler = (io) => {
         positionSeconds: room.playback.positionSeconds,
         changedAtServerMs: room.playback.changedAtServerMs,
         playbackRate: room.playback.playbackRate,
-        serverNum: room.playback.serverNum || 1,
+        serverNum: parseBoundedInt(room.playback.serverNum, 1, 9) || 9,
         season: room.playback.season || 1,
         episode: room.playback.episode || 1,
         version: room.version,
@@ -586,7 +589,7 @@ export const initSocketHandler = (io) => {
         positionSeconds: room.playback.positionSeconds,
         changedAtServerMs: room.playback.changedAtServerMs,
         playbackRate: room.playback.playbackRate || 1.0,
-        serverNum: room.playback.serverNum || 1,
+        serverNum: parseBoundedInt(room.playback.serverNum, 1, 9) || 9,
         season: room.playback.season || 1,
         episode: room.playback.episode || 1,
         mediaConfig: room.mediaConfig,

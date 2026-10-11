@@ -41,7 +41,7 @@ export const SERVER_8_CANONICAL_SOURCE =
  * This is intentionally separate from Server 8.
  */
 export const SERVER_9_KANTARA_SOURCE =
-  'https://ia801608.us.archive.org/4/items/kantara-chapter-1_202610/kantara-chapter-1.mp4';
+  getBackendMediaUrl('/api/media/watch-together-demo.mp4');
 
 /**
  * Watch Together configuration.

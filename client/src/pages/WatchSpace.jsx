@@ -248,15 +248,28 @@ const WatchSpace = () => {
 
   // Live Server Sync: Instantly reflect server changes on viewer UI without page refresh
   useEffect(() => {
-    if (!isHost && playbackState?.serverNum !== undefined && playbackState.serverNum !== selectedServer) {
-      console.log('[WATCHSPACE REACTIVE SERVER SYNC]', {
-        prevServer: selectedServer,
-        newServer: playbackState.serverNum,
-        isHost,
-      });
-      setSelectedServer(playbackState.serverNum);
+    if (!isHost && playbackState?.serverNum !== undefined) {
+      const targetServer = Number(playbackState.serverNum);
+      if (Number.isInteger(targetServer) && targetServer >= 1 && targetServer <= 9 && targetServer !== selectedServer) {
+        console.log('[WATCHSPACE REACTIVE SERVER SYNC]', {
+          prevServer: selectedServer,
+          newServer: targetServer,
+          action: playbackState.action,
+          isHost,
+        });
+        setSelectedServer(targetServer);
+      }
     }
   }, [playbackState?.serverNum, selectedServer, isHost]);
+
+  // Live Playback State Sync: Reflect room playback state on Host and Viewer UI
+  useEffect(() => {
+    if (playbackState?.isPlaying !== undefined) {
+      setIsPlaying(Boolean(playbackState.isPlaying));
+    } else if (playbackState?.state !== undefined) {
+      setIsPlaying(playbackState.state === 'playing');
+    }
+  }, [playbackState?.isPlaying, playbackState?.state]);
 
   useEffect(() => {
     if (playbackState.season && playbackState.season !== selectedSeason) {
@@ -673,12 +686,14 @@ const WatchSpace = () => {
     const nextState = !isPlaying;
 
     if (player) {
-      if (player.togglePlay) {
-        player.togglePlay();
-      } else if (nextState) {
-        player.play?.();
+      if (nextState) {
+        if (player.play) player.play();
+        else if (player.videoElement) player.videoElement.play?.().catch(() => {});
+        else if (player.togglePlay) player.togglePlay();
       } else {
-        player.pause?.();
+        if (player.pause) player.pause();
+        else if (player.videoElement) player.videoElement.pause?.();
+        else if (player.togglePlay) player.togglePlay();
       }
     }
     setIsPlaying(nextState);
@@ -688,6 +703,9 @@ const WatchSpace = () => {
         action: nextState ? 'play' : 'pause',
         currentTime: player?.getCurrentTime ? player.getCurrentTime() : currentTime,
         isPlaying: nextState,
+        serverNum: selectedServer,
+        season: selectedSeason,
+        episode: selectedEpisode,
       });
     }
   };
@@ -701,6 +719,8 @@ const WatchSpace = () => {
 
     if (player?.seek) {
       player.seek(newTime);
+    } else if (player?.videoElement) {
+      player.videoElement.currentTime = newTime;
     }
     setCurrentTime(newTime);
 
@@ -709,6 +729,9 @@ const WatchSpace = () => {
         action: 'seek',
         currentTime: newTime,
         isPlaying,
+        serverNum: selectedServer,
+        season: selectedSeason,
+        episode: selectedEpisode,
       });
     }
   };
@@ -725,6 +748,9 @@ const WatchSpace = () => {
         playbackRate: rate,
         currentTime: videoRef.current?.getCurrentTime ? videoRef.current.getCurrentTime() : currentTime,
         isPlaying,
+        serverNum: selectedServer,
+        season: selectedSeason,
+        episode: selectedEpisode,
       });
     }
   };
@@ -757,6 +783,9 @@ const WatchSpace = () => {
       action: 'seek',
       currentTime: newTime,
       isPlaying,
+      serverNum: selectedServer,
+      season: selectedSeason,
+      episode: selectedEpisode,
     });
   };
 
@@ -902,8 +931,8 @@ const WatchSpace = () => {
       season: selectedSeason,
       episode: selectedEpisode,
       serverNum: 9,
-    });
-    titleName = 'Kantara A Legend: Chapter 1';
+    }) || WATCH_TOGETHER_DEMO_CONFIG.authorizedVideoSource;
+    titleName = effectiveSpace?.titleId?.title || WATCH_TOGETHER_DEMO_CONFIG.title;
 
   } else {
     videoSrc = getServerStreamUrl({
@@ -1153,7 +1182,6 @@ const WatchSpace = () => {
             key={`player_s${selectedServer}_${videoSrc}`}
             ref={videoRef}
             src={videoSrc}
-            // Server 9 must not inherit the workspace movie artwork. Keep the existing poster for Servers 1–8.
             poster={selectedServer === 9 ? null : videoPoster}
             title={titleName}
             isHost={isHost}
@@ -1165,7 +1193,12 @@ const WatchSpace = () => {
             onTimeUpdate={(t) => setCurrentTime(t)}
             onPlaybackChange={(data) => {
               if (isHost) {
-                sendPlaybackUpdate(data);
+                sendPlaybackUpdate({
+                  ...data,
+                  serverNum: selectedServer,
+                  season: selectedSeason,
+                  episode: selectedEpisode,
+                });
               }
             }}
           />
@@ -2231,40 +2264,6 @@ const WatchSpace = () => {
 
           </div>
         </aside>
-      )}
-      {/* ══ REALTIME SOCKET DIAGNOSTIC DEBUG PANEL ══════════════════════════ */}
-      {import.meta.env.DEV && (
-        <div
-          className="watch-socket-debug-panel"
-          style={{
-            position: 'fixed',
-            bottom: '16px',
-            left: '16px',
-            backgroundColor: 'rgba(15, 15, 15, 0.92)',
-            border: '1px solid rgba(229, 9, 20, 0.4)',
-            borderRadius: '8px',
-            padding: '8px 12px',
-            fontSize: '11px',
-            fontFamily: 'monospace',
-            color: '#fff',
-            zIndex: 9999,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.7)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '3px',
-            pointerEvents: 'none',
-          }}
-        >
-          <div style={{ fontWeight: 'bold', color: '#e50914', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '3px', marginBottom: '2px' }}>
-            [WATCH_SOCKET DEBUG]
-          </div>
-          <div>Socket: <span style={{ color: socketConnected ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>{socketConnected ? 'CONNECTED' : 'DISCONNECTED'}</span></div>
-          <div>Socket ID: <span style={{ color: '#38bdf8' }}>{socketId || 'N/A'}</span></div>
-          <div>Transport: <span style={{ color: '#f59e0b' }}>{socketTransport || 'N/A'}</span></div>
-          <div>Room: <span style={{ color: '#a855f7' }}>{currentSpace?._id || roomId || 'N/A'}</span></div>
-          <div>User: <span style={{ color: '#eab308' }}>{user?.displayName || user?._id || 'Guest'}</span></div>
-        </div>
-      )}
     </div>
   );
 };

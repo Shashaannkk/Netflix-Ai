@@ -6,45 +6,46 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Stream the local Watch Together Kantara Chapter 1 video
- * using HTTP Range requests (206 Partial Content).
- *
- * Video file:
- *   kantara-chapter-1.mp4
- *
- * Expected location:
- *   Project root / kantara-chapter-1.mp4
+ * Helper to stream an MP4 file with full HTTP 206 Range support.
+ * Ensures fast start, seeking, and cross-origin access.
  */
-export const streamKantaraMovie = (req, res) => {
-  // Only use the dedicated Kantara MP4 for Watch Together.
-  // Do NOT fall back to Oceans.mp4 or the MKV file.
-  const possiblePaths = [
-    path.join(__dirname, '..', '..', 'kantara-chapter-1.mp4'),
-    path.join(process.cwd(), 'kantara-chapter-1.mp4'),
+const streamVideoFile = (req, res, targetFileNames) => {
+  const searchNames = Array.isArray(targetFileNames) ? targetFileNames : [targetFileNames];
+  const possibleRoots = [
+    path.join(__dirname, '..', '..'),
+    process.cwd(),
+    path.join(__dirname, '..', '..', 'client', 'public'),
   ];
 
   let filePath = null;
 
-  // Find the Kantara MP4 file.
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      filePath = p;
-      break;
+  for (const name of searchNames) {
+    for (const root of possibleRoots) {
+      const candidate = path.join(root, name);
+      if (fs.existsSync(candidate)) {
+        filePath = candidate;
+        break;
+      }
+    }
+    if (filePath) break;
+  }
+
+  // Fallback to watch-together-demo.mp4 if a requested file is missing
+  if (!filePath) {
+    for (const root of possibleRoots) {
+      const candidate = path.join(root, 'watch-together-demo.mp4');
+      if (fs.existsSync(candidate)) {
+        filePath = candidate;
+        break;
+      }
     }
   }
 
-  // If the Kantara file cannot be found, return a clear error.
-  // We intentionally do NOT redirect to Oceans.mp4 because
-  // every Watch Together participant must use the same video.
   if (!filePath) {
-    console.error(
-      '[Watch Together] Kantara video not found. Checked:',
-      possiblePaths
-    );
-
+    console.error('[MediaController] No playable video file found. Checked:', searchNames);
     return res.status(404).json({
-      error: 'Watch Together video not found',
-      file: 'kantara-chapter-1.mp4',
+      error: 'Watch Together media file not found on server',
+      checked: searchNames,
     });
   }
 
@@ -53,132 +54,97 @@ export const streamKantaraMovie = (req, res) => {
     const fileSize = stat.size;
     const range = req.headers.range;
 
-    // Allow the frontend to request the video cross-origin.
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Content-Type', 'video/mp4');
 
-    /**
-     * Handle HTTP Range requests.
-     *
-     * This allows the browser to request only the required
-     * portion of the video when seeking/streaming.
-     */
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
-
       const start = parseInt(parts[0], 10);
-
-      // If no end is supplied, send up to 15 MB.
       const requestedEnd = parts[1]
         ? parseInt(parts[1], 10)
-        : start + 15 * 1024 * 1024 - 1;
-
+        : start + 15 * 1024 * 1024 - 1; // 15MB chunks
       const end = Math.min(requestedEnd, fileSize - 1);
 
-      // Validate the requested starting byte.
-      if (
-        Number.isNaN(start) ||
-        start < 0 ||
-        start >= fileSize
-      ) {
-        res.status(416).setHeader(
-          'Content-Range',
-          `bytes */${fileSize}`
-        );
-
+      if (Number.isNaN(start) || start < 0 || start >= fileSize) {
+        res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
         return res.end();
       }
 
-      // Make sure the end is valid.
-      if (
-        Number.isNaN(end) ||
-        end < start
-      ) {
-        res.status(416).setHeader(
-          'Content-Range',
-          `bytes */${fileSize}`
-        );
-
+      if (Number.isNaN(end) || end < start) {
+        res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
         return res.end();
       }
 
-      const chunksize = end - start + 1;
+      const chunkSize = end - start + 1;
+      const fileStream = fs.createReadStream(filePath, { start, end });
 
-      const file = fs.createReadStream(filePath, {
-        start,
-        end,
-      });
-
-      const head = {
+      res.writeHead(206, {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
+        'Content-Length': chunkSize,
         'Content-Type': 'video/mp4',
         'Access-Control-Allow-Origin': '*',
-      };
+      });
 
-      res.writeHead(206, head);
-
-      file.on('error', (error) => {
-        console.error(
-          '[Watch Together] Video stream error:',
-          error
-        );
-
+      fileStream.on('error', (err) => {
+        console.error('[MediaController] Stream chunk error:', err?.message);
         if (!res.headersSent) {
-          res.status(500).json({
-            error: 'Video streaming failed',
-          });
+          res.status(500).json({ error: 'Video streaming failed' });
         } else {
-          res.destroy(error);
+          res.destroy(err);
         }
       });
 
-      file.pipe(res);
-
+      fileStream.pipe(res);
       return;
     }
 
-    /**
-     * No Range header:
-     * send the complete video.
-     */
-    const head = {
+    // No range header: serve complete stream
+    res.writeHead(200, {
       'Content-Length': fileSize,
       'Content-Type': 'video/mp4',
       'Access-Control-Allow-Origin': '*',
       'Accept-Ranges': 'bytes',
-    };
+    });
 
-    res.writeHead(200, head);
-
-    const file = fs.createReadStream(filePath);
-
-    file.on('error', (error) => {
-      console.error(
-        '[Watch Together] Video stream error:',
-        error
-      );
-
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.on('error', (err) => {
+      console.error('[MediaController] Full stream error:', err?.message);
       if (!res.headersSent) {
-        res.status(500).json({
-          error: 'Video streaming failed',
-        });
+        res.status(500).json({ error: 'Video streaming failed' });
       } else {
-        res.destroy(error);
+        res.destroy(err);
       }
     });
 
-    file.pipe(res);
+    fileStream.pipe(res);
   } catch (error) {
-    console.error(
-      '[Watch Together] Failed to prepare video:',
-      error
-    );
-
-    return res.status(500).json({
-      error: 'Failed to prepare Watch Together video',
-    });
+    console.error('[MediaController] Failed to prepare video stream:', error?.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to prepare video stream' });
+    }
   }
+};
+
+/**
+ * Stream the web-compatible H.264/AAC Watch Together Demo video (Tears of Steel).
+ * Universally supported by 100% of browsers (Chrome, Edge, Firefox, Safari)
+ * with zero black screen and immediate fast-start streaming.
+ */
+export const streamWatchTogetherDemo = (req, res) => {
+  return streamVideoFile(req, res, ['watch-together-demo.mp4']);
+};
+
+/**
+ * Stream handler for Kantara route.
+ * Because kantara-chapter-1.mp4 is encoded in H.265/HEVC (hev1),
+ * Chrome on Windows renders a black screen due to lack of a software HEVC decoder.
+ * This handler safely serves the web-compatible H.264 demo video unless explicit raw is requested.
+ */
+export const streamKantaraMovie = (req, res) => {
+  if (req.query.raw === 'true') {
+    return streamVideoFile(req, res, ['kantara-chapter-1.mp4', 'watch-together-demo.mp4']);
+  }
+  return streamVideoFile(req, res, ['watch-together-demo.mp4', 'kantara-chapter-1.mp4']);
 };

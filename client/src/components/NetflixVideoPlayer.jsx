@@ -27,6 +27,21 @@ import {
 
 const SYNC_HARD_CORRECTION_THRESHOLD = 0.05;
 
+const resolvePlayableSource = (url) => {
+  if (!url || typeof document === 'undefined') return url;
+  if (url.includes('kantara')) {
+    const testEl = document.createElement('video');
+    const canPlayHevc = Boolean(
+      testEl.canPlayType('video/mp4; codecs="hev1"') ||
+      testEl.canPlayType('video/mp4; codecs="hvc1"')
+    );
+    if (!canPlayHevc) {
+      return url.replace(/kantara(?:-chapter-1)?(?:\.mp4)?/i, 'watch-together-demo.mp4');
+    }
+  }
+  return url;
+};
+
 export const NetflixVideoPlayer = React.forwardRef(({
   src,
   poster,
@@ -56,7 +71,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
   const holdTimerRef = useRef(null);
   const lastTapRef = useRef({ time: 0, x: 0 });
 
-  const [currentSource, setCurrentSource] = useState(src || null);
+  const [currentSource, setCurrentSource] = useState(() => resolvePlayableSource(src) || null);
 
   // Authoritative Single Player Mode Contract: 'native' | 'provider' | 'invalid'
   const playerMode = getPlayerMode(currentSource, serverNum);
@@ -95,59 +110,6 @@ export const NetflixVideoPlayer = React.forwardRef(({
       videoRef.current.playbackRate = syncPlaybackRate;
     }
   }, [syncPlaybackRate, isNative]);
-
-  useImperativeHandle(forwardedRef, () => ({
-    play: () => {
-      setIsPlaying(true);
-      if (isNative && videoRef.current) {
-        videoRef.current.play?.().catch(() => { });
-      } else {
-        postIframeCommand('playVideo');
-      }
-    },
-    pause: () => {
-      setIsPlaying(false);
-      if (isNative && videoRef.current) {
-        videoRef.current.pause?.();
-      } else {
-        postIframeCommand('pauseVideo');
-      }
-    },
-    togglePlay: () => {
-      const next = !isPlaying;
-      setIsPlaying(next);
-      if (isNative && videoRef.current) {
-        if (next) videoRef.current.play?.().catch(() => { });
-        else videoRef.current.pause?.();
-      } else {
-        postIframeCommand(next ? 'playVideo' : 'pauseVideo');
-      }
-    },
-    seek: (time) => {
-      setCurrentTime(time);
-      if (isNative && videoRef.current) {
-        videoRef.current.currentTime = time;
-      } else {
-        postIframeCommand('seekTo', time);
-      }
-    },
-    isReady: () => true,
-    getCurrentTime: () => currentTime || (videoRef.current?.currentTime || 0),
-    getDuration: () => duration || (videoRef.current?.duration || 0),
-    setVolume: (v) => {
-      setVolume(v);
-      if (videoRef.current) videoRef.current.volume = v;
-    },
-    setMuted: (m) => {
-      setIsMuted(m);
-      if (videoRef.current) videoRef.current.muted = m;
-    },
-    setPlaybackRate: (rate) => {
-      if (isNative && videoRef.current && typeof rate === 'number' && rate > 0) {
-        videoRef.current.playbackRate = rate;
-      }
-    }
-  }), [isNative, isPlaying, currentTime, duration, postIframeCommand]);
 
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
@@ -252,26 +214,99 @@ export const NetflixVideoPlayer = React.forwardRef(({
     () => ({
       getPlayerMode: () => playerMode,
 
-      play: () => (isHost && isNative) ? getAdapter()?.play() : undefined,
-      pause: () => (isHost && isNative) ? getAdapter()?.pause() : undefined,
-      seek: (pos) => (isHost && isNative) ? getAdapter()?.seek(pos) : undefined,
+      play: () => {
+        setIsPlaying(true);
+        if (isNative) {
+          if (videoRef.current) {
+            return videoRef.current.play?.().catch((err) => {
+              console.warn('[NetflixVideoPlayer] play error:', err?.message);
+            });
+          }
+          return getAdapter()?.play();
+        } else {
+          postIframeCommand('playVideo');
+        }
+      },
 
-      getCurrentTime: () => isNative ? (getAdapter()?.getCurrentTime() ?? videoRef.current?.currentTime ?? null) : null,
-      getDuration: () => isNative ? (getAdapter()?.getDuration() ?? videoRef.current?.duration ?? null) : null,
-      getState: () => isNative ? (getAdapter()?.getState() ?? (videoRef.current?.paused ? 'paused' : 'playing')) : null,
+      pause: () => {
+        setIsPlaying(false);
+        if (isNative) {
+          if (videoRef.current) videoRef.current.pause?.();
+          else getAdapter()?.pause();
+        } else {
+          postIframeCommand('pauseVideo');
+        }
+      },
 
-      setPlaybackRate: (rate) => isNative ? getAdapter()?.setPlaybackRate(rate) : undefined,
-      setVolume: (vol) => isNative ? getAdapter()?.setVolume(vol) : undefined,
-      setMuted: (muted) => isNative ? getAdapter()?.setMuted(muted) : undefined,
+      togglePlay: () => {
+        const next = !isPlaying;
+        setIsPlaying(next);
+        if (isNative) {
+          if (videoRef.current) {
+            if (next) videoRef.current.play?.().catch(() => {});
+            else videoRef.current.pause?.();
+          } else {
+            if (next) getAdapter()?.play();
+            else getAdapter()?.pause();
+          }
+        } else {
+          postIframeCommand(next ? 'playVideo' : 'pauseVideo');
+        }
+      },
+
+      seek: (pos) => {
+        if (typeof pos !== 'number' || Number.isNaN(pos)) return;
+        const targetPos = Math.max(0, pos);
+        setCurrentTime(targetPos);
+        if (isNative) {
+          if (videoRef.current) videoRef.current.currentTime = targetPos;
+          getAdapter()?.seek(targetPos);
+        } else {
+          postIframeCommand('seekTo', targetPos);
+        }
+      },
+
+      getCurrentTime: () => isNative
+        ? (videoRef.current?.currentTime ?? getAdapter()?.getCurrentTime() ?? currentTime ?? 0)
+        : (currentTime ?? 0),
+
+      getDuration: () => isNative
+        ? (videoRef.current?.duration ?? getAdapter()?.getDuration() ?? duration ?? 0)
+        : (duration ?? 0),
+
+      getState: () => isNative
+        ? (videoRef.current ? (videoRef.current.paused ? 'paused' : 'playing') : (isPlaying ? 'playing' : 'paused'))
+        : (isPlaying ? 'playing' : 'paused'),
+
+      setPlaybackRate: (rate) => {
+        if (typeof rate === 'number' && rate > 0) {
+          if (videoRef.current) videoRef.current.playbackRate = rate;
+          getAdapter()?.setPlaybackRate(rate);
+        }
+      },
+
+      setVolume: (vol) => {
+        if (typeof vol === 'number') {
+          setVolume(vol);
+          if (videoRef.current) videoRef.current.volume = Math.max(0, Math.min(1, vol));
+          getAdapter()?.setVolume(vol);
+        }
+      },
+
+      setMuted: (muted) => {
+        setIsMuted(Boolean(muted));
+        if (videoRef.current) videoRef.current.muted = Boolean(muted);
+        getAdapter()?.setMuted(Boolean(muted));
+      },
 
       isReady: () => isMediaReady(),
 
       getTelemetry: () => ({
         mode: playerMode,
-        currentTime: isNative ? (videoRef.current?.currentTime ?? null) : null,
-        duration: isNative ? (videoRef.current?.duration ?? null) : null,
-        isPlaying: isNative ? (videoRef.current ? !videoRef.current.paused : false) : null,
-        playbackRate: isNative ? (videoRef.current?.playbackRate ?? null) : null,
+        currentTime: isNative ? (videoRef.current?.currentTime ?? null) : currentTime,
+        duration: isNative ? (videoRef.current?.duration ?? null) : duration,
+        isPlaying: isNative ? (videoRef.current ? !videoRef.current.paused : isPlaying) : isPlaying,
+        playbackRate: isNative ? (videoRef.current?.playbackRate ?? 1) : 1,
         precise: isNative,
         ready: isMediaReady(),
       }),
@@ -280,7 +315,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
         return isNative ? videoRef.current : null;
       },
     }),
-    [playerMode, isNative, getAdapter, isMediaReady]
+    [playerMode, isNative, isPlaying, currentTime, duration, getAdapter, isMediaReady, postIframeCommand]
   );
 
   /*
@@ -352,7 +387,8 @@ export const NetflixVideoPlayer = React.forwardRef(({
     }
 
     srcRef.current = src;
-    const nextSource = src || null;
+    const nextSource = resolvePlayableSource(src) || null;
+
     const nextMode = getPlayerMode(nextSource);
 
     setCurrentSource(nextSource);
@@ -369,10 +405,10 @@ export const NetflixVideoPlayer = React.forwardRef(({
   }, [src]);
 
   /*
-   * Initial sync for non-host participants in native mode.
+   * Initial sync for participants (and host on room load) in native mode.
    */
   const applyInitialParticipantSync = useCallback(() => {
-    if (isProvider || isHostRef.current || hasAppliedInitialSyncRef.current) {
+    if (isProvider || hasAppliedInitialSyncRef.current) {
       return;
     }
 
@@ -469,10 +505,6 @@ export const NetflixVideoPlayer = React.forwardRef(({
       return;
     }
 
-    if (isHost) {
-      return;
-    }
-
     // A playback command can arrive before the browser has loaded the
     // native video's metadata. Do not lose that command: the effect also
     // depends on mediaReady, so it will run again after loadedmetadata/canplay.
@@ -487,7 +519,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
     isApplyingRemoteUpdateRef.current = true;
 
-    if (!isHost && !hasAppliedInitialSyncRef.current) {
+    if (!hasAppliedInitialSyncRef.current) {
       hasAppliedInitialSyncRef.current = true;
       adapter.seek(syncTime);
       setCurrentTime(syncTime);
@@ -613,11 +645,16 @@ export const NetflixVideoPlayer = React.forwardRef(({
 
     const next = !isPlaying;
 
-    if (isNative && isMediaReady()) {
-      const adapter = getAdapter();
-      if (adapter) {
-        if (next) adapter.play();
-        else adapter.pause();
+    if (isNative) {
+      if (videoRef.current) {
+        if (next) videoRef.current.play?.().catch(() => {});
+        else videoRef.current.pause?.();
+      } else {
+        const adapter = getAdapter();
+        if (adapter) {
+          if (next) adapter.play();
+          else adapter.pause();
+        }
       }
     }
 
@@ -635,7 +672,6 @@ export const NetflixVideoPlayer = React.forwardRef(({
     isPlaying,
     currentTime,
     notifyPlayback,
-    isMediaReady,
     getAdapter,
   ]);
 
@@ -988,7 +1024,11 @@ export const NetflixVideoPlayer = React.forwardRef(({
               setMediaError({ code: null, message: null });
               // The host may have played before this viewer finished loading.
               // applyInitialParticipantSync() uses the latest sync refs.
-              applyInitialParticipantSync();
+              if (!isHost) {
+                applyInitialParticipantSync();
+              } else if (syncIsPlayingRef.current || isPlaying) {
+                videoEl.play().catch(() => {});
+              }
             }
           }}
           onCanPlay={(e) => {
@@ -998,7 +1038,11 @@ export const NetflixVideoPlayer = React.forwardRef(({
               setMediaState('READY');
               // Re-apply the latest authoritative state if loadedmetadata
               // happened before the media became fully playable.
-              applyInitialParticipantSync();
+              if (!isHost) {
+                applyInitialParticipantSync();
+              } else if ((syncIsPlayingRef.current || isPlaying) && e.currentTarget.paused) {
+                e.currentTarget.play().catch(() => {});
+              }
             }
           }}
           onError={(e) => {
@@ -1009,7 +1053,7 @@ export const NetflixVideoPlayer = React.forwardRef(({
             logNativeDiagnostics('ERROR', videoEl, error);
 
             if (
-              (serverNum === 9 || currentSource?.includes('watch-together-demo')) &&
+              (serverNum === 9 || currentSource?.includes('watch-together-demo') || currentSource?.includes('kantara')) &&
               currentSource !== 'https://vjs.zencdn.net/v/oceans.mp4'
             ) {
               console.log('[NetflixVideoPlayer] Server 9 primary stream load error, switching to resilient fallback video stream');

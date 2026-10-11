@@ -222,7 +222,9 @@ export const WatchSpaceProvider = ({ children }) => {
             currentTime: projectedPos,
             isPlaying,
             playbackRate: payload.playbackRate || 1.0,
-            serverNum: payload.serverNum ?? prev.serverNum ?? 9,
+            serverNum: (typeof payload.serverNum === 'number' && payload.serverNum >= 1 && payload.serverNum <= 9)
+              ? payload.serverNum
+              : (prev.serverNum || 9),
             season: payload.season ?? prev.season ?? 1,
             episode: payload.episode ?? prev.episode ?? 1,
             version: payload.version || prev.version || 1,
@@ -683,6 +685,27 @@ export const WatchSpaceProvider = ({ children }) => {
       const currentState =
         state || (isPlaying ? 'playing' : 'paused');
 
+      const effectiveServerNum =
+        typeof serverNum === 'number' && serverNum >= 1 && serverNum <= 9
+          ? serverNum
+          : typeof playbackState.serverNum === 'number' && playbackState.serverNum >= 1 && playbackState.serverNum <= 9
+            ? playbackState.serverNum
+            : 9;
+
+      const effectiveSeason =
+        typeof season === 'number' && season >= 1
+          ? season
+          : typeof playbackState.season === 'number' && playbackState.season >= 1
+            ? playbackState.season
+            : 1;
+
+      const effectiveEpisode =
+        typeof episode === 'number' && episode >= 1
+          ? episode
+          : typeof playbackState.episode === 'number' && playbackState.episode >= 1
+            ? playbackState.episode
+            : 1;
+
       const payload = {
         action: action || 'update',
         positionSeconds: pos,
@@ -690,9 +713,9 @@ export const WatchSpaceProvider = ({ children }) => {
         state: currentState,
         isPlaying: currentState === 'playing',
         playbackRate: playbackRate || 1.0,
-        serverNum,
-        season,
-        episode,
+        serverNum: effectiveServerNum,
+        season: effectiveSeason,
+        episode: effectiveEpisode,
       };
 
       console.log('[WATCHSPACE EMIT PLAYBACK]', payload);
@@ -704,7 +727,7 @@ export const WatchSpaceProvider = ({ children }) => {
         ts: Date.now(),
       });
     },
-    [currentSpace]
+    [currentSpace, playbackState.serverNum, playbackState.season, playbackState.episode]
   );
 
   const sendServerChange = useCallback(
