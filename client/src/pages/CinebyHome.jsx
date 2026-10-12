@@ -370,19 +370,20 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
               <Info size={19} />
               <span>More Info</span>
             </button>
-
-            {heroTrailerPlaying && (
-              <button
-                className="cb-btn cb-btn-secondary"
-                onClick={() => setIsHeroMuted(!isHeroMuted)}
-                title={isHeroMuted ? 'Unmute Audio' : 'Mute Audio'}
-                style={{ borderRadius: '50%', padding: '0.65rem' }}
-              >
-                {isHeroMuted ? <VolumeX size={18} /> : <Volume2 size={18} color="var(--netflix-red)" />}
-              </button>
-            )}
           </div>
         </div>
+
+        {/* Dedicated Floating Hero Audio Toggle (True Netflix Style) */}
+        {heroTrailerPlaying && (
+          <button
+            className="cb-hero-mute-btn"
+            onClick={() => setIsHeroMuted(!isHeroMuted)}
+            title={isHeroMuted ? 'Unmute Trailer Audio' : 'Mute Trailer Audio'}
+            aria-label={isHeroMuted ? 'Unmute trailer audio' : 'Mute trailer audio'}
+          >
+            {isHeroMuted ? <VolumeX size={19} /> : <Volume2 size={19} color="var(--netflix-red)" />}
+          </button>
+        )}
       </section>
 
       {/* 4. Main Rows Container with Exact Requested Section Hierarchy */}
