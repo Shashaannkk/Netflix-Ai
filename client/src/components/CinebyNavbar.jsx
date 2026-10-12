@@ -101,32 +101,32 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
 
           <ul className={`cb-nav-menu ${mobileMenuOpen ? 'open' : ''}`}>
             <li>
-              <NavLink to="/" end className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink to="/" end className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 Browse
               </NavLink>
             </li>
             <li>
-              <NavLink to="/movies" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink to="/movies" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 Movies
               </NavLink>
             </li>
             <li>
-              <NavLink to="/tv-shows" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink to="/tv-shows" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 Series
               </NavLink>
             </li>
             <li>
-              <NavLink to="/anime" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink to="/anime" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 Anime
               </NavLink>
             </li>
             <li>
-              <NavLink to="/top-imdb" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink to="/top-imdb" className={({ isActive }) => `cb-nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 Top IMDb
               </NavLink>
             </li>
             <li>
-              <NavLink to="/create-space" className={({ isActive }) => `cb-nav-link cb-nav-link-badge ${isActive ? 'active' : ''}`}>
+              <NavLink to="/create-space" className={({ isActive }) => `cb-nav-link cb-nav-link-badge ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 Watch Spaces
                 <span className="cb-nav-ai-pill">AI</span>
               </NavLink>
@@ -143,7 +143,7 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
               <input
                 type="text"
                 className="cb-search-input"
-                placeholder="Hollywood, Bollywood, Anime, Series..."
+                placeholder="Search movies, anime..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setShowSearchDrop(true)}
@@ -297,7 +297,7 @@ export const CinebyNavbar = ({ onSelectMedia }) => {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle navigation menu"
           >
-            <Menu size={22} />
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
       </div>

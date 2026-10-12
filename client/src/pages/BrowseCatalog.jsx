@@ -233,8 +233,9 @@ export const BrowseCatalog = () => {
 
       {/* Hero Search & Filter Header Banner */}
       <div
+        className="cb-browse-header"
         style={{
-          paddingTop: '100px',
+          paddingTop: '90px',
           paddingBottom: '2rem',
           background: 'linear-gradient(180deg, rgba(229, 9, 20, 0.12) 0%, rgba(10, 10, 10, 1) 100%)',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -244,7 +245,7 @@ export const BrowseCatalog = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--netflix-red)', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
             <Sparkles size={16} /> Netflix AI Global Catalog & Multi-Filter Search
           </div>
-          <h1 style={{ fontSize: '2.4rem', fontWeight: 900, letterSpacing: '-0.5px', marginTop: '0.3rem' }}>
+          <h1 className="cb-browse-title" style={{ fontSize: '2.4rem', fontWeight: 900, letterSpacing: '-0.5px', marginTop: '0.3rem' }}>
             Browse Movies, Series & Anime
           </h1>
           <p style={{ color: '#aaa', fontSize: '0.95rem', marginTop: '0.3rem', maxWidth: '680px' }}>
@@ -508,6 +509,7 @@ export const BrowseCatalog = () => {
         ) : (
           <div>
             <div
+              className="cb-catalog-grid"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
