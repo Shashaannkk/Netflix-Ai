@@ -11,12 +11,34 @@
 ### Key Capabilities
 1. **Authoritative Host Synchronization Engine**: High-frequency Socket.IO playback synchronization with latency-compensated drift measurement ($RTT/2$) and client-side playback rate adjustments ($1.05\times / 0.95\times / \text{seek}$).
 2. **Timeline-Grounded Anti-Spoiler AI Co-Pilot (Nova)**: RAG pipeline enforcing strict upper-bound temporal constraints ($\text{currentTs} + 5\text{s}$) to answer viewer questions based strictly on currently watched content, returning attributed `sourceEvents`.
-3. **Adaptive Trailer Quality System**: Real-time Network Information API monitoring (`downlink`, `effectiveType`, `rtt`) that dynamically loads highest-resolution streams (`vq=highres` / `hd1080`) when connection quality is optimal, with real-time HUD status indicators.
+3. **Adaptive Video & Trailer Quality Engine**: Real-time Network Information API monitoring (`downlink`, `effectiveType`, `rtt`) that dynamically serves highest-resolution video feeds (`vq=highres` / `1080p`) when bandwidth allows, seamlessly adapting under the hood without intrusive overlays.
 4. **Accurate Watch History & Conditional Resume**: Precise tracking of playback timestamps (`Math.ceil((total - watched) / 60)` formatted as `-[M] min left` and `-[timestamp]`), allowing users to choose between resuming from where they left off or starting fresh from `0:00`.
 5. **Interactive Narrative Variations & Live Voting**: Pre-authored branching decision points with live countdown voting (`room.variation.voteOpen`, `room.variation.voteSubmit`, `room.variation.applied`) and multi-lingual localized subtitle tracks (`en-US`, `es-ES`, `ja-JP`, `director_cut`).
 6. **Presence, Live Chat & Moderation Tools**: Socket.IO presence tracking, persistent MongoDB room chat, typing indicators, floating emoji reactions, and host moderation commands (mute, kick, lock room, transfer host).
 7. **8-Mirror HD Streaming Architecture**: Multi-server failover architecture supporting 8 streaming mirrors (including Vidsrc, SuperEmbed, SmashyStream, 2Embed, VidLink) plus the dedicated Watch Together Demo Engine (Server 9).
 8. **Hybrid Recommendation Engine**: Content-based and collaborative filtering signals that continually adapt to user viewing habits, ratings, and genre affinities.
+
+---
+
+## 🌐 Built With External Providers & Media Infrastructure
+
+Netflix AI Watch Spaces integrates top-tier external APIs, media networks, and cloud providers to deliver production-grade performance:
+
+- **The Movie Database (TMDB) API**: Powers real-time global catalog discovery, high-resolution movie/series posters, backdrop artwork, season/episode manifests, runtime metadata, and cast/crew credits.
+- **YouTube Embed & Data APIs**: Delivers official cinematic trailers, teasers, and preview reels with adaptive bitrate parameters (`vq=highres`, JS API postMessage quality orchestration).
+- **Multi-Mirror Video Streaming Network**: Redundant streaming failover powered by canonical multi-provider sources:
+  - **Server 1**: Vidsrc.pro (Primary High-Speed Mirror)
+  - **Server 2**: SuperEmbed (Full HD Stream Mirror)
+  - **Server 3**: 2Embed (Multi-Language Subtitle Mirror)
+  - **Server 4**: SmashyStream (Adaptive Bitrate Feed)
+  - **Server 5**: VidLink (Low-Latency CDN Mirror)
+  - **Server 6**: MoviesAPI (Global Redundant Mirror)
+  - **Server 7**: Embed.su (Alternative Mirror)
+  - **Server 8**: Tears of Steel 4K (Canonical Open Cinema Stream)
+  - **Server 9**: Watch Together Demo Engine (Interactive Co-Watching Source with Live Subtitles & Narrative Voting)
+- **Google Cloud OAuth 2.0**: Enterprise federated authentication and single sign-on (SSO) with cryptographic JWT token exchange.
+- **MongoDB Atlas**: Cloud database cluster providing geo-distributed persistence for users, titles, watch party spaces, chat archives, and viewing analytics.
+- **Socket.IO Real-Time Cluster**: Low-latency bi-directional WebSocket fabric with automatic reconnection, heartbeat pings, and room namespaces.
 
 ---
 
@@ -27,10 +49,11 @@ graph TD
     Client[React + Vite Frontend Client] -->|REST API Requests| Express[Node.js + Express API Server]
     Client -->|WebSocket Events| SocketIO[Socket.IO Real-Time Engine]
     
-    subgraph Frontend Subsystems
-        Client --> NetQuality[Adaptive Network Quality Hook]
-        Client --> VideoPlayer[Custom NetflixVideoPlayer + 8-Mirror Engine]
-        Client --> WatchSpaceUI[Watch Space Social Room & AI Drawer]
+    subgraph External Providers & CDNs
+        Client -.-> TMDB[TMDB API: Metadata & Artwork]
+        Client -.-> YouTube[YouTube API: Adaptive Trailers]
+        Client -.-> StreamMirrors[8-Mirror Streaming Network]
+        Client -.-> GoogleOAuth[Google Cloud OAuth 2.0]
     end
 
     subgraph Backend Core
@@ -48,7 +71,7 @@ graph TD
     end
 
     subgraph Data Persistence
-        Express --> MongoDB[(MongoDB Database)]
+        Express --> MongoDB[(MongoDB Atlas)]
         SocketIO --> MongoDB
         MongoDB --> Models[User, Title, WatchSpace, ChatMessage, UserInteraction]
     end
@@ -130,6 +153,7 @@ erDiagram
 | `/api/health` | `GET` | Public | System health check and uptime status. |
 | `/api/auth/register` | `POST` | Public | User registration. Returns JWT access token and sets httpOnly refresh cookie. |
 | `/api/auth/login` | `POST` | Public | User login authentication with credentials or demo profiles. |
+| `/api/auth/google` | `POST` | Public | Google OAuth 2.0 credential verification and JWT generation. |
 | `/api/auth/refresh` | `POST` | Public | Transparent JWT access token refresh via httpOnly cookie. |
 | `/api/auth/me` | `GET` | Viewer | Returns authenticated user profile and permissions. |
 | `/api/titles` | `GET` | Public | List published titles in the catalog. |
@@ -170,7 +194,7 @@ All Socket.IO events adhere to the standard envelope format:
 | `room.playback.update` | Bi-directional | Authoritative playback state sync (play, pause, seek, playback rate). |
 | `room.sync.ping` / `room.sync.pong` | Bi-directional | Clock synchronization and round-trip time drift calculation ($RTT/2$). |
 | `room.presence.update` | Server $\rightarrow$ Client | Live roster update containing active members, spectator count, lock state. |
-| `room.chat.message` | Bi-directional | Room chat message broadcast (persisted to MongoDB). |
+| `room.chat.message` | Bi-directional | Room chat message broadcast (persisted to MongoDB Atlas). |
 | `room.chat.typing` | Client $\rightarrow$ Server | Participant typing indicator broadcast. |
 | `room.chat.reaction` | Client $\rightarrow$ Server | Floating animated emoji reactions (`🔥`, `❤️`, `👏`, `😂`, `⚡`). |
 | `room.moderation.update` | Host $\rightarrow$ Server | Host commands: `mute`, `unmute`, `kick`, `lock`, `transfer_host`. |
@@ -183,60 +207,65 @@ All Socket.IO events adhere to the standard envelope format:
 
 ---
 
-## 🛠️ Setup & Local Development
+## 🚀 Live Production & Cloud Deployment Setup
 
-### Prerequisites
-- **Node.js** `v18+` or `v20+`
-- **MongoDB** running locally on `mongodb://localhost:27017` or a MongoDB Atlas connection string.
-- Modern browser supporting WebSockets and modern ES APIs.
+### Environment Architecture
 
-### 1. Environment Variables Configuration
+The platform is designed for cloud-native deployment (e.g. Vercel, Railway, Render, AWS, or DigitalOcean) connected to managed database clusters:
 
-Copy example environment files:
-```bash
-# Server configuration
-cp server/.env.example server/.env
-
-# Client configuration
-cp client/.env.example client/.env
-```
-
-**Server `.env`**:
+#### 1. Live Server Configuration (`server/.env`)
 ```env
+# Production Port & Environment
 PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb://localhost:27017/netflix-ai
-JWT_SECRET=super_secret_jwt_key_netflix_ai
-REFRESH_TOKEN_SECRET=super_secret_refresh_token_key_netflix_ai
-JWT_EXPIRES_IN=15m
-REFRESH_TOKEN_EXPIRES_IN=7d
-CLIENT_URL=http://localhost:5173
-COOKIE_SECRET=netflix-cookie-secret
+NODE_ENV=production
+
+# Live Client Origin (CORS & Socket.IO whitelist)
+CLIENT_URL=https://your-netflix-ai.vercel.app
+
+# MongoDB Atlas Managed Database URI
+MONGO_URI=mongodb+srv://<db_user>:<db_password>@cluster0.mongodb.net/netflix-ai-production?retryWrites=true&w=majority
+
+# Cryptographic JWT & Cookie Signing Secrets
+JWT_ACCESS_SECRET=your_production_jwt_access_secret_key_minimum_32_chars
+JWT_REFRESH_SECRET=your_production_jwt_refresh_secret_key_minimum_32_chars
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+COOKIE_SECRET=your_production_cookie_signing_secret_998877
+
+# Google Cloud OAuth 2.0 Credentials
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```
 
-**Client `.env`**:
+#### 2. Live Client Configuration (`client/.env`)
 ```env
-VITE_API_URL=http://localhost:5000/api
-VITE_SOCKET_URL=http://localhost:5000
-VITE_TMDB_API_KEY=your_tmdb_api_key_here
+# Production API Gateway Base URL
+VITE_API_BASE_URL=https://api.your-netflix-ai.com/api
+
+# Production Real-Time Socket.IO Cluster URL
+VITE_SOCKET_URL=https://api.your-netflix-ai.com
+
+# Google Cloud OAuth Client ID
+VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+
+# Optional Custom TMDB API Key (Fallback available)
+VITE_TMDB_API_KEY=your_tmdb_v3_api_key
 ```
 
-### 2. Install Dependencies & Seed Catalog
+### Deployment Commands
 
 ```bash
-# 1. Setup Server
+# 1. Backend Server Deployment (Render / Railway / Docker)
 cd server
-npm install
+npm ci --only=production
 node data/seedTitles.js
-npm run dev
+npm start
 
-# 2. Setup Client (in a separate terminal)
-cd ../client
-npm install
-npm run dev
+# 2. Frontend Client Deployment (Vercel / Netlify / Cloudflare Pages)
+cd client
+npm ci
+npm run build
 ```
-
-The client application will be available at `http://localhost:5173`.
 
 ---
 
@@ -263,8 +292,8 @@ node server/tests/part10Comprehensive.test.js
 
 - **Frontend**: React 18, Vite, React Router 6, Lucide React, Socket.IO Client, Vanilla CSS Design System.
 - **Backend**: Node.js, Express, Socket.IO 4, Mongoose, JSON Web Tokens (JWT), bcryptjs, Cookie-Parser.
-- **Database**: MongoDB (User profiles, Watch spaces, Chat logs, Watch telemetry, Titles).
-- **Video Delivery**: HTML5 Video Canvas, YouTube IFrame API with Adaptive Network Quality, 8 HD Multi-Server Streaming Providers.
+- **Database & Cloud**: MongoDB Atlas, Google Cloud Platform OAuth 2.0.
+- **Video & Media**: HTML5 Video Canvas, YouTube IFrame API with Adaptive Bitrate, 8 HD Multi-Server Streaming Providers, TMDB v3 API.
 - **Intelligence**: RAG Timeline Retrieval Engine, Content-Based & Collaborative Filtering Recommender.
 
 ---

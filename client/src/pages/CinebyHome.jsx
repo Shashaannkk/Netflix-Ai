@@ -334,24 +334,6 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
               <Star size={13} color="#FBBF24" fill="#FBBF24" style={{ display: 'inline', marginRight: '4px' }} />
               IMDb {heroMedia?.vote_average ? heroMedia.vote_average.toFixed(1) : '8.6'}
             </span>
-            <span
-              className="cb-quality-pill"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(10, 10, 14, 0.85)',
-                border: `1px solid ${networkQuality.color}`,
-                color: networkQuality.color,
-                fontSize: '0.74rem',
-                fontWeight: 800,
-                padding: '2px 8px',
-                borderRadius: '12px',
-                backdropFilter: 'blur(8px)'
-              }}
-            >
-              {networkQuality.badge} ({networkQuality.label})
-            </span>
           </div>
 
           <h1 className="cb-hero-title">

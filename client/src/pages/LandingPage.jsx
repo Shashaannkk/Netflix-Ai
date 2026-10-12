@@ -698,26 +698,6 @@ export const LandingPage = ({ initialTab }) => {
               >
                 <Sparkles size={14} /> STRANGER THINGS • AI WATCH SPACES
               </div>
-
-              {/* Dynamic Network-Aware Quality Badge */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  background: 'rgba(12, 12, 14, 0.85)',
-                  border: `1px solid ${networkQuality.color}`,
-                  color: networkQuality.color,
-                  padding: '0.35rem 0.8rem',
-                  borderRadius: '20px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  backdropFilter: 'blur(8px)',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
-                }}
-              >
-                <span>{networkQuality.badge} ({networkQuality.label})</span>
-              </div>
             </div>
 
             <h1

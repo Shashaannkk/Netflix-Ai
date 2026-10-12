@@ -876,6 +876,12 @@ const WatchSpace = () => {
   ) || 550;
   const isTvSeries = effectiveSpace?.titleId?.media_type === 'tv' || effectiveSpace?.titleId?.type === 'tv' || Boolean(effectiveSpace?.titleId?.first_air_date);
 
+  // Compute titleName safely before hooks & effects
+  const resolvedTitle = selectedServer === 9
+    ? (effectiveSpace?.titleId?.title || WATCH_TOGETHER_DEMO_CONFIG.title)
+    : (effectiveSpace?.titleId?.title || 'Netflix AI Watch Space');
+  const titleName = resolvedTitle;
+
   // Load TV episodes when season or title changes
   useEffect(() => {
     if (!isTvSeries || !targetTmdbId) return;
@@ -960,7 +966,6 @@ const WatchSpace = () => {
 
   // Compute stream URL using 9-Server Architecture (Server 9 = Watch Together Demo, Servers 1-8 = Normal Movies)
   let videoSrc = null;
-  let titleName = effectiveSpace?.titleId?.title || 'Netflix AI Watch Space';
 
   if (selectedServer === 9) {
     videoSrc = getServerStreamUrl({
@@ -970,8 +975,6 @@ const WatchSpace = () => {
       episode: selectedEpisode,
       serverNum: 9,
     }) || WATCH_TOGETHER_DEMO_CONFIG.authorizedVideoSource;
-    titleName = effectiveSpace?.titleId?.title || WATCH_TOGETHER_DEMO_CONFIG.title;
-
   } else {
     videoSrc = getServerStreamUrl({
       tmdbId: targetTmdbId,
