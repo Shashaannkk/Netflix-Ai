@@ -4539,34 +4539,69 @@ body {
    RESPONSIVE WATCH TOGETHER LAYOUT (MOBILE PHONE, TABLET & DESKTOP)
    ============================================================ */
 
-/* Mobile Phones (max-width: 768px) */
+/* ── Universal Responsive Polish for All Netflix AI Pages ── */
+
+/* Tablets & Small Laptops (769px to 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .cinema-view {
+    flex-direction: row !important;
+    height: 100vh !important;
+  }
+  .cinema-video-area {
+    flex: 1 !important;
+    height: 100% !important;
+  }
+  .cinema-sidebar {
+    width: 320px !important;
+    min-width: 300px !important;
+    max-width: 340px !important;
+    height: 100% !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-top: none !important;
+  }
+  .cinema-top-bar {
+    padding: 0 1rem !important;
+    height: 60px !important;
+  }
+}
+
+/* Mobile Phones & Small Tablets (<= 768px) */
 @media (max-width: 768px) {
-  .watch-space-container {
+  /* 1. Cinema View & Live Watch Room */
+  .cinema-view {
     flex-direction: column !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 
-  .cinema-stage {
-    flex: none !important;
+  .cinema-video-area {
     width: 100% !important;
-    height: auto !important;
-    min-height: 240px !important;
-    max-height: 45vh !important;
+    height: 38vh !important;
+    min-height: 220px !important;
+    max-height: 42vh !important;
+    flex: none !important;
+    position: relative !important;
   }
 
-  .cinema-stage-controls {
-    padding: 0.5rem 0.75rem !important;
-    flex-wrap: wrap !important;
-    gap: 0.5rem !important;
+  .cinema-top-bar {
+    height: 52px !important;
+    padding: 0 0.75rem !important;
+    background: linear-gradient(180deg, rgba(10, 10, 14, 0.98) 0%, rgba(10, 10, 14, 0.6) 80%, transparent 100%) !important;
   }
 
-  .cinema-leave-btn span {
-    display: none;
+  .cinema-top-bar select {
+    max-width: 120px !important;
+    font-size: 0.7rem !important;
   }
+
   .cinema-leave-btn {
-    padding: 0.4rem 0.6rem !important;
+    padding: 0.35rem 0.6rem !important;
+    font-size: 0.75rem !important;
+  }
+  .cinema-leave-btn span {
+    display: none !important;
   }
 
   .cinema-sidebar {
@@ -4575,34 +4610,204 @@ body {
     max-width: 100% !important;
     flex: 1 !important;
     height: auto !important;
+    min-height: 340px !important;
     border-left: none !important;
     border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
   }
 
+  .chat-panel-header {
+    padding: 0.65rem 0.85rem !important;
+  }
+
   .chat-reaction-dock {
-    padding: 0.4rem 0.5rem !important;
+    padding: 0.35rem 0.5rem !important;
+    gap: 0.25rem !important;
+  }
+
+  .reaction-emoji-btn {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.95rem !important;
   }
 
   .chat-composer-container {
     padding: 0.5rem 0.75rem !important;
   }
 
+  .chat-input-field {
+    font-size: 0.85rem !important;
+    padding: 0.55rem 0.8rem !important;
+  }
+
   .fullscreen-floating-messages-stack {
-    bottom: 80px !important;
-    right: 12px !important;
-    max-width: 260px !important;
+    bottom: 75px !important;
+    right: 10px !important;
+    max-width: 250px !important;
+  }
+
+  /* 2. Top Navigation Bar on Mobile */
+  .cb-navbar {
+    height: 58px !important;
+  }
+
+  .cb-nav-container {
+    padding: 0 1rem !important;
+  }
+
+  .cb-logo-link svg {
+    height: 26px !important;
+  }
+
+  .cb-search-wrapper {
+    width: 110px !important;
+    transition: width 0.25s ease !important;
+  }
+  .cb-search-wrapper:focus-within {
+    width: 170px !important;
+  }
+
+  .cb-search-input {
+    font-size: 0.75rem !important;
+    padding: 0.35rem 0.6rem 0.35rem 1.9rem !important;
+  }
+
+  .cb-btn-signin {
+    padding: 0.35rem 0.75rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* 3. Hero Trailer & Header */
+  .cb-hero-banner {
+    height: 58vh !important;
+    min-height: 380px !important;
+    padding: 0 1rem 1.5rem !important;
+  }
+
+  .cb-hero-title {
+    font-size: 1.65rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .cb-hero-synopsis {
+    font-size: 0.8rem !important;
+    line-clamp: 2 !important;
+    -webkit-line-clamp: 2 !important;
+    margin-bottom: 0.85rem !important;
+  }
+
+  .cb-hero-buttons {
+    flex-wrap: wrap !important;
+    gap: 0.4rem !important;
+  }
+
+  .cb-hero-buttons .cb-btn {
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.8rem !important;
+    flex: 1 1 auto !important;
+  }
+
+  /* 4. Movie Rows & Cards */
+  .cb-row-title {
+    font-size: 1.05rem !important;
+  }
+
+  .cb-portrait-card {
+    flex: 0 0 115px !important;
+  }
+
+  .cb-landscape-card {
+    flex: 0 0 175px !important;
+  }
+
+  .cb-row-arrow {
+    display: none !important; /* Touch swipe on mobile */
+  }
+
+  /* 5. Cineby Details & Playback Modal */
+  .cb-modal-overlay {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+
+  .cb-modal-container {
+    width: 100% !important;
+    max-height: 92dvh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 16px !important;
+    border-top-right-radius: 16px !important;
+  }
+
+  .cb-modal-hero {
+    height: 220px !important;
+  }
+
+  .cb-modal-body {
+    padding: 1rem !important;
+  }
+
+  .cb-modal-actions-bar {
+    gap: 0.4rem !important;
+  }
+
+  .cb-modal-actions-bar .cb-btn {
+    flex: 1 1 calc(50% - 0.4rem) !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .cb-modal-details-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* 6. Join Space & Code Input */
+  .join-page-card {
+    padding: 1.5rem 1rem !important;
+    width: 95% !important;
+    max-width: 100% !important;
+  }
+
+  .join-otp-row {
+    gap: 0.35rem !important;
+  }
+
+  .join-otp-input {
+    width: 38px !important;
+    height: 48px !important;
+    font-size: 1.25rem !important;
+  }
+
+  /* 7. Watch Activity Grid */
+  .activity-stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
   }
 }
 
-/* Tablets (min-width: 769px) and (max-width: 1024px) */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .cinema-sidebar {
-    width: 320px !important;
-    min-width: 300px !important;
+/* Extra Small Phones (<= 480px) */
+@media (max-width: 480px) {
+  .cinema-video-area {
+    height: 32vh !important;
+    min-height: 190px !important;
   }
 
-  .cinema-stage-controls {
-    padding: 0.65rem 1rem !important;
+  .cb-portrait-card {
+    flex: 0 0 100px !important;
+  }
+
+  .cb-hero-title {
+    font-size: 1.4rem !important;
+  }
+
+  .join-otp-input {
+    width: 34px !important;
+    height: 44px !important;
+    font-size: 1.1rem !important;
+  }
+
+  .activity-stats-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 
