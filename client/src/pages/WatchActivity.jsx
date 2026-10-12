@@ -459,6 +459,7 @@ export const WatchActivity = () => {
                 const watchedSec = item.watchedSeconds || 0;
 
                 const actualMinsWatched = Math.floor(watchedSec / 60);
+                const totalMins = Math.floor(durationSec / 60);
                 const remainingSecs = Math.max(0, durationSec - watchedSec);
                 const remainingMins = Math.ceil(remainingSecs / 60);
                 const progressPct = item.completed
