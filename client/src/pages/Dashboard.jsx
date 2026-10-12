@@ -318,9 +318,8 @@ export const Dashboard = () => {
                 const titleName = item.titleName || titleObj.title || 'Watched Title';
                 const watchedSec = item.watchedSeconds || 0;
                 const durSec = item.durationSeconds || titleObj.durationSeconds || 5400;
-                const totalMins = Math.floor(durSec / 60);
-                const watchedMins = Math.floor(watchedSec / 60);
-                const remainingMins = Math.max(0, totalMins - watchedMins);
+                const remainingSecs = Math.max(0, durSec - watchedSec);
+                const remainingMins = Math.ceil(remainingSecs / 60);
                 const isSeries = item.mediaType === 'tv' || Boolean(item.season) || Boolean(item.episode) || Boolean(titleObj.first_air_date);
 
                 return (
@@ -353,8 +352,8 @@ export const Dashboard = () => {
                         {item.completed
                           ? 'Completed'
                           : isSeries
-                          ? `S${item.season || 1} E${item.episode || 1} • ${remainingMins} min left`
-                          : `${remainingMins} min left`}
+                          ? `S${item.season || 1} E${item.episode || 1} • -${remainingMins} min left`
+                          : `-${remainingMins} min left`}
                       </div>
 
                       {item.rating && (

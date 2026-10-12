@@ -9,18 +9,17 @@ export const Layout = () => {
   const isCinemaPage = location.pathname.startsWith('/space');
   const isCreateSpacePage = location.pathname === '/create-space';
 
-  if (isCinemaPage) {
+  if (isCinemaPage || isAuthPage) {
     return <Outlet />;
   }
 
-  if (isAuthPage || isCreateSpacePage) {
+  if (isCreateSpacePage) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: 'var(--netflix-black)', display: 'flex', flexDirection: 'column' }}>
         <Navbar />
-        <main style={{ flex: 1, width: '100%', overflow: isCreateSpacePage ? 'hidden' : 'visible' }}>
+        <main style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
           <Outlet />
         </main>
-        {!isCreateSpacePage && <Footer />}
       </div>
     );
   }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Play, Users, Star, Clock, Calendar, Sparkles, Film, ExternalLink, Share2, Heart, User, Server, Layers, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Play, Users, Star, Clock, Calendar, Sparkles, Film, ExternalLink, Share2, Heart, User, Server, Layers, ChevronDown, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchTrailerKey, getImageUrl, fetchMediaCredits, fetchSimilarMedia, fetchSeasonEpisodes, fetchMediaDetails } from '../services/tmdb';
 import { MOVIE_SERVERS, getServerStreamUrl, SERVER_8_CANONICAL_SOURCE } from '../services/movieServers';
@@ -13,6 +13,12 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const [similarMedia, setSimilarMedia] = useState([]);
   const [activeTab, setActiveTab] = useState('trailer'); // 'trailer' | 'overview' | 'movie'
   const [isFavorited, setIsFavorited] = useState(false);
+  
+  // Real Playback Resume Tracking State
+  const [shouldResume, setShouldResume] = useState(Boolean(media?.startFromResume));
+  const [currentPlaybackSecs, setCurrentPlaybackSecs] = useState(null);
+  const [currentDurationSecs, setCurrentDurationSecs] = useState(null);
+  const lastLoggedTimeRef = useRef(0);
   
   // Multi-server state (Default Server 1 = Vidsrc.pro)
   const [selectedServer, setSelectedServer] = useState(1);
@@ -37,35 +43,46 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
     }
   }, [media]);
 
-  // Log viewing telemetry to train recommendation engine when user starts streaming
-  useEffect(() => {
-    if (activeTab === 'movie' && currentMedia) {
-      const mediaType = currentMedia.media_type || (currentMedia.first_air_date ? 'tv' : 'movie');
-      const lang = currentMedia.original_language || 'en';
-      const languageName = lang === 'hi' ? 'Hindi' : lang === 'ja' ? 'Japanese' : 'English';
-      const extractedGenres = (currentMedia.genres || []).map((g) => g.name || g);
+  // Real-time viewing progress synchronization with backend and recommendation engine
+  const syncViewingProgress = useCallback((cur, dur) => {
+    if (!currentMedia || typeof cur !== 'number' || isNaN(cur)) return;
+    const watched = Math.max(0, Math.floor(cur));
+    const total = Math.max(1, Math.floor(dur || (runtimeMinutes ? runtimeMinutes * 60 : 7200)));
+    const isCompleted = watched >= total - 30 || (total > 0 && watched / total >= 0.95);
+    const mediaType = currentMedia.media_type || (currentMedia.first_air_date ? 'tv' : 'movie');
+    const lang = currentMedia.original_language || 'en';
+    const languageName = lang === 'hi' ? 'Hindi' : lang === 'ja' ? 'Japanese' : 'English';
+    const extractedGenres = (currentMedia.genres || []).map((g) => g.name || g);
 
-      recordInteractionApi({
-        titleId: String(currentMedia.tmdbId || currentMedia.id),
-        title: currentMedia.title || currentMedia.name || 'Streamed Content',
-        poster: getImageUrl(currentMedia.poster_path),
-        backdropUrl: getImageUrl(currentMedia.backdrop_path || currentMedia.poster_path, true),
-        watchedSeconds: Math.floor((runtimeMinutes || 120) * 30),
-        durationSeconds: (runtimeMinutes || 120) * 60,
-        season: selectedSeason,
-        episode: selectedEpisode,
-        completed: false,
-        genreAffinity: extractedGenres.length ? extractedGenres : ['Movie'],
-        mediaType,
-        language: languageName,
-        tags: [
-          mediaType === 'tv' ? 'Series' : 'Movie',
-          lang === 'ja' ? 'Anime' : lang === 'hi' ? 'Bollywood' : 'Hollywood',
-          ...extractedGenres,
-        ],
-      }).catch((err) => console.warn('[CinebyModal] Interaction logging note:', err.message));
-    }
-  }, [activeTab, currentMedia, runtimeMinutes, selectedSeason, selectedEpisode]);
+    recordInteractionApi({
+      titleId: String(currentMedia.tmdbId || currentMedia.id),
+      title: currentMedia.title || currentMedia.name || 'Streamed Content',
+      poster: getImageUrl(currentMedia.poster_path),
+      backdropUrl: getImageUrl(currentMedia.backdrop_path || currentMedia.poster_path, true),
+      watchedSeconds: watched,
+      durationSeconds: total,
+      season: selectedSeason,
+      episode: selectedEpisode,
+      completed: isCompleted,
+      genreAffinity: extractedGenres.length ? extractedGenres : ['Movie'],
+      mediaType,
+      language: languageName,
+      tags: [
+        mediaType === 'tv' ? 'Series' : 'Movie',
+        lang === 'ja' ? 'Anime' : lang === 'hi' ? 'Bollywood' : 'Hollywood',
+        ...extractedGenres,
+      ],
+    }).catch((err) => console.warn('[CinebyModal] Interaction save note:', err.message));
+  }, [currentMedia, runtimeMinutes, selectedSeason, selectedEpisode]);
+
+  // Flush viewing progress when modal unmounts
+  useEffect(() => {
+    return () => {
+      if (videoRef.current && videoRef.current.currentTime > 0) {
+        syncViewingProgress(videoRef.current.currentTime, videoRef.current.duration);
+      }
+    };
+  }, [syncViewingProgress]);
 
   useEffect(() => {
     if (!currentMedia) return;
@@ -150,19 +167,71 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
   const posterUrl = getImageUrl(targetMedia.poster_path);
   const isTv = targetMedia.media_type === 'tv' || Boolean(targetMedia.first_air_date);
 
-  const resumeSecs = targetMedia.resumeTime || targetMedia.watchedSeconds || 0;
-  const totalDurationSecs = targetMedia.durationSeconds || (runtimeMinutes ? runtimeMinutes * 60 : 7200);
-  const resumeMins = Math.floor(resumeSecs / 60);
-  const totalMins = Math.floor(totalDurationSecs / 60);
-  const remainingMins = Math.max(0, totalMins - resumeMins);
+  const getStoredResumeSecs = () => {
+    try {
+      const local = localStorage.getItem(`netflix_ai_resume_${targetMedia.tmdbId || targetMedia.id}`);
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (typeof parsed.watchedSeconds === 'number' && !parsed.completed) {
+          return parsed.watchedSeconds;
+        }
+      }
+    } catch {}
+    return targetMedia.resumeTime || targetMedia.watchedSeconds || 0;
+  };
+
+  const resumeSecs = getStoredResumeSecs();
+  const activePositionSecs = currentPlaybackSecs !== null ? currentPlaybackSecs : resumeSecs;
+  const totalDurationSecs = currentDurationSecs || targetMedia.durationSeconds || (runtimeMinutes ? runtimeMinutes * 60 : 7200);
+  const remainingSecs = Math.max(0, totalDurationSecs - activePositionSecs);
+  const remainingMins = Math.ceil(remainingSecs / 60);
+
+  const formatTimestamp = (totalSec) => {
+    if (typeof totalSec !== 'number' || isNaN(totalSec)) return '0:00';
+    const sec = Math.floor(totalSec % 60);
+    const min = Math.floor((totalSec / 60) % 60);
+    const hr = Math.floor(totalSec / 3600);
+    if (hr > 0) {
+      return `${hr}:${min < 10 ? '0' : ''}${min}:${sec < 10 ? '0' : ''}${sec}`;
+    }
+    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+  };
+
   const formattedRuntime = isTv 
     ? (episodes && episodes.length ? `${episodes.length} Episodes` : 'TV Series')
     : `${Math.floor((runtimeMinutes || 120) / 60)}h ${(runtimeMinutes || 120) % 60}m`;
   const videoRef = React.useRef(null);
 
   const handleVideoLoaded = () => {
-    if (videoRef.current && resumeSecs > 0) {
-      videoRef.current.currentTime = resumeSecs;
+    if (videoRef.current) {
+      const dur = videoRef.current.duration || totalDurationSecs;
+      setCurrentDurationSecs(dur);
+      if (shouldResume && resumeSecs > 0 && resumeSecs < dur - 10) {
+        videoRef.current.currentTime = resumeSecs;
+      } else {
+        videoRef.current.currentTime = 0;
+      }
+    }
+  };
+
+  const handleTimeUpdate = (e) => {
+    const cur = e.target.currentTime;
+    const dur = e.target.duration || totalDurationSecs;
+    setCurrentPlaybackSecs(cur);
+    if (dur && !isNaN(dur)) setCurrentDurationSecs(dur);
+
+    try {
+      localStorage.setItem(`netflix_ai_resume_${targetMedia.tmdbId || targetMedia.id}`, JSON.stringify({
+        watchedSeconds: Math.floor(cur),
+        durationSeconds: Math.floor(dur),
+        completed: cur >= dur - 30,
+        timestamp: Date.now()
+      }));
+    } catch {}
+
+    if (Math.abs(cur - lastLoggedTimeRef.current) >= 10) {
+      lastLoggedTimeRef.current = cur;
+      syncViewingProgress(cur, dur);
     }
   };
 
@@ -203,12 +272,15 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
                     controls
                     autoPlay
                     onLoadedMetadata={handleVideoLoaded}
+                    onTimeUpdate={handleTimeUpdate}
+                    onPause={(e) => syncViewingProgress(e.target.currentTime, e.target.duration)}
+                    onEnded={(e) => syncViewingProgress(e.target.duration, e.target.duration)}
                     className="cb-modal-iframe"
                     poster={backdropUrl}
                   />
                 ) : (
                   <iframe
-                    src={`${getServerStreamUrl({ tmdbId: tmdbNumericId, isTv, season: selectedSeason, episode: selectedEpisode, serverNum: selectedServer })}${resumeSecs > 0 ? `#t=${resumeSecs}` : ''}`}
+                    src={`${getServerStreamUrl({ tmdbId: tmdbNumericId, isTv, season: selectedSeason, episode: selectedEpisode, serverNum: selectedServer })}${shouldResume && resumeSecs > 0 ? `#t=${resumeSecs}` : ''}`}
                     title={`${title} Stream - Server ${selectedServer}`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -251,12 +323,15 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
         <div className="cb-modal-body">
           {/* Resume Progress Bar if previously watched */}
           {resumeSecs > 0 && !targetMedia.completed && (
-            <div style={{ background: '#1c1c1c', border: '1px solid rgba(229,9,20,0.3)', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: '0.82rem', color: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Clock size={15} color="var(--netflix-red)" />
-                {isTv ? `Resume S${selectedSeason} E${selectedEpisode}` : 'Resume playback'} from {resumeMins}m
+            <div style={{ background: '#1c1c1c', border: '1px solid rgba(229,9,20,0.35)', padding: '0.85rem 1.1rem', borderRadius: '10px', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem' }}>
+              <div style={{ fontSize: '0.86rem', color: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Clock size={16} color="var(--netflix-red)" />
+                <span>{isTv ? `Resume S${selectedSeason} E${selectedEpisode}` : 'Where you left off'}:</span>
+                <span style={{ color: '#FBBF24', fontWeight: 800 }}>{formatTimestamp(activePositionSecs)}</span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 600 }}>{remainingMins} min left</div>
+              <div style={{ fontSize: '0.82rem', color: '#ff4d4d', fontWeight: 800, background: 'rgba(229,9,20,0.15)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>
+                -{formatTimestamp(remainingSecs)} ({remainingMins} min left)
+              </div>
             </div>
           )}
 
@@ -267,19 +342,50 @@ export const CinebyModal = ({ media, onClose, onWatchTogether }) => {
             </button>
 
             {resumeSecs > 0 && !targetMedia.completed ? (
-              <button
-                className="cb-btn cb-btn-play"
-                onClick={() => {
-                  setActiveTab('movie');
-                }}
-              >
-                <Play size={16} fill="currentColor" />
-                <span>Resume {isTv ? `S${selectedSeason} E${selectedEpisode}` : ''} ({resumeMins}m)</span>
-              </button>
+              <>
+                <button
+                  className="cb-btn cb-btn-play"
+                  onClick={() => {
+                    setShouldResume(true);
+                    setActiveTab('movie');
+                    if (videoRef.current) {
+                      videoRef.current.currentTime = resumeSecs;
+                      videoRef.current.play().catch(() => {});
+                    }
+                  }}
+                  title={`Start from ${formatTimestamp(resumeSecs)}`}
+                >
+                  <Play size={16} fill="currentColor" />
+                  <span>Resume at {formatTimestamp(resumeSecs)} (-{remainingMins}m left)</span>
+                </button>
+
+                <button
+                  className="cb-btn cb-btn-secondary"
+                  onClick={() => {
+                    setShouldResume(false);
+                    setActiveTab('movie');
+                    if (videoRef.current) {
+                      videoRef.current.currentTime = 0;
+                      videoRef.current.play().catch(() => {});
+                    }
+                  }}
+                  title="Start playback from the very beginning"
+                >
+                  <RotateCcw size={15} />
+                  <span>Start from Beginning (0:00)</span>
+                </button>
+              </>
             ) : (
               <button
                 className={`cb-btn ${activeTab === 'movie' ? 'cb-btn-play' : 'cb-btn-secondary'}`}
-                onClick={() => setActiveTab('movie')}
+                onClick={() => {
+                  setShouldResume(false);
+                  setActiveTab('movie');
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(() => {});
+                  }
+                }}
               >
                 <Film size={16} />
                 <span>Play Full {isTv ? 'Series' : 'Movie'}</span>

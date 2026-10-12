@@ -8,6 +8,7 @@ import CinebyNavbar from '../components/CinebyNavbar';
 import CinebyModal from '../components/CinebyModal';
 import CinebySplash from '../components/CinebySplash';
 import Footer from '../components/Footer';
+import { useNetworkQuality, applyYouTubeQualityToIframe } from '../utils/networkQuality';
 
 import {
   fetchTrendingMovies,
@@ -62,6 +63,10 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
   const [heroTrailerPlaying, setHeroTrailerPlaying] = useState(false);
   const [isHeroMuted, setIsHeroMuted] = useState(true);
   const heroTimerRef = useRef(null);
+  const heroIframeRef = useRef(null);
+
+  // Live Adaptive Network Quality Detection
+  const networkQuality = useNetworkQuality();
 
   // Selected media modal state
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -295,10 +300,14 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
         >
           {heroMedia && (
             <iframe
-              key={`${heroMedia.id}-${isHeroMuted}-${heroTrailerPlaying}`}
-              src={`https://www.youtube-nocookie.com/embed/${activeTrailerKey}?autoplay=1&mute=${isHeroMuted ? 1 : 0}&controls=0&enablejsapi=1&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${activeTrailerKey}`}
+              ref={heroIframeRef}
+              key={`${heroMedia.id}-${isHeroMuted}-${heroTrailerPlaying}-${networkQuality.qualityLevel}`}
+              src={`https://www.youtube-nocookie.com/embed/${activeTrailerKey}?autoplay=1&mute=${isHeroMuted ? 1 : 0}&controls=0&enablejsapi=1&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${activeTrailerKey}&vq=${networkQuality.vq}`}
               title="Hero Official Trailer"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              onLoad={() => {
+                applyYouTubeQualityToIframe(heroIframeRef.current, networkQuality.ytQuality);
+              }}
               style={{
                 width: '100vw',
                 height: '56.25vw',
@@ -319,11 +328,29 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
         <div className="cb-hero-bottom-fade" style={{ zIndex: 3 }} />
 
         <div className="cb-hero-content" style={{ zIndex: 4, position: 'relative' }}>
-          <div className="cb-hero-tag">
+          <div className="cb-hero-tag" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span className="cb-exclusive-pill">NETFLIX AI FEATURED</span>
             <span className="cb-hero-rating">
               <Star size={13} color="#FBBF24" fill="#FBBF24" style={{ display: 'inline', marginRight: '4px' }} />
               IMDb {heroMedia?.vote_average ? heroMedia.vote_average.toFixed(1) : '8.6'}
+            </span>
+            <span
+              className="cb-quality-pill"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'rgba(10, 10, 14, 0.85)',
+                border: `1px solid ${networkQuality.color}`,
+                color: networkQuality.color,
+                fontSize: '0.74rem',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '12px',
+                backdropFilter: 'blur(8px)'
+              }}
+            >
+              {networkQuality.badge} ({networkQuality.label})
             </span>
           </div>
 
@@ -1302,9 +1329,8 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
                   const titleName = item.titleName || titleObj.title || 'Watched Title';
                   const watchedSec = item.watchedSeconds || 0;
                   const durSec = item.durationSeconds || titleObj.durationSeconds || 5400;
-                  const totalMins = Math.floor(durSec / 60);
-                  const watchedMins = Math.floor(watchedSec / 60);
-                  const remainingMins = Math.max(0, totalMins - watchedMins);
+                  const remainingSecs = Math.max(0, durSec - watchedSec);
+                  const remainingMins = Math.ceil(remainingSecs / 60);
                   const isSeries = item.mediaType === 'tv' || Boolean(item.season) || Boolean(item.episode) || Boolean(titleObj.first_air_date);
 
                   const mediaPayload = {
@@ -1322,6 +1348,7 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
                     episode: item.episode || 1,
                     completed: item.completed,
                     media_type: isSeries ? 'tv' : 'movie',
+                    startFromResume: true,
                   };
 
                   return (
@@ -1347,8 +1374,8 @@ export const CinebyHome = ({ activeCategory = 'browse' }) => {
                             {item.completed
                               ? 'Completed'
                               : isSeries
-                              ? `S${item.season || 1} E${item.episode || 1} • ${remainingMins} min left`
-                              : `${remainingMins} min left`}
+                              ? `S${item.season || 1} E${item.episode || 1} • -${remainingMins} min left`
+                              : `-${remainingMins} min left`}
                           </div>
                         </div>
                       </div>

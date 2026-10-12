@@ -32,6 +32,7 @@ import {
   CURATED_ANIME_MOVIES,
   CURATED_ANIME_SERIES
 } from '../services/tmdb';
+import { useNetworkQuality, applyYouTubeQualityToIframe } from '../utils/networkQuality';
 
 const FAQS = [
   {
@@ -94,10 +95,14 @@ export const LandingPage = ({ initialTab }) => {
 
   // Refs
   const bgVideoRef = useRef(null);
+  const youtubeIframeRef = useRef(null);
   const formCardRef = useRef(null);
   const trendingRowRef = useRef(null);
   const animeMoviesRowRef = useRef(null);
   const animeSeriesRowRef = useRef(null);
+
+  // Live Adaptive Network Quality Detection
+  const networkQuality = useNetworkQuality();
 
   // Always redirect to /browse page after successful login
   const redirectPath = '/browse';
@@ -334,14 +339,29 @@ export const LandingPage = ({ initialTab }) => {
     }
   }, [googleLogin, navigate, redirectPath]);
 
+  // Handler to switch auth mode, sync URL, and smoothly focus form card
+  const handleToggleAuthMode = (mode) => {
+    const nextMode = mode || (authMode === 'login' ? 'register' : 'login');
+    setAuthMode(nextMode);
+    setErrorMsg(null);
+    if (nextMode === 'register' && location.pathname !== '/register') {
+      navigate('/register', { replace: true });
+    } else if (nextMode === 'login' && location.pathname !== '/login') {
+      navigate('/login', { replace: true });
+    }
+    if (formCardRef.current) {
+      formCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   // Sync authMode when prop or pathname changes
   useEffect(() => {
-    if (initialTab) {
-      setAuthMode(initialTab);
-    } else if (location.pathname === '/register') {
+    if (location.pathname === '/register') {
       setAuthMode('register');
     } else if (location.pathname === '/login') {
       setAuthMode('login');
+    } else if (initialTab) {
+      setAuthMode(initialTab);
     }
   }, [location.pathname, initialTab]);
 
@@ -371,9 +391,50 @@ export const LandingPage = ({ initialTab }) => {
     }
   };
 
-  // Real Native Google OAuth Popup Window Trigger
+  // Quick 1-Click Instant Demo Login (Zero barrier testing)
+  const handleQuickDemoLogin = async (demoRole = 'host') => {
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+      const isHostRole = demoRole === 'host';
+      const demoEmail = isHostRole ? 'demo.host@netflixai.internal' : 'demo.viewer@netflixai.internal';
+      const demoName = isHostRole ? 'Demo Host' : 'Demo Viewer';
+      await googleLogin({
+        email: demoEmail,
+        displayName: demoName,
+        role: demoRole,
+        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(demoName)}&background=${isHostRole ? 'e50914' : '3b82f6'}&color=ffffff`
+      });
+      navigate(redirectPath, { replace: true });
+    } catch (err) {
+      setErrorMsg('Quick demo sign in failed: ' + (err.message || 'Error authenticating'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Real Native Google OAuth Popup Window Trigger with Fallback
   const handleGoogleAuthClick = async () => {
     setErrorMsg(null);
+
+    const performFallback = async () => {
+      try {
+        setIsSubmitting(true);
+        const targetEmail = (email || 'shashank.poojari@gmail.com').trim();
+        const targetName = (displayName || (targetEmail ? targetEmail.split('@')[0] : 'Shashank Poojari')).trim();
+
+        await googleLogin({
+          email: targetEmail,
+          displayName: targetName,
+          avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(targetName)}&background=e50914&color=ffffff`
+        });
+        navigate(redirectPath, { replace: true });
+      } catch (err) {
+        setErrorMsg('Google Sign In failed: ' + (err.message || 'Error authenticating with backend'));
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
 
     // 1. Try Native Google OAuth Token Client Popup
     if (window.google?.accounts?.oauth2) {
@@ -382,11 +443,14 @@ export const LandingPage = ({ initialTab }) => {
         const client = window.google.accounts.oauth2.initTokenClient({
           client_id: googleClientId,
           scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+          error_callback: (err) => {
+            console.warn('[Google Auth] Token client error, falling back:', err);
+            performFallback();
+          },
           callback: async (tokenResponse) => {
             if (tokenResponse?.access_token) {
               try {
                 setIsSubmitting(true);
-                // Fetch user info from Google's official userinfo API
                 const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                   headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
                 });
@@ -398,10 +462,13 @@ export const LandingPage = ({ initialTab }) => {
                 });
                 navigate(redirectPath, { replace: true });
               } catch (err) {
-                setErrorMsg('Google authentication failed: ' + (err.message || 'Error fetching user profile'));
+                console.warn('[Google Auth] Profile fetch error, falling back:', err);
+                await performFallback();
               } finally {
                 setIsSubmitting(false);
               }
+            } else {
+              await performFallback();
             }
           },
         });
@@ -412,44 +479,17 @@ export const LandingPage = ({ initialTab }) => {
       }
     }
 
-    // 2. Try Google Identity Services One-Tap prompt
-    if (window.google?.accounts?.id) {
-      try {
-        window.google.accounts.id.prompt();
-      } catch (e) {
-        console.warn('GIS prompt notice:', e);
-      }
-    }
-
-    // 3. Direct authentication fallback
-    try {
-      setIsSubmitting(true);
-      const targetEmail = (email || 'shashank.poojari@gmail.com').trim();
-      const targetName = (displayName || (targetEmail ? targetEmail.split('@')[0] : 'Shashank Poojari')).trim();
-
-      await googleLogin({
-        email: targetEmail,
-        displayName: targetName,
-        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(targetName)}&background=e50914&color=ffffff`
-      });
-      navigate(redirectPath, { replace: true });
-    } catch (err) {
-      setErrorMsg('Google Sign In failed: ' + (err.message || 'Error authenticating with backend'));
-    } finally {
-      setIsSubmitting(false);
-    }
+    // 2. Direct authentication fallback
+    await performFallback();
   };
 
-  // Click on Trending Media -> Prompt login if unauthenticated
+  // Click on Trending Media -> Prompt login if unauthenticated and focus form
   const handleMediaClick = (media) => {
     if (isAuthenticated) {
       navigate(`/create-space?titleId=${media.id}`);
     } else {
       setLoginRequiredMedia(media);
-      setAuthMode('login');
-      if (formCardRef.current) {
-        formCardRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
+      handleToggleAuthMode('login');
     }
   };
 
@@ -505,9 +545,13 @@ export const LandingPage = ({ initialTab }) => {
 
           {/* YouTube Trailer Layer for Stranger Things (Scaled 1.65x so ALL play/pause/forward buttons & headers are pushed off screen) */}
           <iframe
-            src="https://www.youtube-nocookie.com/embed/b9EkMc79ZSU?autoplay=1&mute=1&controls=0&loop=1&playlist=b9EkMc79ZSU&playsinline=1&enablejsapi=1&iv_load_policy=3&disablekb=1&modestbranding=1&rel=0&showinfo=0"
+            ref={youtubeIframeRef}
+            src={`https://www.youtube-nocookie.com/embed/b9EkMc79ZSU?autoplay=1&mute=1&controls=0&loop=1&playlist=b9EkMc79ZSU&playsinline=1&enablejsapi=1&iv_load_policy=3&disablekb=1&modestbranding=1&rel=0&showinfo=0&vq=${networkQuality.vq}`}
             title="Stranger Things Official Trailer"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            onLoad={() => {
+              applyYouTubeQualityToIframe(youtubeIframeRef.current, networkQuality.ytQuality);
+            }}
             style={{
               position: 'absolute',
               top: '50%',
@@ -599,7 +643,8 @@ export const LandingPage = ({ initialTab }) => {
               </Link>
             ) : (
               <button
-                onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                type="button"
+                onClick={() => handleToggleAuthMode()}
                 style={{
                   background: 'var(--netflix-red)',
                   color: '#fff',
@@ -636,22 +681,43 @@ export const LandingPage = ({ initialTab }) => {
         >
           {/* Hero Left Text Details */}
           <div>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'rgba(229, 9, 20, 0.2)',
-                border: '1px solid rgba(229, 9, 20, 0.5)',
-                color: '#ff4d4d',
-                padding: '0.35rem 0.85rem',
-                borderRadius: '20px',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                marginBottom: '1rem'
-              }}
-            >
-              <Sparkles size={14} /> STRANGER THINGS • AI WATCH SPACES
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(229, 9, 20, 0.2)',
+                  border: '1px solid rgba(229, 9, 20, 0.5)',
+                  color: '#ff4d4d',
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '20px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                }}
+              >
+                <Sparkles size={14} /> STRANGER THINGS • AI WATCH SPACES
+              </div>
+
+              {/* Dynamic Network-Aware Quality Badge */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  background: 'rgba(12, 12, 14, 0.85)',
+                  border: `1px solid ${networkQuality.color}`,
+                  color: networkQuality.color,
+                  padding: '0.35rem 0.8rem',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  backdropFilter: 'blur(8px)',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
+                }}
+              >
+                <span>{networkQuality.badge} ({networkQuality.label})</span>
+              </div>
             </div>
 
             <h1
@@ -728,13 +794,24 @@ export const LandingPage = ({ initialTab }) => {
                       marginBottom: '1.25rem',
                       display: 'flex',
                       alignItems: 'center',
+                      justifyContent: 'space-between',
                       gap: '0.6rem'
                     }}
                   >
-                    <Lock size={16} color="var(--netflix-red)" />
-                    <div>
-                      <strong>Sign In Required</strong> to watch <em>{loginRequiredMedia.title}</em>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <Lock size={16} color="var(--netflix-red)" />
+                      <div>
+                        <strong>Sign In Required</strong> to watch <em>{loginRequiredMedia.title}</em>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setLoginRequiredMedia(null)}
+                      style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '2px', display: 'flex' }}
+                      title="Dismiss notice"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
 
@@ -751,7 +828,7 @@ export const LandingPage = ({ initialTab }) => {
                   >
                     <button
                       type="button"
-                      onClick={() => { setAuthMode('login'); setErrorMsg(null); }}
+                      onClick={() => handleToggleAuthMode('login')}
                       style={{
                         flex: 1,
                         padding: '0.6rem',
@@ -769,7 +846,7 @@ export const LandingPage = ({ initialTab }) => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setAuthMode('register'); setErrorMsg(null); }}
+                      onClick={() => handleToggleAuthMode('register')}
                       style={{
                         flex: 1,
                         padding: '0.6rem',
@@ -810,6 +887,58 @@ export const LandingPage = ({ initialTab }) => {
                     <span>{errorMsg}</span>
                   </div>
                 )}
+
+                {/* Quick 1-Click Instant Demo Login Buttons */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('host')}
+                    disabled={isSubmitting}
+                    style={{
+                      padding: '0.65rem 0.5rem',
+                      background: 'rgba(229, 9, 20, 0.15)',
+                      border: '1px solid var(--netflix-red)',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      transition: 'background 0.2s'
+                    }}
+                    title="1-Click Demo Login as Space Host"
+                  >
+                    <Sparkles size={14} color="var(--netflix-red)" />
+                    <span>Demo Host</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('viewer')}
+                    disabled={isSubmitting}
+                    style={{
+                      padding: '0.65rem 0.5rem',
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid #3b82f6',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      transition: 'background 0.2s'
+                    }}
+                    title="1-Click Demo Login as Viewer"
+                  >
+                    <Users size={14} color="#3b82f6" />
+                    <span>Demo Viewer</span>
+                  </button>
+                </div>
 
                 {/* Pure White "Continue with Google" Button (Launches Real Native Google OAuth Popup) */}
                 <button
@@ -1161,7 +1290,12 @@ export const LandingPage = ({ initialTab }) => {
                     </span>
 
                     <button
+                      type="button"
                       className="btn-netflix-space"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMediaClick(movie);
+                      }}
                       style={{
                         width: '100%',
                         marginTop: '0.75rem',
@@ -1175,7 +1309,8 @@ export const LandingPage = ({ initialTab }) => {
                         color: '#fff',
                         border: 'none',
                         borderRadius: '4px',
-                        fontWeight: 700
+                        fontWeight: 700,
+                        cursor: 'pointer'
                       }}
                     >
                       <Users size={14} /> Watch Together
@@ -1411,7 +1546,12 @@ export const LandingPage = ({ initialTab }) => {
                       </span>
 
                       <button
+                        type="button"
                         className="btn-netflix-space"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMediaClick(anime);
+                        }}
                         style={{
                           width: '100%',
                           marginTop: '0.75rem',
@@ -1425,7 +1565,8 @@ export const LandingPage = ({ initialTab }) => {
                           color: '#fff',
                           border: 'none',
                           borderRadius: '4px',
-                          fontWeight: 700
+                          fontWeight: 700,
+                          cursor: 'pointer'
                         }}
                       >
                         <Users size={14} /> Watch Together
@@ -1650,7 +1791,12 @@ export const LandingPage = ({ initialTab }) => {
                       </span>
 
                       <button
+                        type="button"
                         className="btn-netflix-space"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMediaClick(anime);
+                        }}
                         style={{
                           width: '100%',
                           marginTop: '0.75rem',
@@ -1664,7 +1810,8 @@ export const LandingPage = ({ initialTab }) => {
                           color: '#fff',
                           border: 'none',
                           borderRadius: '4px',
-                          fontWeight: 700
+                          fontWeight: 700,
+                          cursor: 'pointer'
                         }}
                       >
                         <Users size={14} /> Watch Together

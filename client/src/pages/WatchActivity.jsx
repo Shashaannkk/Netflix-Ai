@@ -459,8 +459,8 @@ export const WatchActivity = () => {
                 const watchedSec = item.watchedSeconds || 0;
 
                 const actualMinsWatched = Math.floor(watchedSec / 60);
-                const totalMins = Math.floor(durationSec / 60);
-                const remainingMins = Math.max(0, totalMins - actualMinsWatched);
+                const remainingSecs = Math.max(0, durationSec - watchedSec);
+                const remainingMins = Math.ceil(remainingSecs / 60);
                 const progressPct = item.completed
                   ? 100
                   : (durationSec > 0 ? Math.min(99, Math.max(1, Math.round((watchedSec / durationSec) * 100))) : 0);
@@ -486,6 +486,7 @@ export const WatchActivity = () => {
                   episode,
                   completed: item.completed,
                   media_type: isSeries ? 'tv' : 'movie',
+                  startFromResume: true,
                 };
 
                 return (
@@ -541,8 +542,8 @@ export const WatchActivity = () => {
                           {item.completed
                             ? 'Completed'
                             : isSeries
-                            ? `S${season} E${episode} • ${remainingMins} min left`
-                            : `${remainingMins} min left`}
+                            ? `S${season} E${episode} • -${remainingMins} min left`
+                            : `-${remainingMins} min left`}
                         </span>
 
                         {/* Delete button */}

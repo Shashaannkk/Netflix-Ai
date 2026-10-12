@@ -46,6 +46,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useWatchSpace } from '../context/WatchSpaceContext';
 import { useAuth } from '../context/AuthContext';
 import { askAiCoPilotApi } from '../services/watchSpaceApi';
+import { recordInteractionApi } from '../services/api';
 import { fetchSeasonEpisodes, fetchMediaDetails } from '../services/tmdb';
 import NetflixVideoPlayer from '../components/NetflixVideoPlayer';
 import { MOVIE_SERVERS, WATCH_TOGETHER_DEMO_CONFIG, getServerStreamUrl, cleanTmdbId, classifySource, getPlayerMode, SERVER_8_CANONICAL_SOURCE, isObsoleteSampleUrl } from '../services/movieServers';
@@ -909,6 +910,43 @@ const WatchSpace = () => {
     });
     return () => { isMounted = false; };
   }, [targetTmdbId, isTvSeries]);
+
+  // Sync Watch Space viewing progress to User Watch History & Recommendation Engine
+  const lastInteractionTimeRef = useRef(0);
+  useEffect(() => {
+    if (!currentTime || currentTime <= 0) return;
+    const curSec = Math.floor(currentTime);
+    const durSec = Math.max(1, Math.floor(duration || 7200));
+
+    // Save to localStorage immediately so user can resume anytime
+    try {
+      localStorage.setItem(`netflix_ai_resume_${targetTmdbId}`, JSON.stringify({
+        watchedSeconds: curSec,
+        durationSeconds: durSec,
+        completed: curSec >= durSec - 30,
+        season: selectedSeason,
+        episode: selectedEpisode,
+        timestamp: Date.now()
+      }));
+    } catch {}
+
+    // Throttle API interaction saving to once every 15 seconds
+    if (Math.abs(curSec - lastInteractionTimeRef.current) >= 15) {
+      lastInteractionTimeRef.current = curSec;
+      recordInteractionApi({
+        titleId: String(targetTmdbId),
+        title: titleName,
+        poster: effectiveSpace?.titleId?.poster || '',
+        backdropUrl: effectiveSpace?.titleId?.backdropUrl || '',
+        watchedSeconds: curSec,
+        durationSeconds: durSec,
+        season: selectedSeason,
+        episode: selectedEpisode,
+        completed: curSec >= durSec - 30,
+        mediaType: isTvSeries ? 'tv' : 'movie',
+      }).catch((err) => console.warn('[WatchSpace] Progress log note:', err?.message));
+    }
+  }, [currentTime, duration, targetTmdbId, titleName, selectedSeason, selectedEpisode, isTvSeries, effectiveSpace]);
 
   // ── Loading / Error states ──────────────────────────────────────────────────
   if (spaceLoading && !currentSpace) {
